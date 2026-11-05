@@ -53,13 +53,31 @@ jobs:
 
       - name: Deploy to Compute Engine VM
         run: |
-          gcloud compute ssh ${{ env.VM_NAME }} --zone=${{ env.VM_ZONE }} --command="
+          gcloud compute ssh ${{ env.VM_NAME }} --zone=${{ env.VM_ZONE }} -- "mkdir -p ~/aksaranetra"
+          gcloud compute scp docker-compose.prod.yml ${{ env.VM_NAME }}:~/aksaranetra/docker-compose.prod.yml --zone=${{ env.VM_ZONE }}
+          gcloud compute ssh ${{ env.VM_NAME }} --zone=${{ env.VM_ZONE }} -- "bash -c '
             set -e
-            cd /home/\$USER/aksaranetra
+            cd ~/aksaranetra
+            if [ ! -f backend.env ]; then
+              cat << \"EOF\" > backend.env
+          APP_NAME=AksaraNetra
+          APP_ENV=production
+          APP_DEBUG=false
+          PORT=8787
+          HOST=0.0.0.0
+          FRONTEND_ORIGINS=*
+          BACKEND_SECRET=$(openssl rand -hex 32)
+          BACKEND_DATA_DIR=/data
+          TRUST_PROXY=1
+          AUDIT_TIMEOUT_MS=180000
+          RESULT_RETENTION_MS=604800000
+          CHROMIUM_LOW_RESOURCE_MODE=1
+          EOF
+            fi
             gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
             export GAR_LOCATION=${{ env.GAR_LOCATION }}
             export GCP_PROJECT=${{ env.GCP_PROJECT }}
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            docker image prune -af --filter 'until=48h'
-          "
+            docker image prune -af --filter \"until=48h\"
+          '"
