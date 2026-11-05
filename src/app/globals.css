@@ -1,4 +1,6 @@
 /* ===== AksaraNetra Design System ===== */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
 
 /*
   Redesign layer v4 — mengikuti acuan navbar-pill dan hero simetris:
@@ -7,6 +9,7 @@
 */
 
 :root {
+  --font-plus-jakarta-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   /* --- Inti: biru sebagai satu-satunya warna aksen --- */
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;

@@ -1,18 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NotificationBar from "@/components/NotificationBar";
 import ViewportBlur from "@/components/ViewportBlur";
 import BlueGlow from "@/components/BlueGlow";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -40,7 +32,6 @@ export default function RootLayout({
     // CSS memang disengaja, sehingga peringatan di konsol berhenti muncul.
     <html
       lang="id"
-      className={plusJakartaSans.variable}
       data-scroll-behavior="smooth"
     >
       {/*
