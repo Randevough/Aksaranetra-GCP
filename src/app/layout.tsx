@@ -30,7 +30,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     // data-scroll-behavior memberi tahu Next bahwa scroll-behavior: smooth di
     // CSS memang disengaja, sehingga peringatan di konsol berhenti muncul.

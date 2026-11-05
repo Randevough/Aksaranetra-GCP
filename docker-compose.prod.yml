@@ -1,0 +1,43 @@
+services:
+  frontend:
+    image: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT}/aksaranetra/frontend:latest
+    container_name: aksaranetra-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_BACKEND_URL=${BACKEND_PUBLIC_URL:-http://localhost:8787}
+      - NEXT_PUBLIC_AUDIT_API_URL=${BACKEND_PUBLIC_URL:-http://localhost:8787}
+    depends_on:
+      - backend-api
+
+  backend-api:
+    image: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT}/aksaranetra/backend:latest
+    container_name: aksaranetra-backend-api
+    command: ["api"]
+    restart: always
+    ports:
+      - "8787:8787"
+    env_file:
+      - ./backend.env
+    volumes:
+      - aksara_data:/data
+    shm_size: '1gb'
+
+  backend-worker:
+    image: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT}/aksaranetra/backend:latest
+    container_name: aksaranetra-backend-worker
+    command: ["worker"]
+    restart: always
+    env_file:
+      - ./backend.env
+    volumes:
+      - aksara_data:/data
+    shm_size: '1gb'
+    depends_on:
+      - backend-api
+
+volumes:
+  aksara_data:
+    driver: local
