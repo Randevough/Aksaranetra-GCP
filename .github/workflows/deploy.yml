@@ -74,6 +74,7 @@ jobs:
           CHROMIUM_LOW_RESOURCE_MODE=1
           EOF
             fi
+            sudo chmod 666 /var/run/docker.sock
             gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
             export GAR_LOCATION=${{ env.GAR_LOCATION }}
             export GCP_PROJECT=${{ env.GCP_PROJECT }}
