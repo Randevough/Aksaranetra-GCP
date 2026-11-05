@@ -1,32 +1,36 @@
-# Frontend (tidak dipakai backend image)
-src/
-public/
-next.config.ts
-tsconfig.json
-eslint.config.mjs
-next-env.d.ts
-package-lock.json
+# Node / Next.js local artifacts
 node_modules/
 .next/
 out/
+next-env.d.ts
 
-# Engine: jangan bawa node_modules lokal, biar diinstall bersih di image
+# Engine local runtime & tests
 engine/node_modules/
 engine/output*/
 engine/ui/data/
+engine/tests/
 
-# Backend: jangan bawa data runtime lama & node_modules lokal
+# Backend (Node) local data & runtime
 backend/data/
 backend/backend/
 backend/node_modules/
+backend/tests/
 
-# Umum
-.git/
-docs/
-*.md
+# PHP Backend local artifacts & dependencies
+php-backend/vendor/
+php-backend/storage/framework/cache/data/*
+php-backend/storage/framework/sessions/*
+php-backend/storage/framework/views/*
+php-backend/storage/logs/*
+php-backend/tests/
+
+# Environment files
 .env
 .env.local
 .env.*.local
+
+# General
+.git/
+docs/
+*.md
 tests/
-engine/tests/
-backend/tests/

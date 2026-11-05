@@ -91,13 +91,12 @@ php-backend/
 │   └── database.php                   # SQLite WAL mode & busy timeout connection
 ├── database/migrations/               # Migration creating audit_jobs table
 ├── docker/
-│   ├── Dockerfile                     # Multi-ecosystem production image
 │   ├── entrypoint.sh                  # Container startup script (migrations + supervisor/worker)
 │   ├── nginx.conf                     # Unprivileged Nginx configuration on port 8787
 │   ├── php-fpm.conf                   # PHP-FPM pool configuration with clear_env = no
 │   └── supervisord.conf               # Process manager for API container
 ├── docker-compose.yml                 # Multi-service stack (api + worker + shared volume)
-├── Dockerfile                         # Root symlink/alias to docker/Dockerfile
+├── Dockerfile                         # Unified multi-ecosystem production image
 ├── public/index.php                   # HTTP front controller
 ├── routes/api.php                     # Pure API routes without /api prefix
 ├── scripts/

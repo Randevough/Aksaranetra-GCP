@@ -1,15 +1,110 @@
 services:
-  backend:
+  # 1. Frontend Web (Next.js)
+  frontend:
     build:
-      context: .                    # wajib root repo, bukan ./backend
-      dockerfile: backend/Dockerfile
-    container_name: aksaranetra-backend
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_AUDIT_API_URL: ${NEXT_PUBLIC_AUDIT_API_URL:-http://localhost:8787}
+    container_name: aksaranetra-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_AUDIT_API_URL=${NEXT_PUBLIC_AUDIT_API_URL:-http://localhost:8787}
+    depends_on:
+      php-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 2. PHP Backend API (Laravel + Nginx + PHP-FPM)
+  php-backend:
+    build:
+      context: .
+      dockerfile: php-backend/Dockerfile
+    container_name: aksaranetra-php-api
+    command: ["api"]
     ports:
       - "8787:8787"
     env_file:
-      - ./backend/.env               # dibuat manual, lihat backend/.env.example
+      - path: .env
+        required: false
+      - path: php-backend/.env
+        required: false
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - PORT=8787
+      - HOST=0.0.0.0
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - BACKEND_SECRET=${BACKEND_SECRET:-aksaranetra-production-secret-change-me-32chars}
+      - BACKEND_DATA_DIR=/data
+      - CHROMIUM_LOW_RESOURCE_MODE=1
+      - AUDIT_TIMEOUT_MS=180000
+      - RESULT_RETENTION_MS=604800000
+      - AUDIT_RATE_LIMIT=10
     volumes:
-      - backend_data:/data           # supaya data SQLite tidak hilang tiap restart container
+      - backend_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8787/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # 3. PHP Audit Worker (Artisan audit:work + Node/Playwright Chromium Engine)
+  php-worker:
+    build:
+      context: .
+      dockerfile: php-backend/Dockerfile
+    container_name: aksaranetra-php-worker
+    command: ["worker"]
+    depends_on:
+      php-backend:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+      - path: php-backend/.env
+        required: false
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - BACKEND_SECRET=${BACKEND_SECRET:-aksaranetra-production-secret-change-me-32chars}
+      - BACKEND_DATA_DIR=/data
+      - CHROMIUM_LOW_RESOURCE_MODE=1
+      - NODE_OPTIONS=--max-old-space-size=192
+      - PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+      - AUDIT_TIMEOUT_MS=180000
+      - RESULT_RETENTION_MS=604800000
+    volumes:
+      - backend_data:/data
+    shm_size: 512mb
+    restart: unless-stopped
+
+  # 4. Arsip aktif: Backend Node.js legacy (opsional via --profile node-legacy)
+  backend-node:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: aksaranetra-backend-node
+    profiles:
+      - node-legacy
+    ports:
+      - "8788:8787"
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8787
+      - BACKEND_DATA_DIR=/data
+      - BACKEND_SECRET=${BACKEND_SECRET:-aksaranetra-production-secret-change-me-32chars}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      - CHROMIUM_LOW_RESOURCE_MODE=1
+    volumes:
+      - backend_data:/data
     restart: unless-stopped
 
 volumes:
