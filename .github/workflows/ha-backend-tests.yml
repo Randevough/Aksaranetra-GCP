@@ -1,0 +1,66 @@
+name: HA backend tests
+on:
+  push:
+    branches: [ha/backend-state]
+permissions:
+  contents: read
+  checks: write
+jobs:
+  leased-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ha_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: php-backend
+    env:
+      HA_TEST_DSN: pgsql:host=127.0.0.1;port=5432;dbname=ha_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, pdo_sqlite, sqlite3, dom, xml, xmlwriter, mbstring
+          tools: composer:2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: composer install --no-interaction --prefer-dist --no-progress --no-plugins
+      - name: PostgreSQL leased queue
+        run: vendor/bin/phpunit tests/Feature/PostgresLeaseTest.php --log-junit lease-junit.xml
+      - name: Existing SQLite queue and worker regression tests
+        if: always()
+        run: vendor/bin/phpunit tests/Feature/StoreTest.php tests/Feature/WorkerTest.php --log-junit sqlite-junit.xml
+      - name: Publish JUnit results
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: php-backend/*-junit.xml
+          check_name: HA JUnit results
+          detailed_summary: true
+          include_passed: true
+      - name: JUnit job summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              for path in glob.glob('*-junit.xml'):
+                  root = ET.parse(path).getroot()
+                  out.write(f'## {path}\n')
+                  for case in root.iter('testcase'):
+                      failures = list(case.findall('failure')) + list(case.findall('error'))
+                      out.write(f"- {case.get('name')}: {'FAIL' if failures else 'PASS'}\n")
+                      for failure in failures:
+                          out.write(f'```\n{failure.text}\n```\n')
+          PY
