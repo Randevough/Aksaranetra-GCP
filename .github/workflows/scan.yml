@@ -4,43 +4,129 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  frontend:
+  tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ha_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+          cache-dependency-path: |
+            package-lock.json
+            engine/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Frontend lint
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: npm run lint
+      - name: Frontend build
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: npm run build
         env:
           NEXT_PUBLIC_AUDIT_API_URL: https://api.example.invalid
-
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npm run backend:check
-      - run: npm run backend:test
-
-  engine:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+      - name: Legacy backend checks
+        if: ${{ !cancelled() }}
+        timeout-minutes: 3
+        run: npm run backend:check
+      - name: Legacy backend tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: npm run backend:test
+      - name: Install engine dependencies
+        if: ${{ !cancelled() }}
         working-directory: engine
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        run: npm ci
+      - name: Install Chromium
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        working-directory: engine
+        run: npx playwright install --with-deps chromium
+      - name: Engine tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        working-directory: engine
+        run: npm test
+      - uses: shivammathur/setup-php@v2
+        if: ${{ !cancelled() }}
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: engine/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
+          php-version: '8.3'
+          extensions: pdo_pgsql, pdo_sqlite, sqlite3, dom, xml, xmlwriter, mbstring
+          tools: composer:2
+          coverage: none
+      - uses: actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        with:
+          node-version: '22'
+      - name: Install locked PHP dependencies (including dev)
+        if: ${{ !cancelled() }}
+        working-directory: php-backend
+        run: composer install --no-interaction --prefer-dist --no-progress --no-plugins
+      - name: PHP full suite including PostgreSQL leases and SQLite regressions
+        id: tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        working-directory: php-backend
+        env:
+          HA_TEST_DSN: pgsql:host=127.0.0.1;port=5432;dbname=ha_test
+        run: vendor/bin/phpunit --log-junit "$RUNNER_TEMP/phpunit.xml"
+      - name: PHPUnit summary
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          python3 - <<'PY'
+          import os, re, pathlib, xml.etree.ElementTree as ET
+          def safe(text):
+              text = re.sub(r'(?i)(bearer\s+|(?:token|secret|password|authorization|api[_-]?key)\s*[=:]\s*)\S+', r'\1[redacted]', text)
+              text = re.sub(r'(?i)https?://\S+', '[URL redacted]', text)
+              return text[:1800]
+          report = pathlib.Path(os.environ['RUNNER_TEMP']) / 'phpunit.xml'
+          lines = ['## PHP suite (SQLite + PostgreSQL)', 'Test step: ' + os.environ['TEST_OUTCOME']]
+          if report.exists():
+              root = ET.parse(report).getroot()
+              cases = root.findall('.//testcase')
+              counts = {kind: len(root.findall('.//' + kind)) for kind in ('failure', 'error', 'skipped')}
+              lines.append(f"Tests: {len(cases)}; failures: {counts['failure']}; errors: {counts['error']}; skipped: {counts['skipped']}")
+              for case in cases:
+                  for issue in list(case.findall('failure')) + list(case.findall('error')):
+                      detail = safe('\n'.join((issue.text or issue.get('message', '')).splitlines()[:3]))
+                      lines.append(f"\n### {case.get('class', '')}::{case.get('name', '')}\n{issue.get('type', '')}\n\n```text\n{detail}\n```")
+          else:
+              lines.append('JUnit report unavailable: setup failed or PHPUnit stopped before report creation.')
+          summary = '\n\n'.join(lines)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write(summary)
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'php-summary.md').write_text(summary)
+          PY
+      - name: Upload PHPUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-reports
+          path: |
+            ${{ runner.temp }}/phpunit.xml
+            ${{ runner.temp }}/php-summary.md
+          if-no-files-found: warn
+          retention-days: 14
