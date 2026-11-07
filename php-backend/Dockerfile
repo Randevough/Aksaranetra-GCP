@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
+    libpq-dev \
     nginx \
     supervisor \
     unzip \
@@ -23,8 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 2. Install PHP extensions
 # (pdo_sqlite, mbstring, openssl, json, curl are already built-in on php:8.3-fpm-bookworm)
-# Add pcntl (for worker CLI signal handling) and opcache (for production performance)
-RUN docker-php-ext-install pcntl opcache
+# PostgreSQL shared state; retain SQLite support for legacy deployments.
+RUN docker-php-ext-install pcntl opcache pdo_pgsql
 
 # 3. Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
