@@ -37,7 +37,47 @@ class GcsArtifactsTest extends TestCase
             $this->assertStringContainsString('attempt-1', urldecode((string) $request->getUri()));
             $this->assertStringNotContainsString('predefinedAcl', (string) $request->getUri());
             $this->assertSame(20, $history[0]['options']['timeout']);
-        } finally { unlink($dir . '/reader.html'); rmdir($dir); }
+        } finally { @unlink($dir . '/reader.html'); @rmdir($dir); }
+    }
+
+    public function test_worker_publishes_manifest_to_job_result_when_gcs_configured(): void
+    {
+        $stack = HandlerStack::create(new MockHandler([new Response(200)]));
+        $client = new Client(['handler' => $stack]);
+        $gcs = new GcsArtifacts('private-bucket', 'project-id', $client, fn () => 'token');
+        $dir = sys_get_temp_dir() . '/gcs-worker-' . bin2hex(random_bytes(6));
+        mkdir($dir);
+        file_put_contents($dir . '/reader.html', 'content');
+        $now = (int) (microtime(true) * 1000);
+        $pdo = new \PDO('sqlite::memory:');
+        $store = new \App\Services\JobStore($pdo);
+        $store->createJob([
+            'id' => 'gcs-job',
+            'tokenHash' => 'a',
+            'shareTokenHash' => 'b',
+            'ipHash' => 'c',
+            'targetUrl' => 'https://example.com/',
+            'createdAt' => $now,
+            'expiresAt' => $now + 600000,
+            'artifactDir' => $dir,
+        ]);
+        $auditor = new class implements \App\Services\AuditorInterface {
+            public function audit(\App\Models\AuditJob $job, ?callable $onProgress = null, ?callable $shouldCancel = null): array
+            {
+                return ['snapshot' => ['title' => 'test'], 'artifacts' => []];
+            }
+        };
+        try {
+            $worker = new \App\Services\AuditWorker($store, $auditor, 180000, 1, $gcs);
+            $this->assertTrue($worker->processNext());
+            $job = $store->getJob('gcs-job');
+            $this->assertSame('completed', $job->status);
+            $this->assertArrayHasKey('manifest', $job->result);
+            $this->assertArrayHasKey('reader.html', $job->result['manifest']);
+        } finally {
+            @unlink($dir . '/reader.html');
+            @rmdir($dir);
+        }
     }
 
     public function test_lost_lease_prevents_any_upload(): void

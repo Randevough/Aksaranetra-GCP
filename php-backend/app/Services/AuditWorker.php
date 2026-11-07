@@ -27,7 +27,8 @@ class AuditWorker implements AuditWorkerInterface
         private readonly JobStore $store,
         private readonly AuditorInterface $auditor,
         private readonly int $timeoutMs = 180_000,
-        private readonly int $concurrency = 1
+        private readonly int $concurrency = 1,
+        private readonly ?\App\Services\GcsArtifacts $gcs = null
     ) {}
 
     public function kick(): void
@@ -159,6 +160,11 @@ class AuditWorker implements AuditWorkerInterface
                 $this->store->cancelRunning($job->id, $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } else {
+                if ($this->gcs !== null && is_dir($job->artifactDir)) {
+                    $attemptKey = 'attempt-' . $job->attempts . '-' . ($job->leaseToken ?? '1');
+                    $manifest = $this->gcs->publish($job->id, $attemptKey, $job->artifactDir, $ownsLease);
+                    $result['manifest'] = $manifest;
+                }
                 $this->store->complete($job->id, $result, $job->leaseToken);
             }
         } catch (Throwable $error) {
