@@ -2,7 +2,7 @@ name: PHP tests
 
 on:
   push:
-    branches: [ci/php-test-baseline, ci/php-baseline-diagnostics, ha/backend-state]
+    branches: [ci/php-test-baseline, ci/php-baseline-diagnostics, ha/backend-state, ha/integration]
   pull_request:
     paths:
       - php-backend/**

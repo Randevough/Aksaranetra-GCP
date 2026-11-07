@@ -1,7 +1,7 @@
 name: HA backend tests
 on:
   push:
-    branches: [ha/backend-state]
+    branches: [ha/backend-state, ha/integration]
 permissions:
   contents: read
   checks: write
