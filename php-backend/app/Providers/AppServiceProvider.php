@@ -35,7 +35,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(JobStore::class, function ($app) {
             $config = $app->make(AksaraConfig::class);
 
-            return new JobStore($config->databasePath);
+            return new JobStore(config('database.default') === 'pgsql'
+                ? $app->make('db')->connection('pgsql')->getPdo()
+                : $config->databasePath);
         });
 
         $this->app->singleton(BridgeClientInterface::class, function () {

@@ -93,8 +93,25 @@ class AuditWorker implements AuditWorkerInterface
         $this->activeJobCancelled = false;
         $startTime = microtime(true);
         $timedOut = false;
+        $leaseLost = false;
+        $lastHeartbeat = 0.0;
+        $ownsLease = function () use ($job, &$leaseLost): bool {
+            if ($job->leaseToken === null) {
+                return true;
+            }
+            if (!$this->store->heartbeat($job->id, $job->leaseToken)) {
+                $leaseLost = true;
+            }
+            return !$leaseLost;
+        };
 
-        $shouldCancel = function () use ($job, $startTime, &$timedOut): bool {
+        $shouldCancel = function () use ($job, $startTime, &$timedOut, &$lastHeartbeat, $ownsLease): bool {
+            if (microtime(true) - $lastHeartbeat >= 10) {
+                $lastHeartbeat = microtime(true);
+                if (!$ownsLease()) {
+                    return true;
+                }
+            }
             if ($this->stopped) {
                 return true;
             }
@@ -118,12 +135,15 @@ class AuditWorker implements AuditWorkerInterface
         };
 
         $onProgress = function (array $update) use ($job): void {
-            $this->store->updateProgress($job->id, $update);
+            $this->store->updateProgress($job->id, $update, $job->leaseToken);
         };
 
         try {
             $result = $this->auditor->audit($job, $onProgress, $shouldCancel);
 
+            if ($leaseLost || !$ownsLease()) {
+                return;
+            }
             $current = $this->store->getJob($job->id);
             if ($this->stopped && $current?->status === 'running') {
                 return;
@@ -133,15 +153,18 @@ class AuditWorker implements AuditWorkerInterface
                 $this->store->fail($job->id, [
                     'code' => 'audit-timeout',
                     'message' => 'Audit melewati batas ' . (int) round($this->timeoutMs / 1000) . ' detik.',
-                ]);
+                ], $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } elseif ($this->activeJobCancelled || ($current !== null && $current->cancelRequested)) {
-                $this->store->cancelRunning($job->id);
+                $this->store->cancelRunning($job->id, $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } else {
-                $this->store->complete($job->id, $result);
+                $this->store->complete($job->id, $result, $job->leaseToken);
             }
         } catch (Throwable $error) {
+            if ($leaseLost || !$ownsLease()) {
+                return;
+            }
             $current = $this->store->getJob($job->id);
             if ($this->stopped && $current?->status === 'running') {
                 return;
@@ -151,10 +174,10 @@ class AuditWorker implements AuditWorkerInterface
                 $this->store->fail($job->id, [
                     'code' => 'audit-timeout',
                     'message' => 'Audit melewati batas ' . (int) round($this->timeoutMs / 1000) . ' detik.',
-                ]);
+                ], $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } elseif ($this->activeJobCancelled || ($current !== null && $current->cancelRequested) || ($error instanceof AuditCancelledException)) {
-                $this->store->cancelRunning($job->id);
+                $this->store->cancelRunning($job->id, $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } else {
                 $code = ($error instanceof AuditFailedException) ? $error->errorCode : ($error->getCode() ?: 'audit-failed');
@@ -164,9 +187,9 @@ class AuditWorker implements AuditWorkerInterface
                 $message = $error->getMessage() ?: 'Audit gagal.';
 
                 if (in_array($code, self::TRANSIENT_CODES, true) && ($current !== null && $current->attempts < 2)) {
-                    $this->store->retry($job->id, ['code' => $code, 'message' => $message]);
+                    $this->store->retry($job->id, ['code' => $code, 'message' => $message], $job->leaseToken);
                 } else {
-                    $this->store->fail($job->id, ['code' => $code, 'message' => $message]);
+                    $this->store->fail($job->id, ['code' => $code, 'message' => $message], $job->leaseToken);
                     $this->deleteArtifactDir($job->artifactDir);
                 }
             }

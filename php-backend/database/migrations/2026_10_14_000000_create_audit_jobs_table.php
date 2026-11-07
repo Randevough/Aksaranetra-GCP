@@ -25,11 +25,11 @@ return new class extends Migration
             result_json TEXT,
             error_code TEXT,
             error_message TEXT,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            started_at INTEGER,
-            finished_at INTEGER,
-            expires_at INTEGER NOT NULL,
+            created_at BIGINT NOT NULL,
+            updated_at BIGINT NOT NULL,
+            started_at BIGINT,
+            finished_at BIGINT,
+            expires_at BIGINT NOT NULL,
             artifact_dir TEXT NOT NULL
         )");
 
