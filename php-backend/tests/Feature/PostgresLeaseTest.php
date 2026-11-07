@@ -70,17 +70,19 @@ class PostgresLeaseTest extends TestCase
             'targetUrl' => 'https://example.com/', 'createdAt' => $now, 'expiresAt' => $now + 600000,
             'artifactDir' => $dir]);
         $auditor = new class($pdo) implements \App\Services\AuditorInterface {
+            public bool $cancelled = false;
             public function __construct(private PDO $pdo) {}
             public function audit(\App\Models\AuditJob $job, ?callable $onProgress = null, ?callable $shouldCancel = null): array
             {
                 $this->pdo->exec("UPDATE audit_jobs SET lease_expires_at = 0 WHERE id = 'worker'");
-                TestCase::assertTrue($shouldCancel(), 'Lease loss must stop bridge');
+                $this->cancelled = $shouldCancel();
                 throw new \RuntimeException('stale worker');
             }
         };
         try {
             $worker = new \App\Services\AuditWorker($store, $auditor);
             $this->assertTrue($worker->processNext());
+            $this->assertTrue($auditor->cancelled, 'Lease loss must stop bridge');
             $this->assertSame('running', $store->getJob('worker')->status);
             $this->assertFileExists($dir . '/keep');
         } finally {
