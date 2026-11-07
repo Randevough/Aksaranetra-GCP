@@ -28,6 +28,7 @@ class AuditJob implements JsonSerializable
         public readonly ?int $finishedAt,
         public readonly int $expiresAt,
         public readonly string $artifactDir,
+        public readonly ?string $leaseToken = null,
     ) {}
 
     public static function fromRow(object|array|null $row): ?self
@@ -60,6 +61,7 @@ class AuditJob implements JsonSerializable
             finishedAt: isset($row['finished_at']) && $row['finished_at'] !== null ? (int) $row['finished_at'] : null,
             expiresAt: (int) $row['expires_at'],
             artifactDir: (string) $row['artifact_dir'],
+            leaseToken: $row['lease_token'] ?? null,
         );
     }
 

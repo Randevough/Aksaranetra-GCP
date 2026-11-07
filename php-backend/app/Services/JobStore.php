@@ -12,9 +12,33 @@ class JobStore
 {
     private const COLUMNS = 'id, token_hash, share_token_hash, ip_hash, target_url, status,
       stage, progress, attempts, cancel_requested, result_json, error_code, error_message,
-      created_at, updated_at, started_at, finished_at, expires_at, artifact_dir';
+      created_at, updated_at, started_at, finished_at, expires_at, artifact_dir, lease_token, lease_expires_at';
 
     private ?PDO $pdo = null;
+    private bool $postgres = false;
+
+    private function clock(): string
+    {
+        return '(EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint';
+    }
+
+    private function fence(?string $token): string
+    {
+        if (!$this->postgres) {
+            return '';
+        }
+        return ' AND lease_token = ' . $this->pdo->quote($token ?? '') . ' AND lease_expires_at > ' . $this->clock();
+    }
+
+    public function heartbeat(string $id, string $token): bool
+    {
+        if (!$this->postgres) {
+            return true;
+        }
+        $stmt = $this->pdo->prepare("UPDATE audit_jobs SET lease_expires_at = " . $this->clock() . " + 45000 WHERE id = ? AND status = 'running'" . $this->fence($token));
+        $stmt->execute([$id]);
+        return $stmt->rowCount() === 1;
+    }
     /** @var callable(): int */
     private $now;
 
@@ -51,9 +75,14 @@ class JobStore
         }
 
         if ($this->pdo !== null) {
-            $this->pdo->exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
+            $this->postgres = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql';
+            if (!$this->postgres) {
+                $this->pdo->exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
+            }
             $this->initSchema();
-            $this->recoverInterrupted();
+            if (!$this->postgres) {
+                $this->recoverInterrupted();
+            }
         }
     }
 
@@ -83,16 +112,26 @@ class JobStore
             result_json TEXT,
             error_code TEXT,
             error_message TEXT,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            started_at INTEGER,
-            finished_at INTEGER,
-            expires_at INTEGER NOT NULL,
-            artifact_dir TEXT NOT NULL
+            created_at BIGINT NOT NULL,
+            updated_at BIGINT NOT NULL,
+            started_at BIGINT,
+            finished_at BIGINT,
+            expires_at BIGINT NOT NULL,
+            artifact_dir TEXT NOT NULL,
+            lease_token TEXT,
+            lease_expires_at BIGINT
         );
         CREATE INDEX IF NOT EXISTS audit_jobs_queue_idx ON audit_jobs(status, created_at);
         CREATE INDEX IF NOT EXISTS audit_jobs_ip_idx ON audit_jobs(ip_hash, created_at);
         CREATE INDEX IF NOT EXISTS audit_jobs_expiry_idx ON audit_jobs(expires_at);");
+        if ($this->postgres) {
+            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN IF NOT EXISTS lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN IF NOT EXISTS lease_expires_at BIGINT');
+        } else {
+            $columns = $this->pdo->query('PRAGMA table_info(audit_jobs)')->fetchAll(PDO::FETCH_ASSOC);
+            if (!in_array('lease_token', array_column($columns, 'name'), true)) {
+                $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN lease_expires_at BIGINT');
+            }
+        }
     }
 
     public function recoverInterrupted(): int
@@ -101,6 +140,15 @@ class JobStore
             return 0;
         }
 
+        if ($this->postgres) {
+            $clock = $this->clock();
+            return $this->pdo->exec("UPDATE audit_jobs SET
+                status = CASE WHEN cancel_requested = 1 THEN 'cancelled' WHEN attempts < 2 THEN 'queued' ELSE 'failed' END,
+                stage = 'Lease expired', error_code = CASE WHEN attempts >= 2 THEN 'lease-expired' ELSE NULL END,
+                finished_at = CASE WHEN attempts >= 2 OR cancel_requested = 1 THEN $clock ELSE NULL END,
+                updated_at = $clock, lease_token = NULL, lease_expires_at = NULL
+                WHERE status = 'running' AND (lease_expires_at IS NULL OR lease_expires_at <= $clock)");
+        }
         $now = ($this->now)();
         $stmt = $this->pdo->query("SELECT id, artifact_dir, attempts, progress FROM audit_jobs WHERE status = 'running'");
         $runningJobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -157,7 +205,7 @@ class JobStore
         $expiresAt = $data['expiresAt'] ?? $data['expires_at'];
         $artifactDir = $data['artifactDir'] ?? $data['artifact_dir'];
 
-        $sql = "INSERT INTO audit_jobs (" . self::COLUMNS . ") VALUES (?, ?, ?, ?, ?, 'queued', ?, 0, 0, 0, NULL, NULL, NULL, ?, ?, NULL, NULL, ?, ?)";
+        $sql = "INSERT INTO audit_jobs (" . "id, token_hash, share_token_hash, ip_hash, target_url, status, stage, progress, attempts, cancel_requested, result_json, error_code, error_message, created_at, updated_at, started_at, finished_at, expires_at, artifact_dir" . ") VALUES (?, ?, ?, ?, ?, 'queued', ?, 0, 0, 0, NULL, NULL, NULL, ?, ?, NULL, NULL, ?, ?)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
             $id,
@@ -186,7 +234,7 @@ class JobStore
 
     public function countRecentByIp(string $ipHash, int $since): int
     {
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS total FROM audit_jobs WHERE ip_hash = ? AND created_at >= CAST(? AS INTEGER)");
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS total FROM audit_jobs WHERE ip_hash = ? AND created_at >= CAST(? AS BIGINT)");
         $stmt->execute([$ipHash, $since]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -200,7 +248,7 @@ class JobStore
             return null;
         }
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS total FROM audit_jobs WHERE status = 'queued' AND created_at <= CAST(? AS INTEGER)");
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS total FROM audit_jobs WHERE status = 'queued' AND created_at <= CAST(? AS BIGINT)");
         $stmt->execute([$job->createdAt]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -211,7 +259,7 @@ class JobStore
     {
         $now = $now ?? ($this->now)();
         $stmt = $this->pdo->prepare("SELECT " . self::COLUMNS . " FROM audit_jobs
-            WHERE target_url = ? AND status = 'completed' AND expires_at > CAST(? AS INTEGER)
+            WHERE target_url = ? AND status = 'completed' AND expires_at > CAST(? AS BIGINT)
             ORDER BY finished_at DESC LIMIT 1");
         $stmt->execute([$targetUrl, $now]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -221,6 +269,20 @@ class JobStore
 
     public function claimNext(): ?AuditJob
     {
+        if ($this->postgres) {
+            $this->recoverInterrupted();
+            $clock = $this->clock();
+            $stmt = $this->pdo->prepare("WITH candidate AS (
+                SELECT id FROM audit_jobs WHERE status = 'queued' AND cancel_requested = 0 AND attempts < 2
+                ORDER BY created_at, id FOR UPDATE SKIP LOCKED LIMIT 1
+            ) UPDATE audit_jobs j SET status = 'running', stage = 'Menyiapkan audit', progress = 5,
+                attempts = attempts + 1, started_at = COALESCE(started_at, $clock), updated_at = $clock,
+                lease_token = ?, lease_expires_at = $clock + 45000
+                FROM candidate WHERE j.id = candidate.id RETURNING j.*");
+            $stmt->execute([bin2hex(random_bytes(24))]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ? AuditJob::fromRow($row) : null;
+        }
         $this->pdo->exec('BEGIN IMMEDIATE');
         try {
             $stmt = $this->pdo->query("SELECT id FROM audit_jobs WHERE status = 'queued' AND cancel_requested = 0 ORDER BY created_at ASC LIMIT 1");
@@ -247,14 +309,14 @@ class JobStore
         }
     }
 
-    public function updateProgress(string $id, array $data): void
+    public function updateProgress(string $id, array $data, ?string $leaseToken = null): void
     {
         $now = ($this->now)();
         $stage = $data['stage'];
         $progress = max(0, min(99, (int) $data['progress']));
 
-        $stmt = $this->pdo->prepare("UPDATE audit_jobs SET stage = ?, progress = MAX(progress, CAST(? AS INTEGER)), updated_at = ?
-            WHERE id = ? AND status = 'running'");
+        $stmt = $this->pdo->prepare("UPDATE audit_jobs SET stage = ?, progress = " . ($this->postgres ? 'GREATEST' : 'MAX') . "(progress, CAST(? AS BIGINT)), updated_at = ?
+            WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
         $stmt->execute([$stage, $progress, $now, $id]);
     }
 
@@ -271,12 +333,12 @@ class JobStore
         return $this->getJob($id);
     }
 
-    public function complete(string $id, array|object $result): void
+    public function complete(string $id, array|object $result, ?string $leaseToken = null): void
     {
         $now = ($this->now)();
         $stmt = $this->pdo->prepare("UPDATE audit_jobs SET status = 'completed', stage = 'Audit selesai', progress = 100,
             result_json = ?, error_code = NULL, error_message = NULL, finished_at = ?, updated_at = ?
-            WHERE id = ? AND status = 'running'");
+            WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
         $stmt->execute([json_encode($result), $now, $now, $id]);
     }
 
@@ -289,30 +351,30 @@ class JobStore
         $stmt->execute([json_encode($result), $now, $now, $now, $id]);
     }
 
-    public function fail(string $id, array $error): void
+    public function fail(string $id, array $error, ?string $leaseToken = null): void
     {
         $now = ($this->now)();
         $stmt = $this->pdo->prepare("UPDATE audit_jobs SET status = 'failed', stage = 'Audit gagal', error_code = ?, error_message = ?,
             finished_at = ?, updated_at = ?
-            WHERE id = ? AND status = 'running'");
+            WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
         $stmt->execute([$error['code'], $error['message'], $now, $now, $id]);
     }
 
-    public function cancelRunning(string $id): void
+    public function cancelRunning(string $id, ?string $leaseToken = null): void
     {
         $now = ($this->now)();
         $stmt = $this->pdo->prepare("UPDATE audit_jobs SET status = 'cancelled', stage = 'Dibatalkan', error_code = NULL,
             error_message = NULL, finished_at = ?, updated_at = ?
-            WHERE id = ? AND status = 'running'");
+            WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
         $stmt->execute([$now, $now, $id]);
     }
 
-    public function retry(string $id, array $error): void
+    public function retry(string $id, array $error, ?string $leaseToken = null): void
     {
         $now = ($this->now)();
         $stmt = $this->pdo->prepare("UPDATE audit_jobs SET status = 'queued', stage = 'Menunggu percobaan ulang', progress = 0,
             error_code = ?, error_message = ?, updated_at = ?
-            WHERE id = ? AND status = 'running' AND attempts < 2");
+            WHERE id = ? AND status = 'running' AND attempts < 2" . $this->fence($leaseToken));
         $stmt->execute([$error['code'], $error['message'], $now, $id]);
     }
 
@@ -322,7 +384,7 @@ class JobStore
     public function expired(?int $now = null): array
     {
         $now = $now ?? ($this->now)();
-        $stmt = $this->pdo->prepare("SELECT id, artifact_dir FROM audit_jobs WHERE expires_at <= CAST(? AS INTEGER)");
+        $stmt = $this->pdo->prepare("SELECT id, artifact_dir FROM audit_jobs WHERE expires_at <= CAST(? AS BIGINT)");
         $stmt->execute([$now]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -340,7 +402,7 @@ class JobStore
     {
         $rows = $this->expired($now);
         $now = $now ?? ($this->now)();
-        $stmt = $this->pdo->prepare("DELETE FROM audit_jobs WHERE expires_at <= CAST(? AS INTEGER)");
+        $stmt = $this->pdo->prepare("DELETE FROM audit_jobs WHERE expires_at <= CAST(? AS BIGINT)");
         $stmt->execute([$now]);
 
         return $rows;
