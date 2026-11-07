@@ -62,7 +62,23 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(JobStore::class),
                 $app->make(AuditorInterface::class),
                 $config->timeoutMs,
-                $config->concurrency
+                $config->concurrency,
+                $config->artifactStore === 'gcs' && $config->gcsBucket !== ''
+                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client())
+                    : null
+            );
+        });
+
+        $this->app->singleton(AuditArtifactController::class, function ($app) {
+            $config = $app->make(AksaraConfig::class);
+
+            return new AuditArtifactController(
+                $config,
+                $app->make(SecurityService::class),
+                $app->make(JobStore::class),
+                $config->artifactStore === 'gcs' && $config->gcsBucket !== ''
+                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client())
+                    : null
             );
         });
 

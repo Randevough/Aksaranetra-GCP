@@ -26,6 +26,9 @@ class AksaraConfig
     public readonly int $rateLimit;
     public readonly int $maxBodyBytes;
     public readonly int $cleanupIntervalMs;
+    public readonly string $artifactStore;
+    public readonly string $gcsBucket;
+    public readonly string $googleCloudProject;
 
     public function __construct(array $overrides = [], ?array $env = null)
     {
@@ -121,6 +124,9 @@ class AksaraConfig
         );
         $this->maxBodyBytes = $overrides['maxBodyBytes'] ?? $integer('MAX_BODY_BYTES', 8192, 1024, 65536);
         $this->cleanupIntervalMs = $overrides['cleanupIntervalMs'] ?? $integer('CLEANUP_INTERVAL_MS', self::HOUR, 60000, self::DAY);
+        $this->artifactStore = $overrides['artifactStore'] ?? $getEnv('ARTIFACT_STORE') ?? 'local';
+        $this->gcsBucket = $overrides['gcsBucket'] ?? $getEnv('GCS_BUCKET') ?? '';
+        $this->googleCloudProject = $overrides['googleCloudProject'] ?? $getEnv('GOOGLE_CLOUD_PROJECT') ?? '';
     }
 
     public static function loadConfig(array $overrides = [], ?array $env = null): self
@@ -147,6 +153,9 @@ class AksaraConfig
             'rateLimit' => $this->rateLimit,
             'maxBodyBytes' => $this->maxBodyBytes,
             'cleanupIntervalMs' => $this->cleanupIntervalMs,
+            'artifactStore' => $this->artifactStore,
+            'gcsBucket' => $this->gcsBucket,
+            'googleCloudProject' => $this->googleCloudProject,
         ];
     }
 }

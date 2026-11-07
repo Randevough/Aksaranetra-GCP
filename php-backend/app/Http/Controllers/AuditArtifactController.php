@@ -23,10 +23,11 @@ class AuditArtifactController
     public function __construct(
         private readonly AksaraConfig $config,
         private readonly SecurityService $security,
-        private readonly JobStore $store
+        private readonly JobStore $store,
+        private readonly ?\App\Services\GcsArtifacts $gcs = null
     ) {}
 
-    public function show(Request $request, string $id, string $artifact): JsonResponse|BinaryFileResponse
+    public function show(Request $request, string $id, string $artifact): JsonResponse|\Symfony\Component\HttpFoundation\Response
     {
         $job = $this->store->getJob($id);
         if (!$job) {
@@ -60,6 +61,29 @@ class AuditArtifactController
                 'error' => 'not-found',
                 'message' => 'Artefak tidak ditemukan.',
             ], 404);
+        }
+
+        if ($this->config->artifactStore === 'gcs' && $this->gcs !== null) {
+            $manifest = $job->result['manifest'] ?? null;
+            if (is_array($manifest) && isset($manifest[$definition['file']])) {
+                try {
+                    $content = $this->gcs->read($manifest, $definition['file']);
+                    $response = response($content, 200, [
+                        'Content-Type' => $definition['type'],
+                        'X-Content-Type-Options' => 'nosniff',
+                        'Content-Security-Policy' => "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+                    ]);
+                    $response->setPrivate();
+                    $response->setMaxAge(300);
+
+                    return $response;
+                } catch (\Throwable) {
+                    return response()->json([
+                        'error' => 'not-found',
+                        'message' => 'Artefak tidak ditemukan.',
+                    ], 404);
+                }
+            }
         }
 
         $filePath = $job->artifactDir . DIRECTORY_SEPARATOR . $definition['file'];
