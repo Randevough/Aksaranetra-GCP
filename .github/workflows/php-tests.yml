@@ -2,7 +2,7 @@ name: PHP tests
 
 on:
   push:
-    branches: [ci/php-test-baseline]
+    branches: [ci/php-test-baseline, ci/php-baseline-diagnostics]
   pull_request:
     paths:
       - php-backend/**
@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   php-tests:
@@ -35,4 +36,47 @@ jobs:
       - name: Install locked PHP dependencies (including dev)
         run: composer install --no-interaction --prefer-dist --no-progress --no-plugins
       - name: Run all existing PHP tests
-        run: vendor/bin/phpunit
+        id: tests
+        run: vendor/bin/phpunit --log-junit "$RUNNER_TEMP/phpunit.xml"
+      - name: Publish safe PHPUnit diagnostics
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          python3 - <<'PY'
+          import os, re, pathlib, xml.etree.ElementTree as ET
+          def safe(text):
+              text = re.sub(r'(?i)(bearer\s+|(?:token|secret|password|authorization|api[_-]?key)\s*[=:]\s*)\S+', r'\1[redacted]', text)
+              text = re.sub(r'(?i)https?://\S+', '[URL redacted]', text)
+              return text[:1800]
+          report = pathlib.Path(os.environ['RUNNER_TEMP']) / 'phpunit.xml'
+          lines = ['## PHP baseline', 'Test step: ' + os.environ['TEST_OUTCOME']]
+          if report.exists():
+              root = ET.parse(report).getroot()
+              cases = root.findall('.//testcase')
+              counts = {kind: len(root.findall('.//' + kind)) for kind in ('failure', 'error', 'skipped')}
+              lines.append(f"Tests: {len(cases)}; failures: {counts['failure']}; errors: {counts['error']}; skipped: {counts['skipped']}")
+              for case in cases:
+                  for issue in list(case.findall('failure')) + list(case.findall('error')):
+                      # Only test identity, error type and first message lines; no env or raw logs.
+                      detail = safe('\n'.join((issue.text or issue.get('message', '')).splitlines()[:3]))
+                      lines.append(f"\n### {case.get('class', '')}::{case.get('name', '')}\n{issue.get('type', '')}\n\n```text\n{detail}\n```")
+          else:
+              lines.append('JUnit report unavailable: setup failed or PHPUnit stopped before report creation.')
+          summary = '\n\n'.join(lines)
+          pathlib.Path(os.environ['GITHUB_STEP_SUMMARY']).write_text(summary)
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'php-summary.md').write_text(summary)
+          PY
+      - name: Expose diagnostics through public check API
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = `${process.env.RUNNER_TEMP}/php-summary.md`;
+            const summary = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'Diagnostics unavailable; see setup step status.';
+            await github.rest.checks.create({
+              ...context.repo, name: 'PHP baseline diagnostics', head_sha: context.sha,
+              status: 'completed', conclusion: '${{ steps.tests.outcome }}' === 'success' ? 'success' : 'failure',
+              output: { title: 'PHPUnit test counts and safe failure details', summary: summary.slice(0, 60000) }
+            });
