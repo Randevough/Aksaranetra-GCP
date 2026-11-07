@@ -1,0 +1,42 @@
+# Same stack on both zones; no shared local volume or database container.
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?digest-pinned backend image required}
+  restart: unless-stopped
+  env_file:
+    - ${BACKEND_ENV_FILE:?absolute private backend env file required}
+  environment:
+    HA_MODE: "1"
+    RUN_MIGRATIONS: "0"
+    DB_CONNECTION: pgsql
+    BACKEND_DATA_DIR: /data
+  volumes:
+    - scratch:/data
+    - ${SQL_CA_FILE:?absolute SQL CA file required}:/run/sql/server-ca.pem:ro
+  security_opt:
+    - no-new-privileges:true
+  shm_size: 256m
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:?digest-pinned frontend image required}
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    environment:
+      NODE_ENV: production
+    mem_limit: 512m
+  backend-api:
+    <<: *backend
+    command: [api]
+    ports: ["8787:8787"]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "3", "http://127.0.0.1:8787/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  backend-worker:
+    <<: *backend
+    command: [worker]
+    mem_limit: 1400m
+    # One worker slot per node. Surviving-node capacity requires measurement.
+volumes:
+  scratch: {}
