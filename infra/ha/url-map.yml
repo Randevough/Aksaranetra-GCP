@@ -1,0 +1,11 @@
+name: aksara-ha
+defaultService: https://www.googleapis.com/compute/v1/projects/linear-ellipse-513814-b9/global/backendServices/aksara-ha-web
+hostRules:
+  - hosts: [aksaranetra.rafifernanda.site]
+    pathMatcher: app
+pathMatchers:
+  - name: app
+    defaultService: https://www.googleapis.com/compute/v1/projects/linear-ellipse-513814-b9/global/backendServices/aksara-ha-web
+    pathRules:
+      - paths: [/health, /audits, /audits/*]
+        service: https://www.googleapis.com/compute/v1/projects/linear-ellipse-513814-b9/global/backendServices/aksara-ha-api
