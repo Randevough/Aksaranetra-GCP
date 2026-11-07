@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Http\Controllers\AuditArtifactController;
 use App\Services\AksaraConfig;
 use App\Services\Auditor;
 use App\Services\AuditorInterface;
