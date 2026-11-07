@@ -71,7 +71,7 @@ class PostgresLeaseTest extends TestCase
             'artifactDir' => $dir]);
         $auditor = new class($pdo) implements \App\Services\AuditorInterface {
             public function __construct(private PDO $pdo) {}
-            public function audit(\App\Models\AuditJob $job, callable $onProgress, callable $shouldCancel): array
+            public function audit(\App\Models\AuditJob $job, ?callable $onProgress = null, ?callable $shouldCancel = null): array
             {
                 $this->pdo->exec("UPDATE audit_jobs SET lease_expires_at = 0 WHERE id = 'worker'");
                 TestCase::assertTrue($shouldCancel(), 'Lease loss must stop bridge');
