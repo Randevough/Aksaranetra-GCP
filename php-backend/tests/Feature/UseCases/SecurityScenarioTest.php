@@ -687,7 +687,7 @@ class SecurityScenarioTest extends TestCase
         $this->assertStringNotContainsString($this->config->secret, $content400);
 
         // Verify APP_DEBUG is false in production configuration files
-        $dockerfile = (string) file_get_contents(dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'docker' . DIRECTORY_SEPARATOR . 'Dockerfile');
+        $dockerfile = (string) file_get_contents(dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'Dockerfile');
         $this->assertStringContainsString('ENV APP_DEBUG=false', $dockerfile);
     }
 }
