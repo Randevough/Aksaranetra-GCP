@@ -13,6 +13,7 @@ env:
   GAR_LOCATION: ${{ secrets.GAR_LOCATION || 'asia-southeast2' }}
   GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'linear-ellipse-513814-b9' }}
   GAR_REPO: aksaranetra
+  NEXT_PUBLIC_AUDIT_API_URL: ${{ vars.NEXT_PUBLIC_AUDIT_API_URL || 'http://34.101.112.103:8787' }}
   VM_NAME: ${{ secrets.GCE_INSTANCE_NAME || 'aksaranetra-vm' }}
   VM_ZONE: ${{ secrets.GCE_INSTANCE_ZONE || 'asia-southeast2-a' }}
 
@@ -47,7 +48,7 @@ jobs:
       - name: Build & Push Frontend Image
         run: |
           IMAGE_URI="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.GAR_REPO }}/frontend"
-          docker build -f Dockerfile.frontend -t ${IMAGE_URI}:latest -t ${IMAGE_URI}:${{ github.sha }} .
+          docker build -f Dockerfile.frontend --build-arg NEXT_PUBLIC_AUDIT_API_URL="$NEXT_PUBLIC_AUDIT_API_URL" -t ${IMAGE_URI}:latest -t ${IMAGE_URI}:${{ github.sha }} .
           docker push ${IMAGE_URI}:latest
           docker push ${IMAGE_URI}:${{ github.sha }}
 
