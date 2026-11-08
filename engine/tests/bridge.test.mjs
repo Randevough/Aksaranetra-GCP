@@ -118,27 +118,64 @@ test("bridge audit streams progress updates and reports validation errors", asyn
 });
 
 test("bridge audit terminates cleanly when receiving SIGTERM abort signal", async () => {
-  const proc = spawn(process.execPath, [BRIDGE_SCRIPT, "audit"], {
-    stdio: ["pipe", "pipe", "pipe"],
+  const apiUrl = new URL("../src/api/index.mjs", import.meta.url).href;
+  const bootstrap = `
+    import { registerHooks } from "node:module";
+    registerHooks({
+      load(url, context, nextLoad) {
+        if (url !== ${JSON.stringify(apiUrl)}) return nextLoad(url, context);
+        return { format: "module", shortCircuit: true, source: \`
+          export async function auditUrl({ signal }) {
+            const aborted = new Promise(resolve =>
+              signal.addEventListener("abort", resolve, { once: true }));
+            // Keep pending audit alive until signal, like real I/O would.
+            const keepAlive = setInterval(() => {}, 1000);
+            process.stderr.write("audit-ready\\\\n");
+            try {
+              await aborted;
+              throw new DOMException("Audit aborted", "AbortError");
+            } finally {
+              clearInterval(keepAlive);
+            }
+          }
+        \` };
+      }
+    });
+  `;
+  const proc = spawn(process.execPath, [
+    "--import", `data:text/javascript,${encodeURIComponent(bootstrap)}`,
+    BRIDGE_SCRIPT, "audit",
+  ], { stdio: ["pipe", "pipe", "pipe"] });
+
+  let stderr = "";
+  let stdout = "";
+  const closed = new Promise((resolve, reject) => {
+    proc.once("error", reject);
+    proc.once("close", (code, signal) => resolve({ code, signal }));
+  });
+  const ready = new Promise((resolve, reject) => {
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+      if (stderr.includes("audit-ready\n")) resolve();
+    });
+    closed.then(() => reject(new Error(`Child exited before readiness: ${stderr}`)), reject);
+  });
+  proc.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`SIGTERM test timed out: ${stderr}`)), 5000);
   });
 
-  // Tulis input yang membutuhkan waktu
-  proc.stdin.write(
-    JSON.stringify({
-      id: "sigterm-test",
-      url: "https://contoh.go.id",
-      artifactDir: null,
-    }),
-  );
-  proc.stdin.end();
-
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  proc.kill("SIGTERM");
-
-  const exitCode = await new Promise((resolve) => {
-    proc.on("close", (code, signal) => resolve({ code, signal }));
-  });
-
-  // Proses harus berhenti (bisa exit 0 atau terminated by signal)
-  assert.ok(exitCode !== null);
+  try {
+    proc.stdin.end(JSON.stringify({ id: "sigterm-test", url: "https://example.com", artifactDir: null }));
+    await Promise.race([ready, timeout]);
+    assert.equal(proc.kill("SIGTERM"), true);
+    const result = await Promise.race([closed, timeout]);
+    assert.equal(result.code, 0);
+    assert.equal(result.signal, null);
+    assert.equal(stdout, "");
+  } finally {
+    clearTimeout(timer);
+    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGKILL");
+  }
 });
