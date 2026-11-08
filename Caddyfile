@@ -1,0 +1,11 @@
+aksaranetra.rafifernanda.site {
+	redir /api /api/ 308
+
+	handle_path /api/* {
+		reverse_proxy backend-api:8787
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
