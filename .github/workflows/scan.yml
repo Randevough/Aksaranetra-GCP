@@ -12,7 +12,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Frontend lint
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: npm run lint
+      - name: Frontend build
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: npm run build
+        env:
+          NEXT_PUBLIC_AUDIT_API_URL: https://api.example.invalid
+  backend:
+    name: Backend
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
@@ -31,21 +57,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            engine/package-lock.json
-      - name: Install frontend dependencies
+          cache-dependency-path: package-lock.json
+      - name: Install backend dependencies
         run: npm ci
-      - name: Frontend lint
-        if: ${{ !cancelled() }}
-        timeout-minutes: 5
-        run: npm run lint
-      - name: Frontend build
-        if: ${{ !cancelled() }}
-        timeout-minutes: 8
-        run: npm run build
-        env:
-          NEXT_PUBLIC_AUDIT_API_URL: https://api.example.invalid
       - name: Legacy backend checks
         if: ${{ !cancelled() }}
         timeout-minutes: 3
@@ -54,20 +68,6 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 5
         run: npm run backend:test
-      - name: Install engine dependencies
-        if: ${{ !cancelled() }}
-        working-directory: engine
-        run: npm ci
-      - name: Install Chromium
-        if: ${{ !cancelled() }}
-        timeout-minutes: 5
-        working-directory: engine
-        run: npx playwright install --with-deps chromium
-      - name: Engine tests
-        if: ${{ !cancelled() }}
-        timeout-minutes: 8
-        working-directory: engine
-        run: npm test
       - uses: shivammathur/setup-php@v2
         if: ${{ !cancelled() }}
         with:
@@ -130,3 +130,30 @@ jobs:
             ${{ runner.temp }}/php-summary.md
           if-no-files-found: warn
           retention-days: 14
+  engine:
+    name: Engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: engine/package-lock.json
+      - name: Install engine dependencies
+        if: ${{ !cancelled() }}
+        working-directory: engine
+        run: npm ci
+      - name: Install Chromium
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        working-directory: engine
+        run: npx playwright install --with-deps chromium
+      - name: Engine tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        working-directory: engine
+        run: npm test
