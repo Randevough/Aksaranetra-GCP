@@ -4,10 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Services\AksaraConfig;
+use App\Services\JobStore;
 use Tests\TestCase;
 
 class CorsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->app->instance(JobStore::class, new JobStore(':memory:'));
+        $this->app->instance(AksaraConfig::class, new AksaraConfig([
+            'artifactStore' => 'local',
+            'artifactsDir' => sys_get_temp_dir(),
+        ]));
+    }
+
     public function test_rejects_untrusted_browser_origins(): void
     {
         $response = $this->get('/health', [
@@ -69,7 +82,7 @@ class CorsTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'ok' => true,
-            'worker' => 'ready',
+            'worker' => 'unknown',
         ]);
         $this->assertFalse($response->headers->has('access-control-allow-origin'));
     }
