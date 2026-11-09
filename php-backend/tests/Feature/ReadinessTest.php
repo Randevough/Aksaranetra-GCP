@@ -38,7 +38,7 @@ class ReadinessTest extends TestCase
         $this->app->instance(JobStore::class, new JobStore(':memory:'));
         $this->app->instance(AksaraConfig::class, new AksaraConfig(['artifactStore' => 'gcs', 'gcsBucket' => 'private-bucket']));
         $mock = new \GuzzleHttp\Handler\MockHandler([
-            new \GuzzleHttp\Psr7\Response(200, [], '{"access_token":"test-token","expires_in":3600}'),
+            new \GuzzleHttp\Psr7\Response(200, [], '{"access_token":"test-token","token_type":"Bearer","expires_in":3600}'),
             new \GuzzleHttp\Psr7\Response(200, [], '{"permissions":["storage.objects.create","storage.objects.get"]}'),
             new \GuzzleHttp\Psr7\Response(200, [], '{"permissions":["storage.objects.get"]}'),
         ]);
