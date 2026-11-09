@@ -55,7 +55,7 @@ jobs:
       - name: Deploy to Compute Engine VM
         run: |
           gcloud compute ssh ${{ env.VM_NAME }} --project=${{ env.GCP_PROJECT }} --zone=${{ env.VM_ZONE }} -- "mkdir -p ~/aksaranetra"
-          gcloud compute scp docker-compose.prod.yml Caddyfile ${{ env.VM_NAME }}:~/aksaranetra/ --project=${{ env.GCP_PROJECT }} --zone=${{ env.VM_ZONE }}
+          gcloud compute scp docker-compose.prod.yml Caddyfile docker-compose.prod-ha.yml ${{ env.VM_NAME }}:~/aksaranetra/ --project=${{ env.GCP_PROJECT }} --zone=${{ env.VM_ZONE }}
           gcloud compute ssh ${{ env.VM_NAME }} --project=${{ env.GCP_PROJECT }} --zone=${{ env.VM_ZONE }} -- "bash -c '
             set -e
             cd ~/aksaranetra
@@ -76,7 +76,11 @@ jobs:
           EOF
             fi
             gcloud auth print-access-token | sudo -H docker login --username oauth2accesstoken --password-stdin https://${{ env.GAR_LOCATION }}-docker.pkg.dev
-            sudo -H env GAR_LOCATION=${{ env.GAR_LOCATION }} GCP_PROJECT=${{ env.GCP_PROJECT }} docker compose -f docker-compose.prod.yml pull
-            sudo -H env GAR_LOCATION=${{ env.GAR_LOCATION }} GCP_PROJECT=${{ env.GCP_PROJECT }} docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            set -- -f docker-compose.prod.yml
+            if sudo grep -qx \"HA_MODE=1\" backend.env; then
+              set -- \"\$@\" -f docker-compose.prod-ha.yml
+            fi
+            sudo -H env GAR_LOCATION=${{ env.GAR_LOCATION }} GCP_PROJECT=${{ env.GCP_PROJECT }} docker compose \"\$@\" pull
+            sudo -H env GAR_LOCATION=${{ env.GAR_LOCATION }} GCP_PROJECT=${{ env.GCP_PROJECT }} docker compose \"\$@\" up -d --remove-orphans
             sudo -H docker image prune -af --filter \"until=48h\"
           '"
