@@ -30,7 +30,9 @@ return new class extends Migration
             started_at BIGINT,
             finished_at BIGINT,
             expires_at BIGINT NOT NULL,
-            artifact_dir TEXT NOT NULL
+            artifact_dir TEXT NOT NULL,
+            lease_token TEXT,
+            lease_expires_at BIGINT
         )");
 
         DB::statement("CREATE INDEX IF NOT EXISTS audit_jobs_queue_idx ON audit_jobs(status, created_at)");

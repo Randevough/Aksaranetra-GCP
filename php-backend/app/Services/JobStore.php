@@ -79,8 +79,8 @@ class JobStore
             if (!$this->postgres) {
                 $this->pdo->exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
             }
-            $this->initSchema();
             if (!$this->postgres) {
+                $this->initSchema();
                 $this->recoverInterrupted();
             }
         }
@@ -124,13 +124,9 @@ class JobStore
         CREATE INDEX IF NOT EXISTS audit_jobs_queue_idx ON audit_jobs(status, created_at);
         CREATE INDEX IF NOT EXISTS audit_jobs_ip_idx ON audit_jobs(ip_hash, created_at);
         CREATE INDEX IF NOT EXISTS audit_jobs_expiry_idx ON audit_jobs(expires_at);");
-        if ($this->postgres) {
-            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN IF NOT EXISTS lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN IF NOT EXISTS lease_expires_at BIGINT');
-        } else {
-            $columns = $this->pdo->query('PRAGMA table_info(audit_jobs)')->fetchAll(PDO::FETCH_ASSOC);
-            if (!in_array('lease_token', array_column($columns, 'name'), true)) {
-                $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN lease_expires_at BIGINT');
-            }
+        $columns = $this->pdo->query('PRAGMA table_info(audit_jobs)')->fetchAll(PDO::FETCH_ASSOC);
+        if (!in_array('lease_token', array_column($columns, 'name'), true)) {
+            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN lease_expires_at BIGINT');
         }
     }
 
