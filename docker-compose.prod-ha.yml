@@ -1,0 +1,21 @@
+services:
+  backend-api:
+    volumes:
+      - type: bind
+        source: /etc/aksaranetra/server-ca.pem
+        target: /etc/aksaranetra/server-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+  backend-worker:
+    volumes:
+      - type: bind
+        source: /etc/aksaranetra/server-ca.pem
+        target: /etc/aksaranetra/server-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+
+volumes:
+  aksara_data:
+    name: aksaranetra_ha_scratch
