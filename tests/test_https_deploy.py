@@ -39,7 +39,7 @@ class HttpsDeployment(unittest.TestCase):
         self.assertIn('NEXT_PUBLIC_AUDIT_API_URL: /api', workflow)
         self.assertNotIn('vars.NEXT_PUBLIC_AUDIT_API_URL', workflow)
         self.assertIn('--build-arg NEXT_PUBLIC_AUDIT_API_URL="$NEXT_PUBLIC_AUDIT_API_URL"', workflow)
-        self.assertIn('gcloud compute scp docker-compose.prod.yml Caddyfile ', workflow)
+        self.assertIn('gcloud compute scp docker-compose.prod.yml Caddyfile docker-compose.prod-ha.yml ', workflow)
         self.assertIn(':~/aksaranetra/ --project=${{ env.GCP_PROJECT }} --zone=', workflow)
         self.assertNotIn('chmod 666', workflow)
         self.assertIn('sudo -H docker login --username oauth2accesstoken --password-stdin', workflow)
