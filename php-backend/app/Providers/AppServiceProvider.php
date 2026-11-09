@@ -56,6 +56,10 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(\App\Services\GceAccessTokenProvider::class, function () {
+            return new \App\Services\GceAccessTokenProvider(new \GuzzleHttp\Client());
+        });
+
         $this->app->singleton(AuditWorkerInterface::class, function ($app) {
             $config = $app->make(AksaraConfig::class);
 
@@ -65,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
                 $config->timeoutMs,
                 $config->concurrency,
                 $config->artifactStore === 'gcs' && $config->gcsBucket !== ''
-                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client())
+                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client(), $app->make(\App\Services\GceAccessTokenProvider::class))
                     : null
             );
         });
@@ -78,7 +82,7 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(SecurityService::class),
                 $app->make(JobStore::class),
                 $config->artifactStore === 'gcs' && $config->gcsBucket !== ''
-                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client())
+                    ? new \App\Services\GcsArtifacts($config->gcsBucket, $config->googleCloudProject, new \GuzzleHttp\Client(), $app->make(\App\Services\GceAccessTokenProvider::class))
                     : null
             );
         });

@@ -6,13 +6,23 @@ namespace Tests\Feature;
 
 use App\Services\JobStore;
 use PDO;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
+use Illuminate\Support\Facades\DB;
 
 class PostgresLeaseTest extends TestCase
 {
     private function connection(): PDO
     {
         return new PDO(getenv('HA_TEST_DSN'), 'postgres', 'postgres', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    }
+
+    private function migrate(PDO $pdo): void
+    {
+        config(['database.default' => 'pgsql']);
+        DB::purge('pgsql');
+        DB::connection('pgsql')->setPdo($pdo)->setReadPdo($pdo);
+        (require database_path('migrations/2026_10_14_000000_create_audit_jobs_table.php'))->up();
+        (require database_path('migrations/2026_11_09_000000_add_audit_job_leases.php'))->up();
     }
 
     public function test_claims_are_exclusive_expiry_is_bounded_and_stale_writes_are_fenced(): void
@@ -22,6 +32,7 @@ class PostgresLeaseTest extends TestCase
         }
         $pdo = $this->connection();
         $pdo->exec('DROP TABLE IF EXISTS audit_jobs');
+        $this->migrate($pdo);
         $first = new JobStore($pdo);
         $now = (int) (microtime(true) * 1000);
         $first->createJob(['id' => 'lease', 'tokenHash' => 'a', 'shareTokenHash' => 'b', 'ipHash' => 'c',
@@ -61,6 +72,7 @@ class PostgresLeaseTest extends TestCase
         }
         $pdo = $this->connection();
         $pdo->exec('DROP TABLE IF EXISTS audit_jobs');
+        $this->migrate($pdo);
         $store = new JobStore($pdo);
         $dir = sys_get_temp_dir() . '/ha-lease-' . bin2hex(random_bytes(6));
         mkdir($dir);

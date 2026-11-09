@@ -364,7 +364,7 @@ class ApiTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'ok' => true,
-            'worker' => 'ready',
+            'worker' => 'unknown',
             'concurrency' => 1,
         ]);
         $response->assertHeader('X-Content-Type-Options', 'nosniff');

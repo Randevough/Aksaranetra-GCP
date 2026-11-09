@@ -21,11 +21,12 @@ class GcsArtifacts
 
     private function getBearerToken(): string
     {
-        if (is_callable($this->tokenProvider)) {
-            return (string) ($this->tokenProvider)();
+        $token = is_callable($this->tokenProvider) ? ($this->tokenProvider)() : null;
+        if (!is_string($token) || !preg_match('/\A[A-Za-z0-9._~+\/-]+=*\z/D', $token)) {
+            throw new RuntimeException('GCS access token unavailable');
         }
 
-        return '';
+        return $token;
     }
 
     /**
