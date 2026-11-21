@@ -1,0 +1,27 @@
+{
+  "username": "AksaraNetra SRE Monitor",
+  "embeds": [
+    {
+      "title": "[${incident.state}] ${incident.policy_name}",
+      "description": "${incident.summary}",
+      "color": 15158332,
+      "fields": [
+        {
+          "name": "Resource",
+          "value": "${incident.resource_display_name}",
+          "inline": true
+        },
+        {
+          "name": "Condition",
+          "value": "${incident.condition_name}",
+          "inline": true
+        },
+        {
+          "name": "Console URL",
+          "value": "${incident.url}",
+          "inline": false
+        }
+      ]
+    }
+  ]
+}

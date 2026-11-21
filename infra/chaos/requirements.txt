@@ -1,0 +1,4 @@
+aiohttp>=3.9.0
+rich>=13.7.0
+# Optional: if omitted, chaos_orchestrator.py automatically falls back to gcloud CLI
+google-cloud-compute>=1.18.0

@@ -1,0 +1,10 @@
+project_id               = "linear-ellipse-513814-b9"
+region                   = "asia-southeast2"
+domain_name              = "aksaranetra.rafifernanda.site"
+vm_zone_a_name           = "aksaranetra-vm"
+vm_zone_b_name           = "aksaranetra-vm-b"
+cloudsql_instance_id     = "aksaranetra-db"
+cloudsql_max_connections = 100
+alb_url_map_name         = "aksaranetra-url-map"
+sysadmin_email           = "ops@aksaranetra.example.com"
+webhook_url              = "https://your-discord-or-telegram-relay.example.com/gcp-monitoring"
