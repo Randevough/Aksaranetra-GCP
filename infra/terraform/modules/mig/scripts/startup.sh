@@ -54,11 +54,19 @@ fi
 # 3. Write production backend.env with strict permissions
 mkdir -p "$${APP_DIR}"
 cat <<'EOF_ENV' > "$${APP_DIR}/backend.env"
+APP_NAME=AksaraNetra
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://${domain_name}
-FRONTEND_URL=https://${domain_name}
-API_BASE_URL=https://${domain_name}/api
+HOST=0.0.0.0
+PORT=8787
+FRONTEND_ORIGINS=*
+BACKEND_SECRET=a8f4c2e6b1d3f5a7c9e0b2d4f6a8c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5
+BACKEND_DATA_DIR=/data
+TRUST_PROXY=1
+AUDIT_TIMEOUT_MS=180000
+RESULT_RETENTION_MS=604800000
+CHROMIUM_LOW_RESOURCE_MODE=1
 
 DB_CONNECTION=pgsql
 DB_HOST=${db_host}
@@ -66,11 +74,11 @@ DB_PORT=5432
 DB_DATABASE=${db_name}
 DB_USERNAME=${db_user}
 DB_PASSWORD=${db_password}
-DB_SSLMODE=require
+DB_SSLMODE=prefer
 
-PLAYWRIGHT_WORKER_URL=http://playwright-worker:4000
-NODE_ENV=production
-NEXT_PUBLIC_API_URL=https://${domain_name}/api
+ARTIFACT_STORE=gcs
+GCS_BUCKET=aksaranetra-artifacts-${project_id}
+GOOGLE_CLOUD_PROJECT=${project_id}
 EOF_ENV
 
 chmod 600 "$${APP_DIR}/backend.env"
@@ -78,12 +86,15 @@ chmod 600 "$${APP_DIR}/backend.env"
 # 4. Write Docker Compose v2 stack manifest
 cat <<EOF_COMPOSE > "$${APP_DIR}/docker-compose.yml"
 services:
-  playwright-worker:
-    image: $${AR_PREFIX}/playwright-worker:${image_tag}
-    container_name: aksaranetra-playwright-worker
+  backend-worker:
+    image: $${AR_PREFIX}/backend:${image_tag}
+    container_name: aksaranetra-backend-worker
+    command: ["worker"]
     restart: unless-stopped
     env_file:
       - ./backend.env
+    volumes:
+      - aksara_data:/data
     shm_size: "1gb"
     networks:
       - aksaranetra-net
@@ -93,16 +104,17 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  api:
-    image: $${AR_PREFIX}/api:${image_tag}
-    container_name: aksaranetra-api
+  backend-api:
+    image: $${AR_PREFIX}/backend:${image_tag}
+    container_name: aksaranetra-backend-api
+    command: ["api"]
     restart: unless-stopped
     env_file:
       - ./backend.env
+    volumes:
+      - aksara_data:/data
     ports:
       - "0.0.0.0:8787:8787"
-    depends_on:
-      - playwright-worker
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8787/health || exit 1"]
       interval: 10s
@@ -121,12 +133,14 @@ services:
     image: $${AR_PREFIX}/frontend:${image_tag}
     container_name: aksaranetra-frontend
     restart: unless-stopped
-    env_file:
-      - ./backend.env
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_BACKEND_URL=/api
+      - NEXT_PUBLIC_AUDIT_API_URL=/api
     ports:
       - "0.0.0.0:3000:3000"
     depends_on:
-      - api
+      - backend-api
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/ || exit 1"]
       interval: 10s
@@ -140,6 +154,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  aksara_data:
+    driver: local
 
 networks:
   aksaranetra-net:
