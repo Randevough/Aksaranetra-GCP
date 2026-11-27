@@ -14,6 +14,9 @@
   },
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",
+    "@mozilla/readability": "^0.6.0",
+    "accessibility-checker-engine": "^4.0.35",
+    "pdfjs-dist": "^6.5.438",
     "playwright": "^1.54.1"
   }
 }
