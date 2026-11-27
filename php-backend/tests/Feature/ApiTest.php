@@ -198,7 +198,7 @@ class ApiTest extends TestCase
         $this->assertSame('Artefak tidak ditemukan.', $invalidToken->json('message'));
     }
 
-    public function test_artifact_route_serves_report_pdf_and_reproduces_report_html_fallback_quirk(): void
+    public function test_artifact_route_serves_report_html_fallback_when_report_pdf_missing(): void
     {
         $response = $this->createJob();
         $data = $response->json();
@@ -206,7 +206,6 @@ class ApiTest extends TestCase
         $this->assertNotNull($job);
 
         mkdir($job->artifactDir, 0777, true);
-        // Simulate fallback where only report.html was generated (e.g. low memory) and NO report.pdf exists
         file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'report.html', '<!doctype html><title>Report</title>');
 
         $this->store->complete($job->id, [
@@ -214,7 +213,7 @@ class ApiTest extends TestCase
             'artifacts' => [
                 'reader' => 'reader.html',
                 'patched' => 'patched.html',
-                'reportPdf' => 'report.html', // Auditor recorded report.html as fallback
+                'reportPdf' => 'report.html',
                 'screenshot' => 'after.png',
             ],
         ]);
@@ -226,17 +225,15 @@ class ApiTest extends TestCase
         $result->assertStatus(200);
         $resultData = $result->json();
 
-        // The API result links strictly point to report.pdf regardless
         $this->assertStringContainsString('/artifacts/report.pdf?token=', $resultData['links']['reportPdf']);
 
-        // Requesting report.pdf returns 404 because report.pdf does not exist on disk
         $pdfResponse = $this->get($resultData['links']['reportPdf'], [
             'Origin' => 'https://frontend.test',
         ]);
-        $pdfResponse->assertStatus(404);
-        $this->assertSame('Artefak tidak ditemukan.', $pdfResponse->json('message'));
+        $pdfResponse->assertStatus(200);
+        $pdfResponse->assertHeader('Content-Type', 'text/html; charset=utf-8');
+        $this->assertStringContainsString('Report', file_get_contents($pdfResponse->getFile()->getPathname()));
 
-        // Requesting report.html directly also returns 404 because report.html is not an allowed artifact definition
         preg_match('/token=([^&]+)/', $resultData['links']['reportPdf'], $matches);
         $shareToken = $matches[1] ?? '';
         $htmlResponse = $this->get("/audits/{$job->id}/artifacts/report.html?token={$shareToken}", [
@@ -244,6 +241,268 @@ class ApiTest extends TestCase
         ]);
         $htmlResponse->assertStatus(404);
         $this->assertSame('Artefak tidak ditemukan.', $htmlResponse->json('message'));
+    }
+
+    public function test_result_links_and_convenience_export_routes_work_with_bearer_or_share_token(): void
+    {
+        $response = $this->createJob();
+        $data = $response->json();
+        $job = $this->store->claimNext();
+        $this->assertNotNull($job);
+
+        mkdir($job->artifactDir, 0777, true);
+        file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'before.png', 'before-png');
+        file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'report.json', '{"ok":true}');
+        file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'report.csv', "\xEF\xBB\xBFIssue_ID,Rule_ID\r\n1,image-alt\r\n");
+
+        $this->store->complete($job->id, ['snapshot' => ['ok' => true]]);
+
+        $result = $this->get('/audits/' . $job->id . '/result', [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => 'Bearer ' . $data['accessToken'],
+        ]);
+        $result->assertStatus(200);
+        $links = $result->json('links');
+
+        $this->assertArrayHasKey('beforeScreenshot', $links);
+        $this->assertArrayHasKey('reportJson', $links);
+        $this->assertArrayHasKey('reportCsv', $links);
+
+        // Via /artifacts/report.json and /artifacts/report.csv
+        $jsonArt = $this->get($links['reportJson'], ['Origin' => 'https://frontend.test']);
+        $jsonArt->assertStatus(200);
+        $jsonArt->assertHeader('Content-Type', 'application/json; charset=utf-8');
+
+        $csvArt = $this->get($links['reportCsv'], ['Origin' => 'https://frontend.test']);
+        $csvArt->assertStatus(200);
+        $csvArt->assertHeader('Content-Type', 'text/csv; charset=utf-8');
+
+        // Convenience export routes with Bearer accessToken
+        $bearerJson = $this->get("/audits/{$job->id}/report.json", [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => 'Bearer ' . $data['accessToken'],
+        ]);
+        $bearerJson->assertStatus(200);
+        $bearerJson->assertHeader('Content-Type', 'application/json; charset=utf-8');
+
+        $bearerCsv = $this->get("/audits/{$job->id}/report.csv", [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => 'Bearer ' . $data['accessToken'],
+        ]);
+        $bearerCsv->assertStatus(200);
+        $bearerCsv->assertHeader('Content-Type', 'text/csv; charset=utf-8');
+
+        // Convenience export routes with ?token=<shareToken>
+        preg_match('/token=([^&]+)/', $links['reportJson'], $m);
+        $shareToken = $m[1] ?? '';
+
+        $shareJson = $this->get("/audits/{$job->id}/report.json?token={$shareToken}", ['Origin' => 'https://frontend.test']);
+        $shareJson->assertStatus(200);
+
+        $shareCsv = $this->get("/audits/{$job->id}/report.csv?token={$shareToken}", ['Origin' => 'https://frontend.test']);
+        $shareCsv->assertStatus(200);
+
+        // Invalid token returns 404
+        $badExport = $this->get("/audits/{$job->id}/report.json?token=invalid", ['Origin' => 'https://frontend.test']);
+        $badExport->assertStatus(404);
+    }
+
+    public function test_before_screenshot_served_while_running_and_completed_with_live_telemetry(): void
+    {
+        $response = $this->createJob();
+        $data = $response->json();
+        $job = $this->store->claimNext();
+        $this->assertNotNull($job);
+
+        mkdir($job->artifactDir, 0777, true);
+        file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'before.png', 'early-png-data');
+
+        $telemetry = [
+            'steps' => [
+                ['id' => 'capture_before', 'label' => 'Mengambil pratinjau', 'status' => 'done'],
+            ],
+            'stats' => ['domElements' => 120],
+            'earlyPreviewReady' => true,
+            'updatedAt' => '2026-11-27T00:00:00.000Z',
+        ];
+        $this->store->updateProgress($job->id, [
+            'progress' => 46,
+            'stage' => 'Menangkap pratinjau awal',
+            'telemetry' => $telemetry,
+        ]);
+
+        // Subsequent progress update without telemetry must preserve existing telemetry
+        $this->store->updateProgress($job->id, [
+            'progress' => 60,
+            'stage' => 'Mengaudit WCAG',
+        ]);
+
+        $statusRes = $this->get('/audits/' . $job->id, [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => 'Bearer ' . $data['accessToken'],
+        ]);
+        $statusRes->assertStatus(200);
+        $this->assertSame($telemetry, $statusRes->json('job.telemetry'));
+        $previewUrl = $statusRes->json('job.previewUrl');
+        $this->assertIsString($previewUrl);
+        $this->assertStringContainsString('/artifacts/before-screenshot?token=', $previewUrl);
+
+        // Allowed while running
+        $previewRes = $this->get($previewUrl, ['Origin' => 'https://frontend.test']);
+        $previewRes->assertStatus(200);
+        $previewRes->assertHeader('Content-Type', 'image/png');
+
+        // Other artifacts remain blocked while running
+        preg_match('/token=([^&]+)/', $previewUrl, $m);
+        $shareToken = $m[1] ?? '';
+        $readerWhileRunning = $this->get("/audits/{$job->id}/artifacts/reader?token={$shareToken}", ['Origin' => 'https://frontend.test']);
+        $readerWhileRunning->assertStatus(410);
+
+        // Still allowed after completion
+        $this->store->complete($job->id, ['snapshot' => ['ok' => true]]);
+        $previewCompleted = $this->get($previewUrl, ['Origin' => 'https://frontend.test']);
+        $previewCompleted->assertStatus(200);
+    }
+
+    public function test_patched_artifact_csp_allows_external_styles_fonts_and_sanitized_frame_ancestors(): void
+    {
+        $this->config = new AksaraConfig([
+            'dataDir' => $this->tempDir,
+            'databasePath' => $this->tempDir . DIRECTORY_SEPARATOR . 'jobs.sqlite',
+            'artifactsDir' => $this->tempDir . DIRECTORY_SEPARATOR . 'artifacts',
+            'secret' => 'test-secret-that-is-long-enough-123456',
+            'frontendOrigins' => [
+                'https://frontend.test',
+                'http://localhost:3000',
+                "https://evil.test; script-src 'unsafe-inline'",
+            ],
+            'rateLimit' => 10,
+            'retentionMs' => 3600000,
+        ]);
+        $this->app->instance(AksaraConfig::class, $this->config);
+
+        $response = $this->createJob();
+        $data = $response->json();
+        $job = $this->store->claimNext();
+        mkdir($job->artifactDir, 0777, true);
+        file_put_contents($job->artifactDir . DIRECTORY_SEPARATOR . 'patched.html', '<!doctype html><p>Patched</p>');
+        $this->store->complete($job->id, ['snapshot' => ['ok' => true]]);
+
+        $result = $this->get('/audits/' . $job->id . '/result', [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => 'Bearer ' . $data['accessToken'],
+        ]);
+        $patchedRes = $this->get($result->json('links.patched'), ['Origin' => 'https://frontend.test']);
+        $patchedRes->assertStatus(200);
+
+        $csp = (string) $patchedRes->headers->get('Content-Security-Policy');
+        $this->assertSame(
+            "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline' https: http:; font-src https: http: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self' https://frontend.test http://localhost:3000",
+            $csp
+        );
+    }
+
+    public function test_gcs_ha_cache_reuse_succeeds_without_local_artifact_dir(): void
+    {
+        $this->config = new AksaraConfig([
+            'dataDir' => $this->tempDir,
+            'databasePath' => $this->tempDir . DIRECTORY_SEPARATOR . 'jobs.sqlite',
+            'artifactsDir' => $this->tempDir . DIRECTORY_SEPARATOR . 'artifacts',
+            'secret' => 'test-secret-that-is-long-enough-123456',
+            'frontendOrigins' => ['https://frontend.test'],
+            'artifactStore' => 'gcs',
+            'gcsBucket' => 'private-bucket',
+            'rateLimit' => 10,
+            'retentionMs' => 3600000,
+        ]);
+        $this->app->instance(AksaraConfig::class, $this->config);
+
+        $first = $this->createJob('https://example.com/ha-cache');
+        $firstJob = $this->store->claimNext();
+        $this->assertNotNull($firstJob);
+        $this->assertFalse(is_dir($firstJob->artifactDir));
+
+        $this->store->complete($firstJob->id, [
+            'snapshot' => ['cached' => true],
+            'manifest' => [
+                'reader.html' => ['path' => 'jobs/1/reader.html', 'contentType' => 'text/html; charset=utf-8', 'size' => 10],
+            ],
+        ]);
+
+        $reused = $this->createJob('https://example.com/ha-cache', ['reuseExisting' => true]);
+        $reused->assertStatus(200);
+        $this->assertSame('completed', $reused->json('status'));
+        $this->assertSame(1, $this->worker->kicks);
+        $storedReused = $this->store->getJob($reused->json('jobId'));
+        $this->assertArrayHasKey('manifest', $storedReused->result);
+    }
+
+    public function test_gcs_artifact_controller_serves_early_preview_and_report_html_fallback(): void
+    {
+        $history = [];
+        $mock = new \GuzzleHttp\Handler\MockHandler([
+            new \GuzzleHttp\Psr7\Response(200, [], 'early-gcs-png'),
+            new \GuzzleHttp\Psr7\Response(200, [], '<!doctype html><title>GCS Fallback</title>'),
+        ]);
+        $stack = \GuzzleHttp\HandlerStack::create($mock);
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $gcs = new \App\Services\GcsArtifacts('private-bucket', 'project-id', new \GuzzleHttp\Client(['handler' => $stack]), fn () => 'token');
+
+        $this->config = new AksaraConfig([
+            'dataDir' => $this->tempDir,
+            'databasePath' => $this->tempDir . DIRECTORY_SEPARATOR . 'jobs.sqlite',
+            'artifactsDir' => $this->tempDir . DIRECTORY_SEPARATOR . 'artifacts',
+            'secret' => 'test-secret-that-is-long-enough-123456',
+            'frontendOrigins' => ['https://frontend.test'],
+            'artifactStore' => 'gcs',
+            'gcsBucket' => 'private-bucket',
+            'rateLimit' => 10,
+            'retentionMs' => 3600000,
+        ]);
+        $this->app->instance(AksaraConfig::class, $this->config);
+        $this->app->instance(\App\Http\Controllers\AuditArtifactController::class, new \App\Http\Controllers\AuditArtifactController(
+            $this->config,
+            $this->app->make(\App\Services\SecurityService::class),
+            $this->store,
+            $gcs
+        ));
+
+        $create = $this->createJob('https://example.com/gcs-serve');
+        $jobId = $create->json('jobId');
+        $accessToken = $create->json('accessToken');
+        $job = $this->store->claimNext();
+
+        $this->store->updateProgress($job->id, [
+            'progress' => 46,
+            'stage' => 'Pratinjau',
+            'telemetry' => ['steps' => [], 'stats' => [], 'earlyPreviewReady' => true, 'updatedAt' => '2026-11-27T00:00:00.000Z'],
+        ]);
+
+        $statusRes = $this->get("/audits/{$jobId}", [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => "Bearer {$accessToken}",
+        ]);
+        $previewUrl = $statusRes->json('job.previewUrl');
+        $previewRes = $this->get($previewUrl, ['Origin' => 'https://frontend.test']);
+        $previewRes->assertStatus(200);
+        $previewRes->assertHeader('Content-Type', 'image/png');
+        $this->assertSame('early-gcs-png', $previewRes->getContent());
+
+        // Complete with report.html in manifest (no report.pdf)
+        $this->store->complete($job->id, [
+            'snapshot' => ['ok' => true],
+            'manifest' => [
+                'report.html' => ['path' => "jobs/{$jobId}/attempt-1-1/report.html", 'contentType' => 'text/html; charset=utf-8', 'size' => 40],
+            ],
+        ]);
+        $resultRes = $this->get("/audits/{$jobId}/result", [
+            'Origin' => 'https://frontend.test',
+            'Authorization' => "Bearer {$accessToken}",
+        ]);
+        $pdfRes = $this->get($resultRes->json('links.reportPdf'), ['Origin' => 'https://frontend.test']);
+        $pdfRes->assertStatus(200);
+        $pdfRes->assertHeader('Content-Type', 'text/html; charset=utf-8');
+        $this->assertStringContainsString('GCS Fallback', $pdfRes->getContent());
     }
 
     public function test_lets_user_explicitly_reuse_stored_result(): void

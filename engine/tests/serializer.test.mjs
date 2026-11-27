@@ -20,7 +20,10 @@ import {
   chooseCardLink,
   dedupeHeadings,
 } from "../src/serializer/blocks.mjs";
-import { wrapPatchedPage } from "../src/serializer/index.mjs";
+import {
+  sanitizeExtractedAttributes,
+  wrapPatchedPage,
+} from "../src/serializer/index.mjs";
 
 const SOURCE = "https://sulselprov.go.id/berita";
 
@@ -427,4 +430,18 @@ test("wrapPatchedPage robustly injects CSP and banner across different HTML stru
   });
   assert.match(fragment, /^<!DOCTYPE html>\n<html><head><meta/);
   assert.match(fragment, /<body><div style=.+<h1>Fragmen Sederhana<\/h1><\/body><\/html>$/);
+});
+
+test("sanitizeExtractedAttributes removes dangerous attributes, unsafe styles, and script URLs", () => {
+  const cleaned = sanitizeExtractedAttributes({
+    href: "javascript:alert(1)",
+    src: "vbscript:msgbox(1)",
+    formaction: "https://evil.com/steal",
+    "xlink:href": "#bad",
+    onclick: "evil()",
+    style: "width:expression(alert(1))",
+    class: "btn-primary",
+  });
+
+  assert.deepEqual(cleaned, { class: "btn-primary" });
 });

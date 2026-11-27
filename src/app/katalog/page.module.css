@@ -414,6 +414,49 @@
   font-size: 14px;
 }
 
+.snackbar {
+  position: fixed;
+  z-index: 950;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-lg);
+  background: #16181d;
+  color: #ffffff;
+  box-shadow: var(--shadow-xl);
+}
+
+.snackbar p {
+  margin: 0;
+  font-size: 14.5px;
+  color: #ffffff;
+}
+
+.undoButton {
+  flex: none;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #93c5fd;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  color: #1e3a8a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.undoButton:hover {
+  background: #eff6ff;
+}
+
 /* --- Responsif --- */
 
 @media (max-width: 960px) {

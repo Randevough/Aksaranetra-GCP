@@ -59,6 +59,8 @@ resource "google_compute_instance_template" "app" {
     db_name                = var.db_name
     db_user                = var.db_user
     db_password            = var.db_password
+    db_sslmode             = var.db_sslmode
+    backend_secret         = var.backend_secret
     domain_name            = var.domain_name
     artifact_registry_repo = var.artifact_registry_repo
     image_tag              = var.image_tag

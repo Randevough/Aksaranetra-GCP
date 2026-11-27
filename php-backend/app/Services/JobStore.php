@@ -11,7 +11,7 @@ use Throwable;
 class JobStore
 {
     private const COLUMNS = 'id, token_hash, share_token_hash, ip_hash, target_url, status,
-      stage, progress, attempts, cancel_requested, result_json, error_code, error_message,
+      stage, progress, attempts, cancel_requested, result_json, telemetry_json, error_code, error_message,
       created_at, updated_at, started_at, finished_at, expires_at, artifact_dir, lease_token, lease_expires_at';
 
     private ?PDO $pdo = null;
@@ -110,6 +110,7 @@ class JobStore
             attempts INTEGER NOT NULL DEFAULT 0,
             cancel_requested INTEGER NOT NULL DEFAULT 0,
             result_json TEXT,
+            telemetry_json TEXT,
             error_code TEXT,
             error_message TEXT,
             created_at BIGINT NOT NULL,
@@ -125,8 +126,12 @@ class JobStore
         CREATE INDEX IF NOT EXISTS audit_jobs_ip_idx ON audit_jobs(ip_hash, created_at);
         CREATE INDEX IF NOT EXISTS audit_jobs_expiry_idx ON audit_jobs(expires_at);");
         $columns = $this->pdo->query('PRAGMA table_info(audit_jobs)')->fetchAll(PDO::FETCH_ASSOC);
-        if (!in_array('lease_token', array_column($columns, 'name'), true)) {
+        $columnNames = array_column($columns, 'name');
+        if (!in_array('lease_token', $columnNames, true)) {
             $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN lease_token TEXT; ALTER TABLE audit_jobs ADD COLUMN lease_expires_at BIGINT');
+        }
+        if (!in_array('telemetry_json', $columnNames, true)) {
+            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN telemetry_json TEXT');
         }
     }
 
@@ -310,8 +315,18 @@ class JobStore
         $now = ($this->now)();
         $stage = $data['stage'];
         $progress = max(0, min(99, (int) $data['progress']));
+        $progressExpr = ($this->postgres ? 'GREATEST' : 'MAX') . '(progress, CAST(? AS BIGINT))';
 
-        $stmt = $this->pdo->prepare("UPDATE audit_jobs SET stage = ?, progress = " . ($this->postgres ? 'GREATEST' : 'MAX') . "(progress, CAST(? AS BIGINT)), updated_at = ?
+        if (isset($data['telemetry']) && is_array($data['telemetry'])) {
+            $telemetryJson = json_encode($data['telemetry'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $stmt = $this->pdo->prepare("UPDATE audit_jobs SET stage = ?, progress = {$progressExpr}, telemetry_json = ?, updated_at = ?
+                WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
+            $stmt->execute([$stage, $progress, $telemetryJson, $now, $id]);
+
+            return;
+        }
+
+        $stmt = $this->pdo->prepare("UPDATE audit_jobs SET stage = ?, progress = {$progressExpr}, updated_at = ?
             WHERE id = ? AND status = 'running'" . $this->fence($leaseToken));
         $stmt->execute([$stage, $progress, $now, $id]);
     }

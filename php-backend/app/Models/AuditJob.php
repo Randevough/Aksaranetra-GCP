@@ -29,6 +29,7 @@ class AuditJob implements JsonSerializable
         public readonly int $expiresAt,
         public readonly string $artifactDir,
         public readonly ?string $leaseToken = null,
+        public readonly ?array $telemetry = null,
     ) {}
 
     public static function fromRow(object|array|null $row): ?self
@@ -62,6 +63,7 @@ class AuditJob implements JsonSerializable
             expiresAt: (int) $row['expires_at'],
             artifactDir: (string) $row['artifact_dir'],
             leaseToken: $row['lease_token'] ?? null,
+            telemetry: !empty($row['telemetry_json']) ? json_decode((string) $row['telemetry_json'], true) : null,
         );
     }
 
@@ -79,6 +81,7 @@ class AuditJob implements JsonSerializable
             'attempts' => $this->attempts,
             'cancelRequested' => $this->cancelRequested,
             'result' => $this->result,
+            'telemetry' => $this->telemetry,
             'errorCode' => $this->errorCode,
             'errorMessage' => $this->errorMessage,
             'createdAt' => $this->createdAt,
@@ -105,8 +108,10 @@ class AuditJob implements JsonSerializable
         return gmdate('Y-m-d\TH:i:s', $seconds) . sprintf('.%03dZ', $remainder);
     }
 
-    public function toPublic(?int $queuePosition = null): array
+    public function toPublic(?int $queuePosition = null, ?string $previewUrl = null): array
     {
+        $earlyPreviewReady = is_array($this->telemetry) && (($this->telemetry['earlyPreviewReady'] ?? false) === true);
+
         return [
             'jobId' => $this->id,
             'url' => $this->targetUrl,
@@ -120,6 +125,8 @@ class AuditJob implements JsonSerializable
             'startedAt' => self::formatIsoMilliseconds($this->startedAt),
             'finishedAt' => self::formatIsoMilliseconds($this->finishedAt),
             'expiresAt' => self::formatIsoMilliseconds($this->expiresAt),
+            'telemetry' => $this->telemetry,
+            'previewUrl' => $earlyPreviewReady ? $previewUrl : null,
             'error' => $this->errorCode ? [
                 'code' => $this->errorCode,
                 'message' => $this->errorMessage,

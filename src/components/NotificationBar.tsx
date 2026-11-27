@@ -39,7 +39,7 @@ export default function NotificationBar() {
   if (!terlihat) return null;
 
   return (
-    <div className={styles.bar} role="status">
+    <aside className={styles.bar} aria-label="Informasi layanan">
       <p className={styles.teks}>
         AksaraNetra adalah alat bantu tidak resmi. Pemeriksaan dilakukan pada
         salinan halaman, dan situs aslinya tidak diubah dengan cara apa pun.
@@ -47,6 +47,6 @@ export default function NotificationBar() {
       <button type="button" className={styles.tombol} onClick={tutup}>
         Mengerti
       </button>
-    </div>
+    </aside>
   );
 }

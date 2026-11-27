@@ -45,15 +45,22 @@ class AuditResultController
         ]);
 
         $base = "/audits/{$job->id}/artifacts";
+        $encodedToken = urlencode($shareToken);
+        $previewUrl = (($job->telemetry['earlyPreviewReady'] ?? false) === true)
+            ? "{$base}/before-screenshot?token={$encodedToken}"
+            : null;
 
         return response()->json([
-            'job' => $job->toPublic($this->store->queuePosition($job->id)),
+            'job' => $job->toPublic($this->store->queuePosition($job->id), $previewUrl),
             'result' => $job->result,
             'links' => [
-                'reader' => "{$base}/reader?token=" . urlencode($shareToken),
-                'patched' => "{$base}/patched?token=" . urlencode($shareToken),
-                'reportPdf' => "{$base}/report.pdf?token=" . urlencode($shareToken),
-                'screenshot' => "{$base}/screenshot?token=" . urlencode($shareToken),
+                'reader' => "{$base}/reader?token={$encodedToken}",
+                'patched' => "{$base}/patched?token={$encodedToken}",
+                'reportPdf' => "{$base}/report.pdf?token={$encodedToken}",
+                'screenshot' => "{$base}/screenshot?token={$encodedToken}",
+                'beforeScreenshot' => "{$base}/before-screenshot?token={$encodedToken}",
+                'reportJson' => "{$base}/report.json?token={$encodedToken}",
+                'reportCsv' => "{$base}/report.csv?token={$encodedToken}",
             ],
         ]);
     }

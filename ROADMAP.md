@@ -1,93 +1,65 @@
-# Roadmap Pengembangan AksaraNetra (Next Sessions)
+# Roadmap Pengembangan AksaraNetra
 
-Dokumen rencana strategis dan teknis untuk pengembangan fitur, UI/UX, dan infrastruktur AksaraNetra.
-
----
-
-## 1. Roadmap Fitur (Product & Engineering)
-
-Fokus: Memperkuat nilai kepatuhan regulasi Indonesia, kemudahan audit lanjutan, dan pelaporan institusional.
-
-### Prioritas 1: Segera (Sprint 1)
-- [ ] **Export Data Lengkap (JSON & CSV Checklist)**
-  - Endpoint `GET /audits/{id}/report.json`: Ekspor struktur data audit mentah untuk integrasi CI/CD klien.
-  - Endpoint `GET /audits/{id}/report.csv`: Format spreadsheet kepatuhan berisi kolom `Rule_ID`, `Severity`, `Selector`, `Status`, `WCAG_SC`, dan `Pasal_Kominfo`.
-- [ ] **Preset Regulasi Indonesia**
-  - Pemetaan statis aturan axe-core ke hukum Indonesia:
-    - UU No. 8/2016 Pasal 19 (Hak Aksesibilitas Informasi & Komunikasi bagi Penyandang Disabilitas).
-    - Permen Kominfo No. 8/2021 (Standar Teknis Aksesibilitas Situs Instansi Penyelenggara Publik).
-    - Standar Internasional WCAG 2.1 Level AA / AAA.
-  - Opsi filter preset saat mengajukan periksa URL baru.
-- [ ] **Visual Before vs After Slider**
-  - Engine Playwright mengambil tangkapan layar `before.png` (sebelum patch) dan `after.png` (setelah patch).
-  - Komponen slider perbandingan visual interaktif di halaman `/result` menggunakan CSS `clip-path` native.
-
-### Prioritas 2: Menengah (Sprint 2)
-- [ ] **Dynamic Compliance Badge (.svg)**
-  - Endpoint `GET /badges/{domain}.svg` untuk menampilkan skor kepatuhan terkini.
-  - Snippet embed HTML/Markdown untuk dipasang di footer web klien.
-- [ ] **Notifikasi Webhook & Email**
-  - Opsi input email / webhook callback URL pada formulir periksa.
-  - Notifikasi dikirim otomatis via queue worker Laravel setelah audit dan render PDF tuntas.
-- [ ] **Bounded Sub-route Audit (Multi-page crawl)**
-  - Audit hingga 3–5 sub-rute utama secara berantai (depth: 1) dengan agregasi skor domain.
+Dokumen rencana strategis dan teknis untuk pengembangan fitur, UI/UX aksesibel, dan infrastruktur AksaraNetra.
 
 ---
 
-## 2. Roadmap UI/UX & Kepatuhan WCAG 2.1 AAA (Frontend)
+## 1. Wave 1: Platform Upgrade (Core Audit, Transparansi & Dogfooding)
 
-Fokus: Menjadikan AksaraNetra sebagai standar tertinggi antarmuka aksesibel (dogfooding WCAG AAA).
+Fokus: Pengukuran kesiapan halaman yang stabil, pelacakan langsung proses audit, pemetaan regulasi Indonesia yang akurat, serta pengalaman hasil interaktif yang ramah pembaca layar dan keyboard.
 
-### A. Aksesibilitas Internal Platform
-- [ ] **Floating A11y Toolbar**:
-  - **High Contrast Toggle**: Standard Dark (kontras 7:1) dan Yellow-on-Black (kontras 21:1 untuk low vision).
-  - **Font Scaler**: Pengatur ukuran teks (100%, 125%, 150%, 200%) via CSS custom property `--a11y-font-scale`.
-  - **Focus Indicator AAA**: Outline fokus tebal 3px solid dual-ring (`:focus-visible`) di seluruh elemen interaktif.
-  - **Dukungan `@media (forced-colors: active)`** untuk Windows High Contrast Mode.
-- [ ] **Screen Reader Live Announcements**:
-  - `aria-live="polite"` pada pembaruan progres audit dan status filtering.
+- [x] **Smart Page-Readiness & Safe Hydration**:
+  - Hidrasi first-party terbatas (`allowHydration`) dengan proteksi SSRF untuk sub-resource dan redirect domain `www.`.
+  - Gerbang stabilitas DOM (`MutationObserver`), font siap pakai, gambar terlihat, dan deteksi empty-shell.
+- [x] **Live Telemetry & Early Preview**:
+  - Endpoint `GET /audits/{id}` menyertakan `telemetry.steps[]`, statistik pemindaian langsung, dan `previewUrl` (`before.png`) begitu tangkapan awal siap.
+  - Panel *Engine X-Ray* di `/result`, progres tab browser, dan kuis mikro opsional "Uji Aksesibilitas 10 Detik".
+- [x] **Skor Otomatis, POUR & Pemetaan Regulasi Indonesia**:
+  - Skor 0–100 berbobot dampak WCAG 2.1 Level AA (`beforeScore` -> `afterScore`, grade A–F) disertai penafian cakupan otomatis (~30–57% kriteria WCAG).
+  - Rincian 4 tingkat keparahan (Kritis, Serius, Sedang, Rendah) dan skor prinsip POUR.
+  - Pemetaan aturan ke regulasi terverifikasi:
+    - **UU No. 8 Tahun 2016** (Pasal 19, 24, 105 — Hak Aksesibilitas Informasi & Komunikasi Penyandang Disabilitas)
+    - **PP No. 42 Tahun 2020** (Pasal 17–18 — Aksesibilitas Pelayanan Publik Elektronik)
+    - **PermenPANRB No. 11 Tahun 2024** (Penyelenggaraan Pelayanan Publik Ramah Kelompok Rentan)
+    - **Perpres No. 95 Tahun 2018 (SPBE)** (Tata Kelola Pemerintahan Berbasis Elektronik)
+    - **UU No. 14 Tahun 2008 (KIP) & PerKI No. 1 Tahun 2021** (Standar Layanan Informasi Publik / PPID)
+    - **SNI ISO/IEC 40500** (Adopsi Standar Nasional WCAG)
+- [x] **Inspeksi Visual & Daftar Temuan Bahasa Indonesia**:
+  - Tab **Pin Temuan** (`before.png` + pin koordinat elemen), **Alur Fokus Keyboard** (pemeriksaan WCAG 2.4.7 & 2.4.11), dan **Perbandingan Sebelum & Sesudah** berbasis CSS `clip-path`.
+  - Eksplorasi temuan per elemen dengan filter Keparahan, Status, POUR, Regulasi, pencarian teks, diff HTML Before/After, serta tombol salin perbaikan.
+- [x] **Ekspor Data & Mode Demo Instan**:
+  - Ekspor `GET /audits/{id}/report.json` dan `GET /audits/{id}/report.csv` (`Rule_ID`, `Severity`, `Selector`, `Status`, `WCAG_SC`, `Regulations`, `Title_ID`).
+  - Mode demo statis (`/result?demo=pemprov-sulsel-demo` dan `/result?demo=portal-akademik-demo`) untuk meninjau workspace tanpa backend.
+- [x] **Dogfooding Aksesibilitas Internal**:
+  - Dukungan penuh `prefers-reduced-motion` (`MotionConfig reducedMotion="user"`), fokus trap & pengembalian fokus pada dialog konfirmasi, manajemen fokus transisi fase, dan perbaikan kontras WCAG AA tanpa merusak identitas visual.
 
-### B. Visualisasi Hasil Audit (`/result`)
-- [ ] **Severity Breakdown Card**:
-  - Bar segmen interaktif membagi temuan ke 4 tingkatan:
-    - **Kritis (Critical)**: Penghalang akses fatal (warna kontras tinggi AAA).
-    - **Serius (Serious)**: Masalah fungsional berat.
-    - **Sedang (Moderate)**: Ketidaksempurnaan navigasi/label.
-    - **Rendah (Minor)**: Perbaikan semantik ringan.
-  - Filter interaktif daftar temuan berdasarkan tingkatan keparahan.
-- [ ] **Interactive DOM Inspector**:
-  - Penampil cuplikan kode HTML *Before* vs *After* untuk tiap aturan yang diperbaiki.
-  - Tombol salin kode perbaikan dengan feedback visual dan audio cue.
+---
 
-### C. Peningkatan Reader Mode
-- [ ] **Tipografi Adaptif**:
-  - Pilihan font: Font sistem, Atkinson Hyperlegible, dan OpenDyslexic (woff2 lokal).
-  - Pengatur jarak baris (line-height 1.5 - 2.0) dan spasi kata.
-  - **Bionic Reading Toggle**: Penebalan huruf awal tiap kata untuk pembaca disleksia & ADHD.
+## 2. Wave 2: Ekspansi, Multi-Halaman & Skalabilitas
+
+Fokus: Pemantauan berkelanjutan untuk instansi publik dan alur integrasi lintas tim.
+
+- [ ] **Bounded Sub-route Audit (Multi-page crawl)**:
+  - Audit hingga 3–5 sub-rute utama secara berantai (`depth: 1`) dengan agregasi skor dan ringkasan kepatuhan domain.
+- [ ] **Dynamic Compliance Badge (`.svg`)**:
+  - Endpoint `GET /badges/{domain}.svg` untuk menampilkan skor pemeriksaan terakhir yang terverifikasi.
+  - Cuplikan embed HTML/Markdown untuk dipasang di portal instansi.
+- [ ] **Notifikasi Webhook & Email**:
+  - Opsi callback webhook atau email opsional saat pemeriksaan multi-halaman dan penyusunan PDF tuntas.
+- [ ] **Penyempurnaan Tipografi Reader Mode**:
+  - Opsi jarak baris (`line-height` 1.5–2.0), lebar kolom baca, dan font keterbacaan tinggi berbasis riset tipografi (*Atkinson Hyperlegible* dan font sistem) dengan dukungan `@media (forced-colors: active)`.
 
 ---
 
 ## 3. Roadmap Infrastruktur & Cloudflare (DevOps)
 
-Fokus: Domain kustom, HTTPS otomatis, perlindungan bot/DDoS, dan efisiensi biaya (< $15/bulan).
+Fokus: Keamanan jaringan, domain kustom, HTTPS otomatis, dan efisiensi biaya operasional.
 
-### A. Cloudflare Tunnel (Zero Open Port & Bebas IP Statis)
-- [ ] **Setup Cloudflare Tunnel (`cloudflared`)**:
-  - Menghubungkan VM Compute Engine langsung ke Cloudflare Edge via outbound connection.
-  - Tidak memerlukan IP statis GCP (menghemat biaya bulanan IP).
-  - Menutup seluruh port publik di firewall GCP (port 3000 dan 8787 tidak diekspos langsung ke internet publik).
-- [ ] **Subdomain Routing**:
-  - `aksaranetra.id` / `www.aksaranetra.id` -> Container `frontend:3000`.
-  - `api.aksaranetra.id` -> Container `backend-api:8787`.
-
-### B. Keamanan & CDN Caching
-- [ ] **Cloudflare Universal SSL (Full Strict Mode)**.
-- [ ] **Cloudflare Turnstile CAPTCHA**:
-  - Mengamankan formulir submit `/periksa` dari spam bot tanpa CAPTCHA gambar yang merusak aksesibilitas.
-- [ ] **Cache Rules Agresif**:
-  - Cache statis Next.js (`/_next/static/*`) di CDN selama 1 bulan (menghemat bandwidth egress GCP hingga 85%).
-  - Bypass cache untuk seluruh API dinamis `/audits/*` dan `/api/*`.
-
-### C. Monitoring & Penghematan Biaya
-- [ ] Menjaga spesifikasi mesin `e2-small` + 3GB swap file (stabil di kisaran $14–$15/bulan).
-- [ ] Cronjob harian di VM untuk pembersihan docker build cache: `docker system prune -af --filter "until=48h"`.
+- [ ] **Cloudflare Tunnel (`cloudflared`)**:
+  - Menghubungkan VM Compute Engine ke Cloudflare Edge melalui koneksi outbound tanpa membuka port publik langsung di firewall GCP.
+  - Pemisahan rute subdomain frontend (`aksaranetra.id`) dan API (`api.aksaranetra.id`).
+- [ ] **Keamanan & CDN Caching**:
+  - Cloudflare Universal SSL (Full Strict Mode) dan perlindungan bot formulir `/periksa` dengan Cloudflare Turnstile yang ramah akses.
+  - Cache statis aset `/_next/static/*` sambil memastikan rute dinamis `/audits/*` tetap `no-store`.
+- [ ] **Pemeliharaan Sumber Daya VM**:
+  - Menjaga efisiensi memori pada target infrastruktur GCP dengan mode rendah sumber daya Chromium dan pembersihan rutin build cache.

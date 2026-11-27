@@ -1,0 +1,341 @@
+{
+  "job": {
+    "jobId": "demo_portal_akademik",
+    "url": "https://siakad.contoh-kampus.ac.id",
+    "status": "completed",
+    "stage": "Pemeriksaan selesai",
+    "progress": 100,
+    "queuePosition": null,
+    "attempts": 1,
+    "canCancel": false,
+    "createdAt": "2026-11-21T10:05:00.000Z",
+    "startedAt": "2026-11-21T10:05:01.000Z",
+    "finishedAt": "2026-11-21T10:05:14.000Z",
+    "expiresAt": "2030-01-01T00:00:00.000Z",
+    "error": null,
+    "previewUrl": "/data/demo/portal-akademik-before.svg"
+  },
+  "result": {
+    "snapshot": {
+      "formatVersion": "2.0.0",
+      "id": "demo_portal_akademik",
+      "origin": "demo",
+      "engineVersion": "2.0.0-wave1",
+      "capturedAt": "2026-11-21T10:05:14.000Z",
+      "disclaimer": "Pemeriksaan otomatis mencakup ~30–57% kriteria WCAG 2.1 Level AA. Lengkapi dengan uji manual bersama mahasiswa pengguna pembaca layar.",
+      "source": {
+        "requestedUrl": "https://siakad.contoh-kampus.ac.id",
+        "finalUrl": "https://siakad.contoh-kampus.ac.id/krs",
+        "title": "Portal Akademik Kampus — Pengisian KRS (Demo)",
+        "status": 200,
+        "siteLabel": "Portal Akademik"
+      },
+      "summary": {
+        "beforeTotal": 11,
+        "afterTotal": 2,
+        "reduction": 9,
+        "reductionPercent": 81.82,
+        "strictImprovement": true,
+        "noRegression": true
+      },
+      "rules": {
+        "label": { "before": 2, "after": 0, "reduction": 2 },
+        "button-name": { "before": 2, "after": 0, "reduction": 2 },
+        "color-contrast": { "before": 4, "after": 0, "reduction": 4 },
+        "table-headers": { "before": 2, "after": 1, "reduction": 1 },
+        "focus-visible": { "before": 1, "after": 1, "reduction": 0 }
+      },
+      "counts": {
+        "fixed": 9,
+        "review": 2,
+        "skipped": 0,
+        "rolledBack": 0,
+        "verifiedOverrides": 0
+      },
+      "warnings": {
+        "rolledBack": false,
+        "wcagRegressionClean": true,
+        "worsenedRules": [],
+        "duplicateLabels": [],
+        "staleOverrides": [],
+        "rolledBackRecords": [],
+        "partialLoad": null,
+        "possibleEmptyShell": false
+      },
+      "files": {
+        "beforeScreenshot": "portal-akademik-before.svg",
+        "reportJson": "portal-akademik-demo.json",
+        "reportCsv": "portal-akademik-report.csv"
+      },
+      "decisions": [
+        { "ruleId": "label", "action": "fixed", "selector": "#search-mk" },
+        { "ruleId": "button-name", "action": "fixed", "selector": "table.krs-table button.btn-add" },
+        { "ruleId": "color-contrast", "action": "fixed", "selector": "button.btn-save-krs" }
+      ],
+      "score": {
+        "overall": 89,
+        "beforeScore": 58,
+        "afterScore": 89,
+        "grade": "B",
+        "methodology": "automated-wcag-2.1-aa-impact-weighted",
+        "automatedCoverageNote": "Skor otomatis mencakup ~30–57% kriteria WCAG — lengkapi dengan uji manual",
+        "pour": {
+          "perceivable": 88,
+          "operable": 86,
+          "understandable": 92,
+          "robust": 90
+        }
+      },
+      "severity": {
+        "before": { "critical": 2, "serious": 5, "moderate": 3, "minor": 1, "total": 11 },
+        "after": { "critical": 0, "serious": 1, "moderate": 1, "minor": 0, "total": 2 }
+      },
+      "regulations": [
+        {
+          "code": "UU-8-2016",
+          "title": "UU No. 8 Tahun 2016 (Penyandang Disabilitas)",
+          "article": "Pasal 19, 24, 105 — Hak Aksesibilitas Pendidikan & Informasi",
+          "matchedIssues": 5
+        },
+        {
+          "code": "PP-42-2020",
+          "title": "PP No. 42 Tahun 2020 (Aksesibilitas Pelayanan Publik)",
+          "article": "Pasal 17–18 — Aksesibilitas Layanan Akademik Publik",
+          "matchedIssues": 4
+        },
+        {
+          "code": "PERMENPANRB-11-2024",
+          "title": "PermenPANRB No. 11 Tahun 2024",
+          "article": "Pelayanan Publik Ramah Kelompok Rentan",
+          "matchedIssues": 3
+        },
+        {
+          "code": "SPBE-2018",
+          "title": "Perpres No. 95 Tahun 2018 (SPBE)",
+          "article": "Tata Kelola Sistem Elektronik Instansi",
+          "matchedIssues": 2
+        },
+        {
+          "code": "UU-KIP-2008",
+          "title": "UU No. 14/2008 (KIP) & PerKI No. 1/2021",
+          "article": "Keterbukaan Informasi Layanan Publik",
+          "matchedIssues": 2
+        },
+        {
+          "code": "SNI-ISO-40500",
+          "title": "SNI ISO/IEC 40500 (WCAG 2.0 / 2.1 AA)",
+          "article": "Adopsi Standar Nasional Aksesibilitas Web",
+          "matchedIssues": 7
+        }
+      ],
+      "readiness": {
+        "waitStrategy": "bounded-hydration-and-dom-settle",
+        "hydrationAllowed": true,
+        "loadTimeMs": 980,
+        "settledAfterMs": 1540,
+        "domElements": 615,
+        "partialLoad": false,
+        "possibleEmptyShell": false,
+        "viewport": { "width": 1280, "height": 800 },
+        "pageHeight": 800
+      },
+      "issues": [
+        {
+          "id": "iss-akad-1",
+          "ruleId": "label",
+          "impact": "critical",
+          "status": "fixed",
+          "pour": "understandable",
+          "wcagSc": ["3.3.2", "1.3.1"],
+          "regulations": ["UU-8-2016", "PP-42-2020", "SNI-ISO-40500"],
+          "titleId": "Kolom pencarian mata kuliah hanya memakai placeholder tanpa <label>",
+          "descriptionId": "Placeholder hilang saat pengguna mulai mengetik dan pembaca layar tidak mengetahui tujuan kolom input secara konsisten.",
+          "helpId": "Tambahkan elemen <label for=\"search-mk\"> yang terhubung ke input pencarian.",
+          "selector": "input#search-mk",
+          "htmlBefore": "<input id=\"search-mk\" type=\"text\" placeholder=\"Cari kode mata kuliah...\">",
+          "htmlAfter": "<label for=\"search-mk\" class=\"sr-only\">Cari kode mata kuliah</label><input id=\"search-mk\" type=\"search\" placeholder=\"Cari kode mata kuliah...\">",
+          "boundingBox": { "x": 860, "y": 44, "width": 260, "height": 40 },
+          "confidence": 0.97,
+          "source": "axe-core"
+        },
+        {
+          "id": "iss-akad-2",
+          "ruleId": "button-name",
+          "impact": "critical",
+          "status": "fixed",
+          "pour": "robust",
+          "wcagSc": ["4.1.2"],
+          "regulations": ["UU-8-2016", "PERMENPANRB-11-2024", "SNI-ISO-40500"],
+          "titleId": "Tombol \"+\" pada baris tabel KRS tidak menyebut nama mata kuliah",
+          "descriptionId": "Semua tombol di kolom Aksi hanya berisi simbol \"+\", sehingga pengguna pembaca layar tidak tahu mata kuliah mana yang akan ditambahkan.",
+          "helpId": "Berikan label spesifik per baris, misalnya \"Tambah Interaksi Manusia dan Komputer (IF301)\".",
+          "selector": "table.krs-table tr:nth-child(1) button.btn-add",
+          "htmlBefore": "<button type=\"button\" class=\"btn-add\">+</button>",
+          "htmlAfter": "<button type=\"button\" class=\"btn-add\" aria-label=\"Tambah IF301 Interaksi Manusia dan Komputer\">+ Tambah</button>",
+          "boundingBox": { "x": 1120, "y": 270, "width": 32, "height": 32 },
+          "confidence": 0.94,
+          "source": "axe-core"
+        },
+        {
+          "id": "iss-akad-3",
+          "ruleId": "color-contrast",
+          "impact": "serious",
+          "status": "fixed",
+          "pour": "perceivable",
+          "wcagSc": ["1.4.3"],
+          "regulations": ["UU-8-2016", "SNI-ISO-40500"],
+          "titleId": "Teks peringatan batas pengisian KRS ber kontras rendah (2,7:1)",
+          "descriptionId": "Teks merah muda (#f87171) pada latar merah lembut (#fef2f2) gagal memenuhi batas minimum 4,5:1.",
+          "helpId": "Gunakan merah tua (#991b1b) dan tambahkan label kata \"Peringatan:\" agar tidak bergantung pada warna saja.",
+          "selector": ".alert-krs-deadline",
+          "htmlBefore": "<div class=\"alert-krs-deadline\" style=\"color:#f87171\">Batas pengisian KRS berakhir 2 hari lagi.</div>",
+          "htmlAfter": "<div class=\"alert-krs-deadline\" role=\"status\" style=\"color:#991b1b\"><strong>Peringatan:</strong> Batas pengisian KRS berakhir 2 hari lagi.</div>",
+          "boundingBox": { "x": 272, "y": 124, "width": 968, "height": 54 },
+          "confidence": 0.99,
+          "source": "axe-core"
+        },
+        {
+          "id": "iss-akad-4",
+          "ruleId": "color-contrast",
+          "impact": "serious",
+          "status": "fixed",
+          "pour": "perceivable",
+          "wcagSc": ["1.4.3"],
+          "regulations": ["PP-42-2020", "SNI-ISO-40500"],
+          "titleId": "Tombol \"Simpan KRS\" memiliki kontras putih di atas biru muda (1,78:1)",
+          "descriptionId": "Teks putih pada tombol #bfdbfe hampir tidak terlihat oleh pengguna dengan gangguan penglihatan.",
+          "helpId": "Ubah warna latar tombol utama menjadi biru tua (#1d4ed8) untuk kontras 6,7:1.",
+          "selector": "button.btn-save-krs",
+          "htmlBefore": "<button type=\"submit\" class=\"btn-save-krs\" style=\"background:#bfdbfe;color:#ffffff\">Simpan KRS</button>",
+          "htmlAfter": "<button type=\"submit\" class=\"btn-save-krs\" style=\"background:#1d4ed8;color:#ffffff\">Simpan KRS</button>",
+          "boundingBox": { "x": 1080, "y": 670, "width": 136, "height": 36 },
+          "confidence": 0.99,
+          "source": "axe-core"
+        },
+        {
+          "id": "iss-akad-5",
+          "ruleId": "table-headers",
+          "impact": "serious",
+          "status": "review",
+          "pour": "perceivable",
+          "wcagSc": ["1.3.1"],
+          "regulations": ["SPBE-2018", "UU-KIP-2008", "SNI-ISO-40500"],
+          "titleId": "Tabel daftar mata kuliah menggunakan <div> bukan <th scope=\"col\">",
+          "descriptionId": "Struktur tabel memakai elemen generik sehingga pembaca layar tidak dapat berpindah antar sel kolom dan baris secara semantik.",
+          "helpId": "Gunakan <table>, <caption>, <th scope=\"col\">, dan <th scope=\"row\"> pada kode mata kuliah.",
+          "selector": ".krs-table",
+          "htmlBefore": "<div class=\"krs-table\"><div class=\"row head\"><span>KODE</span><span>MATA KULIAH</span></div></div>",
+          "htmlAfter": null,
+          "boundingBox": { "x": 272, "y": 202, "width": 968, "height": 420 },
+          "confidence": null,
+          "source": "aksaranetra-heuristic"
+        },
+        {
+          "id": "iss-akad-6",
+          "ruleId": "focus-visible",
+          "impact": "moderate",
+          "status": "review",
+          "pour": "operable",
+          "wcagSc": ["2.4.7"],
+          "regulations": ["UU-8-2016", "PERMENPANRB-11-2024", "SNI-ISO-40500"],
+          "titleId": "Tautan sidebar tidak menampilkan indikator fokus keyboard yang terlihat",
+          "descriptionId": "Aturan CSS outline: none menghapus cincin fokus saat pengguna menekan tombol Tab di menu samping.",
+          "helpId": "Hapus outline: none dan tambahkan gaya :focus-visible dengan kontras >= 3:1.",
+          "selector": "aside.sidebar a",
+          "htmlBefore": "<a href=\"/krs\" style=\"outline:none\">Kartu Rencana Studi</a>",
+          "htmlAfter": null,
+          "boundingBox": { "x": 16, "y": 126, "width": 208, "height": 36 },
+          "confidence": 0.91,
+          "source": "tab-walk"
+        }
+      ],
+      "tabStops": [
+        {
+          "index": 1,
+          "selector": "aside.sidebar a:nth-child(1)",
+          "tag": "a",
+          "role": "link",
+          "label": "Dashboard",
+          "rect": { "x": 20, "y": 90, "width": 180, "height": 30 },
+          "obscured": false,
+          "hasVisibleFocus": false
+        },
+        {
+          "index": 2,
+          "selector": "aside.sidebar a:nth-child(2)",
+          "tag": "a",
+          "role": "link",
+          "label": "Kartu Rencana Studi",
+          "rect": { "x": 20, "y": 130, "width": 180, "height": 30 },
+          "obscured": false,
+          "hasVisibleFocus": false
+        },
+        {
+          "index": 3,
+          "selector": "input#search-mk",
+          "tag": "input",
+          "role": "textbox",
+          "label": "Cari kode mata kuliah",
+          "rect": { "x": 860, "y": 44, "width": 260, "height": 40 },
+          "obscured": false,
+          "hasVisibleFocus": true
+        },
+        {
+          "index": 4,
+          "selector": "button.btn-search",
+          "tag": "button",
+          "role": "button",
+          "label": "Cari",
+          "rect": { "x": 1132, "y": 44, "width": 84, "height": 40 },
+          "obscured": false,
+          "hasVisibleFocus": true
+        },
+        {
+          "index": 5,
+          "selector": "table.krs-table tr:nth-child(1) button.btn-add",
+          "tag": "button",
+          "role": "button",
+          "label": "+",
+          "rect": { "x": 1120, "y": 270, "width": 32, "height": 32 },
+          "obscured": false,
+          "hasVisibleFocus": true
+        },
+        {
+          "index": 6,
+          "selector": "table.krs-table tr:nth-child(2) button.btn-add",
+          "tag": "button",
+          "role": "button",
+          "label": "+",
+          "rect": { "x": 1120, "y": 340, "width": 32, "height": 32 },
+          "obscured": false,
+          "hasVisibleFocus": true
+        },
+        {
+          "index": 7,
+          "selector": "button.btn-save-krs",
+          "tag": "button",
+          "role": "button",
+          "label": "Simpan KRS",
+          "rect": { "x": 1080, "y": 670, "width": 136, "height": 36 },
+          "obscured": false,
+          "hasVisibleFocus": true
+        }
+      ]
+    },
+    "artifacts": {
+      "reader": "portal-akademik-reader.html",
+      "patched": "portal-akademik-patched.html",
+      "screenshot": "portal-akademik-after.svg",
+      "beforeScreenshot": "portal-akademik-before.svg"
+    }
+  },
+  "links": {
+    "reader": "/data/demo/portal-akademik-reader.html",
+    "patched": "/data/demo/portal-akademik-patched.html",
+    "reportPdf": "/data/demo/portal-akademik-reader.html",
+    "screenshot": "/data/demo/portal-akademik-after.svg",
+    "beforeScreenshot": "/data/demo/portal-akademik-before.svg",
+    "reportJson": "/data/demo/portal-akademik-demo.json",
+    "reportCsv": "/data/demo/portal-akademik-report.csv"
+  }
+}

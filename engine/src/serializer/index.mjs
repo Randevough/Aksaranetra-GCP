@@ -5,57 +5,116 @@
  * terpisah di src/serializer/sanitize.mjs dan src/serializer/reader.mjs.
  */
 
-import { SNAPSHOT_CSP, STRIPPED_TAGS, escapeHtml } from "./sanitize.mjs";
+import {
+  DANGEROUS_ATTRIBUTES,
+  SAFE_SCHEMES,
+  SNAPSHOT_CSP,
+  STRIPPED_TAGS,
+  UNSAFE_STYLE_PATTERN,
+  absolutizeUrl,
+  escapeHtml,
+  isDangerousAttribute,
+  sanitizeInlineStyle,
+} from "./sanitize.mjs";
 import { renderReaderDocument } from "./reader.mjs";
 import { MAX_CARD_LEVELS, attachCardLinks } from "./blocks.mjs";
+
+export function sanitizeExtractedAttributes(attrs = {}) {
+  const cleaned = {};
+  for (const [name, value] of Object.entries(attrs || {})) {
+    if (isDangerousAttribute(name)) continue;
+    const lower = name.toLowerCase();
+    if (lower === "style") {
+      const safeStyle = sanitizeInlineStyle(value);
+      if (safeStyle) cleaned[name] = safeStyle;
+      continue;
+    }
+    if (lower === "href" || lower === "src") {
+      const safeUrl = absolutizeUrl(value);
+      if (safeUrl) cleaned[name] = safeUrl;
+      continue;
+    }
+    cleaned[name] = value;
+  }
+  return cleaned;
+}
 
 /**
  * Membaca isi halaman dari browser.
  *
  * Seluruh isi fungsi evaluate dijalankan di dalam halaman, jadi tidak boleh
- * memanggil apa pun dari luar. Itu sebabnya daftar tag dikirim sebagai argumen.
+ * memanggil apa pun dari luar. Itu sebabnya daftar aturan dikirim sebagai argumen.
  */
 async function extract(page, strippedTags, maxCardLevels) {
-  return page.evaluate(({ tags, maxCardLevels: levelLimit }) => {
-    const doc = document.cloneNode(true);
+  return page.evaluate(
+    ({
+      tags,
+      maxCardLevels: levelLimit,
+      dangerousAttrs,
+      safeSchemes,
+      unsafeStyleSource,
+    }) => {
+      const doc = document.cloneNode(true);
+      const dangerousSet = new Set(dangerousAttrs);
+      const safeSchemeSet = new Set(safeSchemes);
+      const unsafeStyleRegex = new RegExp(unsafeStyleSource, "i");
+      const safeImageData = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/i;
 
-    for (const tag of tags) {
-      for (const node of doc.querySelectorAll(tag)) node.remove();
-    }
+      for (const tag of tags) {
+        for (const node of doc.querySelectorAll(tag)) node.remove();
+      }
 
-    // Semua penangan kejadian dan atribut berbahaya dibuang, termasuk yang
-    // namanya belum kita kenal.
-    for (const node of doc.querySelectorAll("*")) {
-      for (const attribute of [...node.attributes]) {
-        const name = attribute.name.toLowerCase();
-        if (name.startsWith("on") || name === "srcdoc" || name === "ping") {
-          node.removeAttribute(attribute.name);
+      // Semua penangan kejadian, atribut berbahaya, dan style berbahaya dibuang.
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attribute of [...node.attributes]) {
+          const name = attribute.name.toLowerCase();
+          if (name.startsWith("on") || dangerousSet.has(name)) {
+            node.removeAttribute(attribute.name);
+            continue;
+          }
+          if (name === "style" && unsafeStyleRegex.test(attribute.value || "")) {
+            node.removeAttribute(attribute.name);
+          }
         }
       }
-    }
 
-    // Form dinetralkan, tidak dihapus. Tombol dan labelnya tetap terlihat
-    // sebagai bukti hasil patch, tetapi tidak bisa mengirim apa pun.
-    for (const form of doc.querySelectorAll("form")) {
-      form.removeAttribute("action");
-      form.removeAttribute("method");
-      form.setAttribute("data-aksara-dinonaktifkan", "true");
-    }
-
-    // Alamat relatif diubah jadi penuh selagi masih di dalam browser, karena
-    // di sinilah document.baseURI yang sebenarnya tersedia.
-    for (const node of doc.querySelectorAll("[href], [src], [srcset]")) {
-      for (const name of ["href", "src"]) {
-        const value = node.getAttribute(name);
-        if (!value || value.startsWith("#")) continue;
-        try {
-          node.setAttribute(name, new URL(value, document.baseURI).toString());
-        } catch {
-          node.removeAttribute(name);
-        }
+      // Form dinetralkan, tidak dihapus. Tombol dan labelnya tetap terlihat
+      // sebagai bukti hasil patch, tetapi tidak bisa mengirim apa pun.
+      for (const form of doc.querySelectorAll("form")) {
+        form.removeAttribute("action");
+        form.removeAttribute("method");
+        form.setAttribute("data-aksara-dinonaktifkan", "true");
       }
-      node.removeAttribute("srcset");
-    }
+
+      // Alamat relatif diubah jadi penuh dan skema berbahaya (javascript:, vbscript:, data:text/html) dibuang.
+      for (const node of doc.querySelectorAll("[href], [src], [srcset]")) {
+        for (const name of ["href", "src"]) {
+          const value = node.getAttribute(name);
+          if (value === null) continue;
+          const trimmed = value.trim();
+          if (!trimmed) {
+            node.removeAttribute(name);
+            continue;
+          }
+          if (trimmed.startsWith("#")) continue;
+          if (trimmed.toLowerCase().startsWith("data:")) {
+            if (name === "src" && safeImageData.test(trimmed)) continue;
+            node.removeAttribute(name);
+            continue;
+          }
+          try {
+            const resolved = new URL(trimmed, document.baseURI);
+            if (!safeSchemeSet.has(resolved.protocol)) {
+              node.removeAttribute(name);
+            } else {
+              node.setAttribute(name, resolved.toString());
+            }
+          } catch {
+            node.removeAttribute(name);
+          }
+        }
+        node.removeAttribute("srcset");
+      }
 
     const HEADINGS = "h1, h2, h3, h4, h5, h6";
 
@@ -187,7 +246,13 @@ async function extract(page, strippedTags, maxCardLevels) {
       title: doc.title || "",
       blocks,
     };
-  }, { tags: strippedTags, maxCardLevels });
+  }, {
+    tags: strippedTags,
+    maxCardLevels,
+    dangerousAttrs: DANGEROUS_ATTRIBUTES,
+    safeSchemes: SAFE_SCHEMES,
+    unsafeStyleSource: UNSAFE_STYLE_PATTERN.source,
+  });
 }
 
 /**

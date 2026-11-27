@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   DISCLAIMER,
+  FILE_NAMES,
   SNAPSHOT_FORMAT_VERSION,
   createSnapshot,
   readSnapshot,
@@ -153,5 +154,71 @@ test("writes a folder that can be read back unchanged", () => {
 
   assert.equal(readSnapshot(path.join(dir, "kosong")), null);
 
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("includes extended contract fields, readiness, tabStops, and before.png output", () => {
+  assert.equal(FILE_NAMES.beforeScreenshot, "before.png");
+  assert.equal(FILE_NAMES.reportJson, "report.json");
+  assert.equal(FILE_NAMES.reportCsv, "report.csv");
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aksara-ext-"));
+  const report = fakeReport({
+    rolledBack: true,
+    rolledBackRecords: [{ rule: "button-name", selector: ".x", htmlAfter: "<script>" }],
+    readiness: {
+      waitStrategy: "smart-readiness-gate",
+      hydrationAllowed: true,
+      loadTimeMs: 420,
+      settledAfterMs: 900,
+      domElements: 42,
+      partialLoad: false,
+      possibleEmptyShell: true,
+      viewport: { width: 1440, height: 1000 },
+      pageHeight: 1800,
+    },
+    tabStops: [
+      {
+        index: 1,
+        selector: "a.skip",
+        tag: "a",
+        role: "link",
+        label: "Lewati",
+        rect: { x: 10, y: 10, width: 100, height: 30 },
+        obscured: false,
+        hasVisibleFocus: true,
+      },
+    ],
+    warnings: { partialLoad: "Partial timeout" },
+  });
+
+  const snapshot = createSnapshot({
+    id: "ext",
+    report,
+    patchedPage: "<html></html>",
+    readerView: "<html></html>",
+  });
+
+  assert.equal(snapshot.counts.rolledBack, 1);
+  assert.equal(snapshot.warnings.rolledBackRecords.length, 1);
+  assert.equal("htmlAfter" in snapshot.warnings.rolledBackRecords[0], false);
+  assert.equal(snapshot.warnings.partialLoad, "Partial timeout");
+  assert.equal(snapshot.warnings.possibleEmptyShell, true);
+  assert.equal(snapshot.readiness.domElements, 42);
+  assert.equal(snapshot.tabStops.length, 1);
+  assert.equal(snapshot.files.beforeScreenshot, "before.png");
+  assert.equal(snapshot.files.reportJson, "report.json");
+  assert.equal(snapshot.files.reportCsv, "report.csv");
+
+  writeSnapshot({
+    dir,
+    snapshot,
+    report,
+    patchedPage: "<html></html>",
+    readerView: "<html></html>",
+    artifacts: { beforeScreenshot: Buffer.from("png-before") },
+  });
+
+  assert.equal(fs.existsSync(path.join(dir, "before.png")), true);
   fs.rmSync(dir, { recursive: true, force: true });
 });

@@ -58,4 +58,37 @@ class BridgeTest extends TestCase
         $this->assertSame('protocol-not-allowed', $verdict['code']);
         $this->assertSame('Hanya http dan https yang didukung, bukan ftp.', $verdict['message']);
     }
+
+    public function test_bridge_forwards_telemetry_from_progress_ndjson(): void
+    {
+        $script = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'aksara-bridge-telemetry-' . uniqid() . '.mjs';
+        file_put_contents($script, <<<'JS'
+process.stdin.resume();
+process.stdin.on('end', () => {
+  process.stdout.write(JSON.stringify({
+    type: 'progress',
+    progress: 46,
+    stage: 'Menangkap pratinjau',
+    telemetry: { steps: [], stats: { domElements: 42 }, earlyPreviewReady: true, updatedAt: '2026-11-27T00:00:00.000Z' }
+  }) + '\n');
+  process.stdout.write(JSON.stringify({ type: 'result', snapshot: { ok: true } }) + '\n');
+});
+JS);
+
+        try {
+            $client = new BridgeClient($script);
+            $updates = [];
+            $res = $client->audit('job1', 'https://example.com/', sys_get_temp_dir(), function ($u) use (&$updates) {
+                $updates[] = $u;
+            });
+
+            $this->assertSame(['ok' => true], $res['snapshot']);
+            $this->assertCount(1, $updates);
+            $this->assertSame(46, $updates[0]['progress']);
+            $this->assertTrue($updates[0]['telemetry']['earlyPreviewReady']);
+            $this->assertSame(42, $updates[0]['telemetry']['stats']['domElements']);
+        } finally {
+            @unlink($script);
+        }
+    }
 }

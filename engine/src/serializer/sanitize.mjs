@@ -49,6 +49,19 @@ export const SNAPSHOT_CSP = [
 
 const SAFE_IMAGE_DATA = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/i;
 
+export const DANGEROUS_ATTRIBUTES = Object.freeze([
+  "srcdoc",
+  "ping",
+  "formaction",
+  "http-equiv",
+  "xlink:href",
+  "integrity",
+  "nonce",
+]);
+
+export const UNSAFE_STYLE_PATTERN =
+  /expression\s*\(|javascript\s*:|behavior\s*:|@import/i;
+
 export function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -97,15 +110,7 @@ export function isDangerousAttribute(name) {
   if (!attribute) return false;
   if (attribute.startsWith("on")) return true;
 
-  return [
-    "srcdoc",
-    "ping",
-    "formaction",
-    "http-equiv",
-    "xlink:href",
-    "integrity",
-    "nonce",
-  ].includes(attribute);
+  return DANGEROUS_ATTRIBUTES.includes(attribute);
 }
 
 export function isStrippedTag(tagName) {
@@ -120,7 +125,7 @@ export function isStrippedTag(tagName) {
  */
 export function sanitizeInlineStyle(value) {
   const style = String(value ?? "");
-  if (/expression\s*\(|javascript\s*:|behavior\s*:|@import/i.test(style)) {
+  if (UNSAFE_STYLE_PATTERN.test(style)) {
     return "";
   }
   return style;

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditJob;
 use App\Services\BridgeClientInterface;
 use App\Services\JobStore;
+use App\Services\SecurityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,7 +21,7 @@ class AuditCacheController
     public function show(Request $request): JsonResponse
     {
         $rawUrl = $request->query('url');
-        $verdict = $this->bridge->checkUrl(is_string($rawUrl) ? $rawUrl : null);
+        $verdict = SecurityService::checkUrl(is_string($rawUrl) ? $rawUrl : null);
 
         if (!$verdict['ok']) {
             return response()->json([

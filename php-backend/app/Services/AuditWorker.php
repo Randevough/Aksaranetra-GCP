@@ -26,10 +26,15 @@ class AuditWorker implements AuditWorkerInterface
     public function __construct(
         private readonly JobStore $store,
         private readonly AuditorInterface $auditor,
-        private readonly int $timeoutMs = 180_000,
+        private int $timeoutMs = 180_000,
         private readonly int $concurrency = 1,
         private readonly ?\App\Services\GcsArtifacts $gcs = null
     ) {}
+
+    public function setTimeoutMs(int $timeoutMs): void
+    {
+        $this->timeoutMs = max(1000, $timeoutMs);
+    }
 
     public function kick(): void
     {
@@ -135,7 +140,24 @@ class AuditWorker implements AuditWorkerInterface
             return false;
         };
 
-        $onProgress = function (array $update) use ($job): void {
+        $earlyPreviewUploaded = false;
+        $onProgress = function (array $update) use ($job, &$earlyPreviewUploaded, $ownsLease): void {
+            if (
+                !$earlyPreviewUploaded
+                && ($update['telemetry']['earlyPreviewReady'] ?? false) === true
+                && $this->gcs !== null
+            ) {
+                $beforePath = $job->artifactDir . DIRECTORY_SEPARATOR . 'before.png';
+                if (is_file($beforePath)) {
+                    try {
+                        $attemptKey = 'attempt-' . $job->attempts . '-' . ($job->leaseToken ?? '1');
+                        $this->gcs->uploadEarlyPreview($job->id, $attemptKey, $beforePath, $ownsLease);
+                        $earlyPreviewUploaded = true;
+                    } catch (Throwable) {
+                        // Best-effort upload; job completion publish still uploads artifacts
+                    }
+                }
+            }
             $this->store->updateProgress($job->id, $update, $job->leaseToken);
         };
 
@@ -160,12 +182,17 @@ class AuditWorker implements AuditWorkerInterface
                 $this->store->cancelRunning($job->id, $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } else {
+                $publishedToGcs = false;
                 if ($this->gcs !== null && is_dir($job->artifactDir)) {
                     $attemptKey = 'attempt-' . $job->attempts . '-' . ($job->leaseToken ?? '1');
                     $manifest = $this->gcs->publish($job->id, $attemptKey, $job->artifactDir, $ownsLease);
                     $result['manifest'] = $manifest;
+                    $publishedToGcs = true;
                 }
                 $this->store->complete($job->id, $result, $job->leaseToken);
+                if ($publishedToGcs) {
+                    $this->deleteArtifactDir($job->artifactDir);
+                }
             }
         } catch (Throwable $error) {
             if ($leaseLost || !$ownsLease()) {

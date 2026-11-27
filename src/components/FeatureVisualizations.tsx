@@ -14,6 +14,7 @@ import styles from "./FeatureVisualizations.module.css";
 export function Feature1() {
   return (
     <motion.div
+      aria-hidden="true"
       key="feature-1"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -78,6 +79,7 @@ export function Feature1() {
 export function Feature2() {
   return (
     <motion.div
+      aria-hidden="true"
       key="feature-2"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -163,6 +165,7 @@ export function Feature2() {
 export function Feature3() {
   return (
     <motion.div
+      aria-hidden="true"
       key="feature-3"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -222,6 +225,7 @@ export function Feature3() {
 export function Feature4() {
   return (
     <motion.div
+      aria-hidden="true"
       key="feature-4"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}

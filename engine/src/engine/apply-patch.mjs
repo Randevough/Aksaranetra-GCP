@@ -73,6 +73,25 @@ export async function applyCandidates(page, candidates, policy) {
         }
 
         if (!element) {
+          if (
+            matches.length === 0 &&
+            candidate.rule === "document-title" &&
+            candidate.selector === "head > title"
+          ) {
+            let head = document.head || document.querySelector("head");
+            if (!head && document.documentElement) {
+              head = document.createElement("head");
+              document.documentElement.prepend(head);
+            }
+            if (head) {
+              element = document.createElement("title");
+              head.appendChild(element);
+              element.__aksaraCreated = true;
+            }
+          }
+        }
+
+        if (!element) {
           return {
             applied: false,
             reason: `Selector matched ${matches.length} elements during apply`,
@@ -93,7 +112,9 @@ export async function applyCandidates(page, candidates, policy) {
         attributes: {},
         textContent: element.textContent || "",
         outerHTML: element.outerHTML,
+        createdElement: Boolean(element.__aksaraCreated),
       };
+      delete element.__aksaraCreated;
       for (let i = 0; i < element.attributes.length; i++) {
         const attr = element.attributes[i];
         prePatchSnapshot.attributes[attr.name] = attr.value;
@@ -210,6 +231,11 @@ export async function rollbackSingleRecord(page, record) {
     }
 
     if (!element) return;
+
+    if (record.prePatchSnapshot?.createdElement) {
+      element.remove();
+      return;
+    }
 
     if (record.prePatchSnapshot && record.prePatchSnapshot.attributes) {
       const origAttrs = record.prePatchSnapshot.attributes;

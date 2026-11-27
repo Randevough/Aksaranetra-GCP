@@ -1,5 +1,122 @@
 export type JobStatus =
-  "queued" | "running" | "completed" | "failed" | "cancelled";
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface TelemetryStep {
+  id:
+    | "validate"
+    | "dns_robots"
+    | "browser_ready"
+    | "hydration"
+    | "capture_before"
+    | "audit_wcag"
+    | "tab_walk"
+    | "remediate"
+    | "serialize"
+    | "report";
+  label: string;
+  status: "pending" | "running" | "done" | "warning";
+  detail?: string | null;
+  durationMs?: number | null;
+}
+
+export interface AuditTelemetry {
+  steps: TelemetryStep[];
+  stats: {
+    domElements?: number;
+    requestsAllowed?: number;
+    requestsBlocked?: number;
+    issuesFound?: number;
+    tabStopsCount?: number;
+    hydrationMs?: number;
+  };
+  earlyPreviewReady: boolean;
+  updatedAt: string;
+}
+
+export type ImpactLevel = "critical" | "serious" | "moderate" | "minor";
+export type PourPrinciple =
+  | "perceivable"
+  | "operable"
+  | "understandable"
+  | "robust";
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface AuditScore {
+  overall: number;
+  beforeScore: number;
+  afterScore: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  methodology: "automated-wcag-2.1-aa-impact-weighted";
+  automatedCoverageNote: string;
+  pour: Record<PourPrinciple, number>;
+}
+
+export interface SeverityCounts {
+  critical: number;
+  serious: number;
+  moderate: number;
+  minor: number;
+  total: number;
+}
+
+export interface RegulationReference {
+  code: string;
+  title: string;
+  article: string;
+  matchedIssues: number;
+}
+
+export interface AuditIssue {
+  id: string;
+  ruleId: string;
+  impact: ImpactLevel;
+  status: "fixed" | "review" | "open" | "skipped" | "rolled-back";
+  pour: PourPrinciple;
+  wcagSc: string[];
+  regulations: string[];
+  titleId: string;
+  descriptionId: string;
+  helpId: string;
+  selector: string;
+  htmlBefore: string | null;
+  htmlAfter: string | null;
+  boundingBox: BoundingBox | null;
+  confidence: number | null;
+  source: string | null;
+}
+
+export interface TabStop {
+  index: number;
+  selector: string;
+  tag: string;
+  role: string;
+  label: string;
+  rect: BoundingBox;
+  obscured: boolean;
+  hasVisibleFocus: boolean;
+}
+
+export interface PageReadiness {
+  waitStrategy: string;
+  hydrationAllowed: boolean;
+  loadTimeMs: number;
+  settledAfterMs: number;
+  domElements: number;
+  partialLoad: boolean;
+  possibleEmptyShell: boolean;
+  viewport: { width: number; height: number };
+  pageHeight: number;
+}
 
 export interface AuditJob {
   jobId: string;
@@ -15,9 +132,14 @@ export interface AuditJob {
   finishedAt: string | null;
   expiresAt: string;
   error: { code: string; message: string } | null;
+  telemetry?: AuditTelemetry | null;
+  previewUrl?: string | null;
 }
 
 export interface Snapshot {
+  formatVersion?: string;
+  id?: string;
+  origin?: string;
   engineVersion: string;
   capturedAt: string;
   disclaimer: string;
@@ -44,6 +166,7 @@ export interface Snapshot {
     rolledBack: number;
     verifiedOverrides: number;
   };
+  views?: Record<string, unknown>;
   warnings: {
     rolledBack: boolean;
     wcagRegressionClean: boolean;
@@ -56,7 +179,27 @@ export interface Snapshot {
     duplicateLabels: unknown[];
     staleOverrides: string[];
     rolledBackRecords: unknown[];
+    partialLoad?: string | null;
+    possibleEmptyShell?: boolean;
   };
+  files?: {
+    beforeScreenshot?: string;
+    reportJson?: string;
+    reportCsv?: string;
+    [key: string]: string | undefined;
+  };
+  guard?: Record<string, unknown>;
+  readerGuarantees?: Record<string, unknown>;
+  decisions?: unknown[];
+  score?: AuditScore;
+  severity?: {
+    before: SeverityCounts;
+    after: SeverityCounts;
+  };
+  regulations?: RegulationReference[];
+  issues?: AuditIssue[];
+  tabStops?: TabStop[];
+  readiness?: PageReadiness;
 }
 
 export interface AuditResult {
@@ -67,6 +210,9 @@ export interface AuditResult {
     patched: string;
     reportPdf: string;
     screenshot: string;
+    beforeScreenshot?: string;
+    reportJson?: string;
+    reportCsv?: string;
   };
 }
 
@@ -318,5 +464,6 @@ export function removeJobToken(jobId: string) {
   window.localStorage.removeItem(tokenKey(jobId));
 }
 export function artifactUrl(path: string) {
-  return path.startsWith("http") ? path : `${AUDIT_API_BASE}${path}`;
+  if (path.startsWith("http") || path.startsWith("/data/")) return path;
+  return `${AUDIT_API_BASE}${path}`;
 }

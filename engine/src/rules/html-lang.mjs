@@ -16,13 +16,91 @@ export async function resolveHtmlLangCandidates(
   selectors = [],
   config = {},
 ) {
-  const configuredLang = config.lang || config.defaultLang || "";
+  // Only honor defaultLang when explicitly configured or supplied outside unconfigured site defaults
+  const configuredLang =
+    config.lang ||
+    (config.configured !== false && config.defaultLang ? config.defaultLang : "");
 
   return page.evaluate(
     ({ selectors, configuredLang }) => {
       const clean = (value = "") => String(value || "").trim().toLowerCase();
 
       const BCP47_LANG_REGEX = /^[a-z]{2,3}(-[a-z0-9]+)*$/i;
+
+      const ID_STOPWORDS = new Set([
+        "yang", "dan", "di", "ke", "dari", "untuk", "dengan", "pada", "ini",
+        "itu", "adalah", "atau", "sebagai", "dalam", "tidak", "akan", "oleh",
+        "pemerintah", "informasi", "layanan", "publik", "berita", "tentang",
+        "halaman", "resmi", "provinsi", "kabupaten", "kota", "kementerian",
+        "selamat", "datang", "daftar", "pengumuman", "pegawai",
+      ]);
+
+      const EN_STOPWORDS = new Set([
+        "the", "and", "of", "to", "in", "is", "for", "that", "with", "on",
+        "are", "this", "from", "by", "as", "was", "or", "an", "be", "about",
+        "home", "services", "news", "page", "welcome", "contact", "privacy",
+        "terms", "policy", "information", "public", "government",
+      ]);
+
+      const detectPageLanguage = () => {
+        const host = window.location.hostname.toLowerCase();
+        const isIndonesianTLD =
+          host === "id" ||
+          host.endsWith(".id") ||
+          host.endsWith(".go.id") ||
+          host.endsWith(".ac.id");
+
+        const sample = (
+          document.body?.innerText ||
+          document.body?.textContent ||
+          ""
+        )
+          .slice(0, 3000)
+          .toLowerCase();
+        const words = sample.match(/[a-z]+/g) || [];
+
+        let idScore = 0;
+        let enScore = 0;
+        for (const word of words) {
+          if (ID_STOPWORDS.has(word)) idScore += 1;
+          if (EN_STOPWORDS.has(word)) enScore += 1;
+        }
+
+        if (isIndonesianTLD && enScore <= idScore * 1.5) {
+          return {
+            lang: "id",
+            confidence: 0.9,
+            source: "tld-language-heuristic",
+            reason: `Indonesian TLD "${host}" with ${idScore} ID vs ${enScore} EN stopword hits`,
+          };
+        }
+
+        if (idScore >= 2 && idScore > enScore * 1.5) {
+          return {
+            lang: "id",
+            confidence: 0.85,
+            source: "text-stopword-heuristic",
+            reason: `Indonesian stopwords dominate (${idScore} ID vs ${enScore} EN)`,
+          };
+        }
+
+        if (enScore >= 2 && enScore > idScore * 1.5) {
+          return {
+            lang: "en",
+            confidence: 0.85,
+            source: "text-stopword-heuristic",
+            reason: `English stopwords dominate (${enScore} EN vs ${idScore} ID)`,
+          };
+        }
+
+        const guessed = isIndonesianTLD || idScore > enScore ? "id" : "en";
+        return {
+          lang: guessed,
+          confidence: 0.65,
+          source: "ambiguous-language-heuristic",
+          reason: `Insufficient or mixed language signals (${idScore} ID vs ${enScore} EN); requires human review`,
+        };
+      };
 
       const skip = (selector, source, reason) => ({
         rule: "html-has-lang",
@@ -101,18 +179,15 @@ export async function resolveHtmlLangCandidates(
           }
         }
 
-        // Sinyal 3: Default TLD .id / .go.id
-        const host = window.location.hostname.toLowerCase();
-        const isIndonesianTLD = host.endsWith(".id") || host.endsWith(".go.id");
-        const defaultLang = isIndonesianTLD ? "id" : "id";
-
+        // Sinyal 3: Heuristik TLD + stopword teks dokumen
+        const detected = detectPageLanguage();
         return {
           rule: "html-has-lang",
           selector,
-          confidence: 0.9,
-          source: isIndonesianTLD ? "tld-default-lang" : "engine-default-lang",
-          reason: `Document language set to "${defaultLang}" based on domain context`,
-          patches: [{ attribute: "lang", value: defaultLang }],
+          confidence: detected.confidence,
+          source: detected.source,
+          reason: detected.reason,
+          patches: [{ attribute: "lang", value: detected.lang }],
         };
       });
     },

@@ -1,0 +1,7 @@
+Rule_ID,Severity,Status,POUR,WCAG_SC,Regulations,Selector,Title_ID
+label,critical,fixed,understandable,"3.3.2;1.3.1","UU-8-2016;PP-42-2020;SNI-ISO-40500",input#search-mk,Kolom pencarian mata kuliah hanya memakai placeholder tanpa label
+button-name,critical,fixed,robust,4.1.2,"UU-8-2016;PERMENPANRB-11-2024;SNI-ISO-40500",table.krs-table tr:nth-child(1) button.btn-add,Tombol + pada baris tabel KRS tidak menyebut nama mata kuliah
+color-contrast,serious,fixed,perceivable,1.4.3,"UU-8-2016;SNI-ISO-40500",.alert-krs-deadline,Teks peringatan batas pengisian KRS berkontras rendah
+color-contrast,serious,fixed,perceivable,1.4.3,"PP-42-2020;SNI-ISO-40500",button.btn-save-krs,Tombol Simpan KRS memiliki kontras putih di atas biru muda
+table-headers,serious,review,perceivable,1.3.1,"SPBE-2018;UU-KIP-2008;SNI-ISO-40500",.krs-table,Tabel daftar mata kuliah menggunakan div bukan th scope=col
+focus-visible,moderate,review,operable,2.4.7,"UU-8-2016;PERMENPANRB-11-2024;SNI-ISO-40500",aside.sidebar a,Tautan sidebar tidak menampilkan indikator fokus keyboard yang terlihat

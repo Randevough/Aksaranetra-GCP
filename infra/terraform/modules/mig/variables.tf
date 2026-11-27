@@ -54,6 +54,28 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "db_sslmode" {
+  description = "PostgreSQL TLS mode (matches Cloud SQL ENCRYPTED_ONLY)."
+  type        = string
+  default     = "require"
+
+  validation {
+    condition     = contains(["require", "verify-ca", "verify-full"], var.db_sslmode)
+    error_message = "db_sslmode must be one of require, verify-ca, or verify-full."
+  }
+}
+
+variable "backend_secret" {
+  description = "Shared HMAC secret (>= 32 chars) for AksaraNetra backend tokens."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.backend_secret) >= 32
+    error_message = "backend_secret must be at least 32 characters."
+  }
+}
+
 variable "domain_name" {
   description = "Public HTTPS domain name for AksaraNetra."
   type        = string

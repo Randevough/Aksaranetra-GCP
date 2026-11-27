@@ -180,4 +180,41 @@ class SecurityTest extends TestCase
 
         SecurityService::deriveShareToken('aud_123', null, null);
     }
+
+    public function test_check_url_validates_public_urls_and_rejects_ssrf_vectors(): void
+    {
+        $ok = SecurityService::checkUrl('https://Example.COM:443/path?a=1#frag');
+        $this->assertTrue($ok['ok']);
+        $this->assertSame('https://example.com/path?a=1', $ok['url']);
+        $this->assertSame('example.com', $ok['hostname']);
+        $this->assertSame('https:', $ok['protocol']);
+
+        $defaultRoot = SecurityService::checkUrl('http://example.com:80');
+        $this->assertTrue($defaultRoot['ok']);
+        $this->assertSame('http://example.com/', $defaultRoot['url']);
+
+        $cases = [
+            ['', 'empty-url'],
+            ['https://example.com/' . str_repeat('a', 2048), 'url-too-long'],
+            ['ftp://example.com/', 'protocol-not-allowed'],
+            ['javascript:alert(1)', 'protocol-not-allowed'],
+            ['http://user:pass@example.com/', 'credentials-in-url'],
+            ['https://example.com:8443/', 'port-not-allowed'],
+            ['http://127.0.0.1/', 'ip-literal-not-allowed'],
+            ['http://2130706433/', 'ip-literal-not-allowed'],
+            ['http://0x7f000001/', 'ip-literal-not-allowed'],
+            ['http://0177.0.0.1/', 'ip-literal-not-allowed'],
+            ['http://127.1/', 'ip-literal-not-allowed'],
+            ['http://[::1]/', 'ip-literal-not-allowed'],
+            ['http://metadata.google.internal/', 'local-host-name'],
+            ['http://app.local/', 'local-host-name'],
+            ['http://singlelabel/', 'hostname-not-allowed'],
+        ];
+
+        foreach ($cases as [$url, $expectedCode]) {
+            $verdict = SecurityService::checkUrl($url);
+            $this->assertFalse($verdict['ok'], "Expected rejection for {$url}");
+            $this->assertSame($expectedCode, $verdict['code'], "Unexpected code for {$url}");
+        }
+    }
 }

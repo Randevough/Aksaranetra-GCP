@@ -21,7 +21,8 @@
  * Pengalihan lintas host dan pengalihan berantai (>1 hop) ditolak mutlak.
  */
 
-import { checkUrl } from "../fetcher/url-policy.mjs";
+import dns from "node:dns/promises";
+import { checkResolvedAddresses, checkUrl } from "../fetcher/url-policy.mjs";
 
 /**
  * Jenis permintaan yang selalu ditolak.
@@ -53,18 +54,31 @@ function pass(reason) {
   return { allow: true, reason, message: null };
 }
 
+const HYDRATION_ALLOWED_TYPES = Object.freeze(["script", "xhr", "fetch"]);
+
+/**
+ * Strips only a leading "www." prefix so example.com <-> www.example.com
+ * match without allowing arbitrary subdomains.
+ */
+export function stripWww(hostname = "") {
+  return String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
+}
+
+export function isSameHostOrWww(hostA, hostB) {
+  const a = stripWww(hostA);
+  const b = stripWww(hostB);
+  return Boolean(a && b && a === b);
+}
+
 /**
  * Menentukan satu permintaan boleh lewat atau tidak.
  *
  * Sikap dasarnya menolak. Jenis permintaan yang tidak dikenal ikut ditolak,
  * karena daftar jenis milik Chromium bisa bertambah di versi berikutnya dan
  * kita tidak mau jenis baru otomatis mendapat izin.
- *
- * Catatan tentang tipe document: aturannya hanya alamat yang sama persis
- * dengan target yang boleh lewat. Konsekuensinya, situs yang mengalihkan
- * pengunjung ke alamat lain akan tertahan di sini. Itu memang disengaja,
- * tetapi kalau suatu saat ada situs katalog yang mengalihkan, gejalanya akan
- * terlihat sebagai audit gagal, bukan sebagai halaman kosong.
  */
 export function decideRequest({
   resourceType,
@@ -80,22 +94,27 @@ export function decideRequest({
   }
 
   // Poin 3.1: Jendela hidrasi terkendali untuk framework SPA (React, Next.js, Vue)
-  if (isHydrating && type === "script") {
+  if (isHydrating && HYDRATION_ALLOWED_TYPES.includes(type)) {
     const target = checkUrl(allowedDocumentUrl);
+    if (!target.ok) {
+      return block(
+        "document-target-invalid",
+        "Alamat target tidak sah, jadi permintaan hidrasi ditolak.",
+      );
+    }
+
     const asked = checkUrl(url);
-    if (!target.ok || !asked.ok) {
+    if (!asked.ok) {
       return block(`asset-${asked.code || "invalid"}`, asked.message);
     }
-    try {
-      if (new URL(asked.url).hostname === new URL(target.url).hostname) {
-        return pass("hydration-first-party-script-allowed");
-      }
-    } catch {
-      // Fall through to block
+
+    if (isSameHostOrWww(asked.hostname, target.hostname)) {
+      return pass(`hydration-first-party-${type}-allowed`);
     }
+
     return block(
       "hydration-third-party-blocked",
-      "Skrip pihak ketiga tetap diblokir selama jendela hidrasi.",
+      "Permintaan pihak ketiga tetap diblokir selama jendela hidrasi.",
     );
   }
 
@@ -124,12 +143,9 @@ export function decideRequest({
       return pass("document-is-the-target");
     }
 
-    // Poin 5.2: Izin satu hop pengalihan (redirect) pada host yang sama
+    // Poin 5.2: Izin satu hop pengalihan (redirect) pada host yang sama atau www <-> apex
     if (redirectCount > 0) {
-      const targetHost = target.hostname;
-      const askedHost = asked.hostname;
-
-      if (askedHost !== targetHost) {
+      if (!isSameHostOrWww(asked.hostname, target.hostname)) {
         return block(
           "document-redirect-cross-host-blocked",
           "Pengalihan ke host yang berbeda ditolak demi keamanan.",
@@ -174,6 +190,44 @@ export function createGuardStats() {
   return { allowed: 0, blocked: 0, byType: {}, blockedHosts: [] };
 }
 
+async function defaultResolveHost(hostname) {
+  const records = await dns.lookup(hostname, { all: true });
+  return records.map((record) => record.address);
+}
+
+/**
+ * Verifies non-main-host subresources via cached async DNS public-IP lookup.
+ */
+export function createHostDnsVerifier({
+  mainHostname = "",
+  resolveHost = defaultResolveHost,
+} = {}) {
+  const normalizedMain = String(mainHostname || "").trim().toLowerCase();
+  const cache = new Map();
+
+  if (normalizedMain) {
+    cache.set(normalizedMain, Promise.resolve(true));
+  }
+
+  return async function isPublicHost(hostname) {
+    const host = String(hostname || "").trim().toLowerCase();
+    if (!host) return false;
+    if (cache.has(host)) return cache.get(host);
+
+    const checkPromise = (async () => {
+      try {
+        const addresses = await resolveHost(host);
+        return checkResolvedAddresses(addresses).ok;
+      } catch {
+        return false;
+      }
+    })();
+
+    cache.set(host, checkPromise);
+    return checkPromise;
+  };
+}
+
 /**
  * Memasang pencegat pada sebuah halaman.
  *
@@ -183,17 +237,23 @@ export async function attachGuard({
   page,
   allowedDocumentUrl,
   allowHydration = false,
-  hydrationTimeoutMs = 2500,
+  hydrationTimeoutMs = 4000,
+  resolveHost = defaultResolveHost,
 }) {
   const stats = createGuardStats();
   const hosts = new Set();
   let isHydrating = Boolean(allowHydration);
   let documentCount = 0;
 
+  const targetParsed = checkUrl(allowedDocumentUrl);
+  const mainHostname = targetParsed.ok ? targetParsed.hostname : "";
+  const isPublicHost = createHostDnsVerifier({ mainHostname, resolveHost });
+
   if (isHydrating && hydrationTimeoutMs > 0) {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       isHydrating = false;
     }, hydrationTimeoutMs);
+    timer.unref?.();
   }
 
   await page.route("**/*", async (route) => {
@@ -205,17 +265,40 @@ export async function attachGuard({
     if (type === "document") {
       documentCount++;
       if (documentCount > 1 || request.redirectedFrom?.()) {
-        redirectCount = documentCount - 1;
+        redirectCount = Math.max(1, documentCount - 1);
       }
     }
 
-    const decision = decideRequest({
+    let decision = decideRequest({
       resourceType: type,
       url,
       allowedDocumentUrl,
       isHydrating,
       redirectCount,
     });
+
+    if (decision.allow) {
+      let askedHost = "";
+      try {
+        askedHost = new URL(url).hostname.toLowerCase();
+      } catch {
+        askedHost = "";
+      }
+
+      if (
+        askedHost &&
+        askedHost !== mainHostname &&
+        (CHECKED_TYPES.includes(type) || type === "document" || isHydrating)
+      ) {
+        const dnsAllowed = await isPublicHost(askedHost);
+        if (!dnsAllowed) {
+          decision = block(
+            "asset-dns-blocked",
+            `Host sub-sumber ${askedHost} mengarah ke alamat non-publik atau gagal diverifikasi.`,
+          );
+        }
+      }
+    }
 
     if (!stats.byType[type]) stats.byType[type] = { allowed: 0, blocked: 0 };
 

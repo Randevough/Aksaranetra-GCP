@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
 import { checkUrl } from "../../engine/src/fetcher/url-policy.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -44,7 +45,33 @@ if (command === "audit") {
   const { auditUrl } = await import("../../engine/src/api/index.mjs");
 
   const onProgress = async (update) => {
-    process.stdout.write(JSON.stringify({ type: "progress", ...update }) + "\n");
+    const { earlyBeforeScreenshot, ...rest } = update ?? {};
+    if (
+      earlyBeforeScreenshot &&
+      (Buffer.isBuffer(earlyBeforeScreenshot) || ArrayBuffer.isView(earlyBeforeScreenshot)) &&
+      earlyBeforeScreenshot.byteLength > 0 &&
+      artifactDir
+    ) {
+      try {
+        fs.mkdirSync(artifactDir, { recursive: true });
+        fs.writeFileSync(path.join(artifactDir, "before.png"), earlyBeforeScreenshot);
+        if (rest.telemetry && typeof rest.telemetry === "object") {
+          rest.telemetry = { ...rest.telemetry, earlyPreviewReady: true };
+        }
+      } catch {
+        // Best-effort early preview write; never fail progress emission
+      }
+    }
+
+    const payload = {
+      type: "progress",
+      progress: rest.progress,
+      stage: rest.stage,
+    };
+    if (rest.telemetry !== undefined) {
+      payload.telemetry = rest.telemetry;
+    }
+    process.stdout.write(JSON.stringify(payload) + "\n");
   };
 
   try {

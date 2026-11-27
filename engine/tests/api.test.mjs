@@ -456,3 +456,33 @@ test("runs end-to-end audit lifecycle against mock server with fake public host 
     await mockServer.close();
   }
 });
+
+test("emits telemetry on progress, enables bounded hydration in guard, and attaches compliance", async () => {
+  let guardCallArgs = null;
+  const updates = [];
+  const { deps } = createFakeDeps({
+    attachGuard: async (args) => {
+      guardCallArgs = args;
+      return { allowed: 4, blocked: 1, byType: {}, blockedHosts: ["ads.test"] };
+    },
+  });
+
+  const result = await auditUrl({
+    url: "https://contoh.go.id/",
+    deps,
+    history: new Map(),
+    onProgress: (update) => updates.push(update),
+  });
+
+  assert.equal(result.ok, true, result.message);
+  assert.equal(guardCallArgs.allowHydration, true);
+  assert.equal(guardCallArgs.hydrationTimeoutMs, 4000);
+  assert.ok(updates.every((u) => u.telemetry && Array.isArray(u.telemetry.steps)));
+  assert.equal(updates.at(-1).telemetry.steps.length, 10);
+  assert.ok(result.snapshot.score);
+  assert.ok(result.snapshot.severity);
+  assert.ok(Array.isArray(result.snapshot.regulations));
+  assert.ok(Array.isArray(result.snapshot.issues));
+  assert.ok(result.snapshot.readiness);
+  assert.ok(Array.isArray(result.snapshot.tabStops));
+});

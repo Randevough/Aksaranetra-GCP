@@ -8,6 +8,182 @@ use Illuminate\Http\Request;
 
 class SecurityService
 {
+    public const MAX_URL_LENGTH = 2048;
+
+    private const ALLOWED_PROTOCOLS = ['http', 'https'];
+    private const DEFAULT_PORTS = ['http' => 80, 'https' => 443];
+    private const BLOCKED_HOSTS = [
+        'localhost',
+        'localhost.localdomain',
+        'metadata.google.internal',
+        'instance-data',
+        'metadata',
+    ];
+    private const BLOCKED_HOST_SUFFIXES = [
+        '.localhost',
+        '.local',
+        '.internal',
+        '.intranet',
+        '.lan',
+        '.home.arpa',
+        '.metadata.google.internal',
+    ];
+    private const HOSTNAME_SHAPE = '/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/';
+
+    /**
+     * Validate a raw URL against SSRF and domain-shape rules without spawning Node.
+     *
+     * @return array{ok: bool, code: ?string, message: ?string, url?: string, hostname?: string, protocol?: string}
+     */
+    public static function checkUrl(?string $raw): array
+    {
+        $trimmed = trim((string) ($raw ?? ''));
+
+        if ($trimmed === '') {
+            return self::denyUrl('empty-url', 'URL kosong.');
+        }
+
+        if (strlen($trimmed) > self::MAX_URL_LENGTH) {
+            return self::denyUrl('url-too-long', 'URL lebih panjang dari ' . self::MAX_URL_LENGTH . ' karakter.');
+        }
+
+        if (preg_match('/[\x00-\x20\x7F]/', $trimmed)) {
+            return self::denyUrl('unparseable-url', 'URL tidak dapat dibaca.');
+        }
+
+        if (!preg_match('/^([a-zA-Z][a-zA-Z0-9+.-]*):/s', $trimmed, $schemeMatch)) {
+            return self::denyUrl('unparseable-url', 'URL tidak dapat dibaca.');
+        }
+
+        $scheme = strtolower($schemeMatch[1]);
+        if (!in_array($scheme, self::ALLOWED_PROTOCOLS, true)) {
+            return self::denyUrl('protocol-not-allowed', "Hanya http dan https yang didukung, bukan {$scheme}.");
+        }
+
+        if (!preg_match('#^https?://([^/?\#]+)#i', $trimmed, $authorityMatch)) {
+            return self::denyUrl('unparseable-url', 'URL tidak dapat dibaca.');
+        }
+
+        $parts = parse_url($trimmed);
+        if (!is_array($parts) || !isset($parts['host']) || $parts['host'] === '') {
+            return self::denyUrl('unparseable-url', 'URL tidak dapat dibaca.');
+        }
+
+        if (
+            isset($parts['user'])
+            || isset($parts['pass'])
+            || str_contains($authorityMatch[1], '@')
+        ) {
+            return self::denyUrl('credentials-in-url', 'URL memuat nama pengguna atau kata sandi.');
+        }
+
+        if (isset($parts['port'])) {
+            $port = (int) $parts['port'];
+            if ($port !== self::DEFAULT_PORTS[$scheme]) {
+                return self::denyUrl('port-not-allowed', "Hanya port standar yang diizinkan, bukan port {$port}.");
+            }
+        }
+
+        $hostname = strtolower((string) $parts['host']);
+        if (str_starts_with($hostname, '[') && str_ends_with($hostname, ']')) {
+            return self::denyUrl('ip-literal-not-allowed', 'Alamat IP langsung tidak diterima. Gunakan nama domain.');
+        }
+
+        if (str_ends_with($hostname, '.')) {
+            $hostname = substr($hostname, 0, -1);
+        }
+
+        if ($hostname === '') {
+            return self::denyUrl('empty-host', 'URL tidak memuat nama domain.');
+        }
+
+        if (str_contains($hostname, ':') || filter_var($hostname, FILTER_VALIDATE_IP) !== false || self::isWhatwgIpv4Literal($hostname)) {
+            return self::denyUrl('ip-literal-not-allowed', 'Alamat IP langsung tidak diterima. Gunakan nama domain.');
+        }
+
+        if (in_array($hostname, self::BLOCKED_HOSTS, true)) {
+            return self::denyUrl('local-host-name', "Nama {$hostname} mengarah ke mesin lokal.");
+        }
+
+        foreach (self::BLOCKED_HOST_SUFFIXES as $suffix) {
+            if (str_ends_with($hostname, $suffix)) {
+                return self::denyUrl('local-host-name', "Akhiran {$suffix} dipakai untuk jaringan lokal.");
+            }
+        }
+
+        if (preg_match('/[^\x20-\x7E]/', $hostname) && function_exists('idn_to_ascii')) {
+            $ascii = idn_to_ascii($hostname, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            if (is_string($ascii) && $ascii !== '') {
+                $hostname = strtolower($ascii);
+            }
+        }
+
+        if (!preg_match(self::HOSTNAME_SHAPE, $hostname)) {
+            return self::denyUrl('hostname-not-allowed', 'Nama domain tidak berbentuk wajar.');
+        }
+
+        $path = $parts['path'] ?? '/';
+        if ($path === '') {
+            $path = '/';
+        }
+        $query = isset($parts['query']) && $parts['query'] !== '' ? '?' . $parts['query'] : '';
+
+        return [
+            'ok' => true,
+            'code' => null,
+            'message' => null,
+            'url' => "{$scheme}://{$hostname}{$path}{$query}",
+            'hostname' => $hostname,
+            'protocol' => "{$scheme}:",
+        ];
+    }
+
+    private static function denyUrl(string $code, string $message): array
+    {
+        return [
+            'ok' => false,
+            'code' => $code,
+            'message' => $message,
+        ];
+    }
+
+    /**
+     * Detect decimal, hex, octal, or shorthand IPv4 notations resolved by WHATWG URL parsers.
+     */
+    private static function isWhatwgIpv4Literal(string $hostname): bool
+    {
+        $parts = explode('.', $hostname);
+        $count = count($parts);
+        if ($count < 1 || $count > 4) {
+            return false;
+        }
+
+        $values = [];
+        foreach ($parts as $part) {
+            if ($part === '') {
+                return false;
+            }
+            if (preg_match('/^0x([0-9a-f]+)$/i', $part, $m)) {
+                $val = hexdec($m[1]);
+            } elseif (preg_match('/^0([0-7]*)$/', $part, $m)) {
+                $val = $m[1] === '' ? 0 : octdec($m[1]);
+            } elseif (preg_match('/^[1-9][0-9]*$/', $part)) {
+                $val = (float) $part;
+            } else {
+                return false;
+            }
+            $values[] = $val;
+        }
+
+        for ($i = 0; $i < $count - 1; $i++) {
+            if ($values[$i] > 255) {
+                return false;
+            }
+        }
+
+        $maxLast = 256 ** (5 - $count);
+        return $values[$count - 1] < $maxLast;
+    }
     /**
      * Convert binary string to base64url encoding (RFC 4648 §5, without padding).
      */

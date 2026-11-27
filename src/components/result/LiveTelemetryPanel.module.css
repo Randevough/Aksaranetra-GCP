@@ -1,0 +1,449 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 920px;
+}
+
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  padding: clamp(24px, 4vw, 38px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-float);
+}
+
+.statusTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.stageColumn {
+  min-width: 0;
+}
+
+.statusLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--color-primary-mid);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activeDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-primary-bright);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .activeDot {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
+.stageArea h1 {
+  font-size: clamp(23px, 3vw, 30px);
+}
+
+.targetUrl {
+  margin-top: 6px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.percent {
+  color: var(--color-primary);
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.progressBarWrapper {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.progressBarFill {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-button);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .progressBarFill {
+    transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+.progressBarGlow {
+  display: none;
+}
+
+.statusMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.metaActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.notifyButton {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-primary-mid);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notifyButton:hover {
+  background: var(--color-card-highlight);
+}
+
+.notifyActive {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.statsRow div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statsRow dt {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.statsRow dd {
+  color: var(--color-heading);
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.xrayGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.pipelineBox,
+.previewBox {
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.subHeading {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-heading);
+}
+
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stepItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+  font-size: 13.5px;
+}
+
+.step_done {
+  background: var(--color-success-soft);
+  border-color: var(--color-success-border);
+}
+
+.step_running {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-bright);
+}
+
+.step_warning {
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning-border);
+}
+
+.step_pending {
+  background: var(--color-surface-sunken);
+}
+
+.stepStateBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stepLabel {
+  color: var(--color-heading);
+  font-weight: 700;
+}
+
+.stepDetail {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.stepDuration {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.previewFrame {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+  aspect-ratio: 16 / 10;
+}
+
+.previewImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.scanOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(37, 99, 235, 0.14) 50%,
+    transparent 100%
+  );
+  background-size: 100% 48px;
+  background-repeat: no-repeat;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scanOverlay {
+    animation: scanSweep 2.4s linear infinite;
+  }
+}
+
+@keyframes scanSweep {
+  0% {
+    background-position: 0 -48px;
+  }
+  100% {
+    background-position: 0 calc(100% + 48px);
+  }
+}
+
+.previewPlaceholder {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 20px;
+  border: 1px dashed #8b92a3;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.challengeCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.challengeToggle {
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 22px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.challengeToggle:hover {
+  background: var(--color-surface-sunken);
+}
+
+.toggleHint {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+
+.challengeBody {
+  padding: 0 22px 22px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quizMeta {
+  margin-top: 14px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.quizPrompt {
+  color: var(--color-heading);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.quizOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quizOption {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1.5px solid #8b92a3;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quizOption:hover {
+  border-color: var(--color-primary-bright);
+  background: var(--color-surface-sunken);
+}
+
+.quizCorrect {
+  border-color: var(--color-success);
+  background: var(--color-success-soft);
+  color: var(--color-heading);
+}
+
+.quizWrong {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-heading);
+}
+
+.quizFeedback {
+  min-height: 24px;
+  color: var(--color-text);
+  font-size: 14.5px;
+}
+
+.quizNav {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 820px) {
+  .xrayGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statusTop {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

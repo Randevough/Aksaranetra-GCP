@@ -14,14 +14,15 @@ export default function Footer() {
   const tahun = new Date().getFullYear();
 
   return (
-    <footer className={styles.footer} role="contentinfo">
+    <footer className={styles.footer}>
       <div className={styles.footerContainer}>
         {/* Kolom Kiri: Logo + Identitas Merek */}
         <div className={styles.identitasWrapper}>
           <Link href="/" className={styles.brandIconCard} aria-label="AksaraNetra, kembali ke beranda">
             <Image
               src="/AN - Nav Icon.png"
-              alt="AksaraNetra Logo"
+              alt=""
+              aria-hidden="true"
               width={42}
               height={42}
               className={styles.brandIconImg}
@@ -39,8 +40,8 @@ export default function Footer() {
         </div>
 
         {/* Kolom Kanan: Navigasi (3 Tombol dengan Divider & Panah) */}
-        <nav className={styles.navigasi} aria-label="Navigasi footer">
-          <p className={styles.navJudul}>NAVIGASI</p>
+        <nav className={styles.navigasi} aria-labelledby="footer-nav-heading">
+          <p id="footer-nav-heading" className={styles.navJudul}>NAVIGASI</p>
           <ul className={styles.navDaftar}>
             {tautan.map((item) => (
               <li key={item.href}>

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
@@ -61,23 +62,26 @@ function AuditCard({
   onRemove,
 }: {
   item: RecentAudit;
-  onRemove: (jobId: string) => void;
+  onRemove: (jobId: string, triggerEl: HTMLButtonElement) => void;
 }) {
   const active = ACTIVE.has(item.status);
   const completed = item.status === "completed";
   const resultHref = `/result?job=${encodeURIComponent(item.jobId)}${completed ? "&open=1" : ""}`;
+  const labelTarget = item.title || host(item.sourceUrl);
 
   return (
     <article className={styles.auditCard}>
       {/* Kolom 1: Informasi Situs & Status */}
       <div className={styles.cardDomainCol}>
         <div className={styles.titleRow}>
-          <h3 className={styles.itemTitle}>{item.title || host(item.sourceUrl)}</h3>
+          <h3 className={styles.itemTitle}>{labelTarget}</h3>
           <span className={`${styles.status} ${styles[item.status]}`}>
             {statusLabel(item)}
           </span>
         </div>
-        <p className={styles.itemUrl} title={item.sourceUrl}>{item.sourceUrl}</p>
+        <p className={styles.itemUrl} title={item.sourceUrl}>
+          {item.sourceUrl}
+        </p>
       </div>
 
       {/* Kolom 2: Metadata Diperiksa */}
@@ -96,6 +100,7 @@ function AuditCard({
               className={styles.progress}
               max="100"
               value={item.progress}
+              aria-label={`Kemajuan pemeriksaan ${labelTarget}: ${item.progress}%`}
             >
               {item.progress}%
             </progress>
@@ -106,7 +111,13 @@ function AuditCard({
 
       {/* Kolom 4: Tombol Aksi */}
       <div className={styles.cardActions}>
-        <Link className="btn btn-primary" href={resultHref}>
+        <Link
+          className="btn btn-primary"
+          href={resultHref}
+          aria-label={`${
+            active ? "Lanjutkan" : completed ? "Baca hasil" : "Keterangan"
+          } ${labelTarget}`}
+        >
           {active
             ? "Lanjutkan"
             : completed
@@ -116,15 +127,15 @@ function AuditCard({
         <Link
           className="btn btn-secondary"
           href={`/periksa?url=${encodeURIComponent(item.sourceUrl)}`}
+          aria-label={`Periksa ulang ${labelTarget}`}
         >
           Periksa ulang
         </Link>
         <button
           className={styles.removeButton}
           type="button"
-          onClick={() => onRemove(item.jobId)}
-          aria-label="Hapus riwayat pemeriksaan ini"
-          title="Hapus riwayat"
+          onClick={(e) => onRemove(item.jobId, e.currentTarget)}
+          aria-label={`Hapus riwayat pemeriksaan ${labelTarget}`}
         >
           <svg
             aria-hidden="true"
@@ -153,15 +164,20 @@ export default function RiwayatAuditPage() {
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState("");
 
-  /* Antrean penghapusan. Item disembunyikan lebih dulu, baru benar benar
-     dihapus setelah jendela pembatalan berakhir. */
   const [confirmTarget, setConfirmTarget] = useState<RecentAudit | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<RecentAudit | null>(
     null,
   );
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRemovalRef = useRef<RecentAudit | null>(null);
+  const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const confirmButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const undoButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    pendingRemovalRef.current = pendingRemoval;
+  }, [pendingRemoval]);
 
   const refresh = useCallback(async () => {
     const stored = readRecentAudits();
@@ -171,32 +187,44 @@ export default function RiwayatAuditPage() {
       return;
     }
 
-    const verified: RecentAudit[] = [];
-    let connectionFailed = false;
+    const withTokens: Array<{ item: RecentAudit; token: string }> = [];
     for (const item of stored) {
       const token = readJobToken(item.jobId);
       if (!token) {
         removeRecentAudit(item.jobId);
-        continue;
+      } else {
+        withTokens.push({ item, token });
       }
-      try {
-        const response = await getAudit(item.jobId, token);
-        const next = recentAuditFromJob(response.job, item);
+    }
+
+    const settled = await Promise.allSettled(
+      withTokens.map(({ item, token }) => getAudit(item.jobId, token)),
+    );
+
+    const verified: RecentAudit[] = [];
+    let connectionFailed = false;
+
+    settled.forEach((outcome, index) => {
+      const { item } = withTokens[index];
+      if (outcome.status === "fulfilled") {
+        const next = recentAuditFromJob(outcome.value.job, item);
         saveRecentAudit(next);
         verified.push(next);
-      } catch (error) {
+      } else {
+        const error = outcome.reason;
         if (
           error instanceof AuditApiError &&
           (error.code === "AUDIT_NOT_FOUND" || error.code === "RESULT_EXPIRED")
         ) {
           removeRecentAudit(item.jobId);
           removeJobToken(item.jobId);
-          continue;
+          return;
         }
         connectionFailed = true;
         verified.push(item);
       }
-    }
+    });
+
     setItems(verified);
     setWarning(
       connectionFailed
@@ -207,27 +235,36 @@ export default function RiwayatAuditPage() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
   }, [refresh]);
 
-  /* Penghapusan sebenarnya. Dipanggil hanya setelah jendela pembatalan habis,
-     atau saat halaman ditinggalkan. */
   const handleRemove = useCallback((jobId: string) => {
     removeRecentAudit(jobId);
     removeJobToken(jobId);
     setItems((current) => current.filter((item) => item.jobId !== jobId));
   }, []);
 
-  const requestRemove = (jobId: string) => {
+  const requestRemove = (jobId: string, triggerEl: HTMLButtonElement) => {
     const target = items.find((item) => item.jobId === jobId) ?? null;
-    if (target) setConfirmTarget(target);
+    if (target) {
+      lastTriggerRef.current = triggerEl;
+      setConfirmTarget(target);
+    }
   };
+
+  const closeDialog = useCallback(() => {
+    setConfirmTarget(null);
+    requestAnimationFrame(() => {
+      lastTriggerRef.current?.focus();
+    });
+  }, []);
 
   const confirmRemove = () => {
     const target = confirmTarget;
     if (!target) return;
 
-    // Bila masih ada penghapusan yang menunggu, selesaikan dulu.
     if (undoTimer.current) {
       clearTimeout(undoTimer.current);
       undoTimer.current = null;
@@ -249,36 +286,66 @@ export default function RiwayatAuditPage() {
       undoTimer.current = null;
     }
     setPendingRemoval(null);
+    requestAnimationFrame(() => {
+      lastTriggerRef.current?.focus();
+    });
   };
 
-  // Jika halaman ditinggalkan sebelum jendela habis, penghapusan diselesaikan.
+  // Jika halaman ditinggalkan sebelum jendela pembatalan habis, selesaikan penghapusan.
   useEffect(() => {
     return () => {
       if (undoTimer.current) {
         clearTimeout(undoTimer.current);
         undoTimer.current = null;
+        if (pendingRemovalRef.current) {
+          removeRecentAudit(pendingRemovalRef.current.jobId);
+          removeJobToken(pendingRemovalRef.current.jobId);
+        }
       }
     };
   }, []);
 
   useEffect(() => {
-    if (confirmTarget) confirmButtonRef.current?.focus();
+    if (confirmTarget) {
+      cancelButtonRef.current?.focus();
+    }
   }, [confirmTarget]);
 
   useEffect(() => {
-    if (pendingRemoval) undoButtonRef.current?.focus();
+    if (pendingRemoval) {
+      undoButtonRef.current?.focus();
+    }
   }, [pendingRemoval]);
 
   useEffect(() => {
     if (!confirmTarget) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setConfirmTarget(null);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDialog();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [confirmTarget]);
+  }, [closeDialog, confirmTarget]);
 
-  // Item yang sedang menunggu penghapusan disembunyikan dari daftar.
+  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const focusables = [confirmButtonRef.current, cancelButtonRef.current].filter(
+      (el): el is HTMLButtonElement => el !== null,
+    );
+    if (focusables.length < 2) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const visible = useMemo(
     () =>
       pendingRemoval
@@ -409,6 +476,7 @@ export default function RiwayatAuditPage() {
               aria-modal="true"
               aria-labelledby="hapus-title"
               aria-describedby="hapus-desc"
+              onKeyDown={handleDialogKeyDown}
             >
               <h2 id="hapus-title">Hapus catatan pemeriksaan ini?</h2>
               <p id="hapus-desc">
@@ -431,7 +499,8 @@ export default function RiwayatAuditPage() {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setConfirmTarget(null)}
+                  onClick={closeDialog}
+                  ref={cancelButtonRef}
                 >
                   Batal
                 </button>

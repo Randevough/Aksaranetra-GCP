@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\AksaraConfig;
+use App\Services\AuditorInterface;
 use App\Services\AuditWorkerInterface;
 use App\Services\JobStore;
 use Illuminate\Console\Command;
@@ -32,8 +33,24 @@ class AuditWorkCommand extends Command
     public function handle(
         JobStore $store,
         AuditWorkerInterface $worker,
-        AksaraConfig $config
+        AksaraConfig $config,
+        ?AuditorInterface $auditor = null
     ): int {
+        $rawTimeout = $this->option('timeout');
+        if ($rawTimeout !== null && $rawTimeout !== '') {
+            if (!ctype_digit((string) $rawTimeout) || (int) $rawTimeout < 1000) {
+                $this->error('Opsi --timeout harus berupa bilangan bulat milidetik minimal 1000.');
+                return 1;
+            }
+            $timeoutMs = (int) $rawTimeout;
+            if (method_exists($worker, 'setTimeoutMs')) {
+                $worker->setTimeoutMs($timeoutMs);
+            }
+            if ($auditor !== null && method_exists($auditor, 'setTimeoutMs')) {
+                $auditor->setTimeoutMs($timeoutMs);
+            }
+        }
+
         $this->info('Memulai worker audit AksaraNetra (konkurensi: 1)...');
 
         // Pemulihan job yang terinterupsi saat restart/crash

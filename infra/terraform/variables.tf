@@ -39,6 +39,28 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "db_sslmode" {
+  description = "PostgreSQL SSL mode consistent with Cloud SQL ENCRYPTED_ONLY."
+  type        = string
+  default     = "require"
+
+  validation {
+    condition     = contains(["require", "verify-ca", "verify-full"], var.db_sslmode)
+    error_message = "db_sslmode must be one of require, verify-ca, or verify-full."
+  }
+}
+
+variable "backend_secret" {
+  description = "Shared HMAC secret (>= 32 characters) for backend token signing."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.backend_secret) >= 32
+    error_message = "backend_secret must be at least 32 characters."
+  }
+}
+
 variable "db_deletion_protection" {
   description = "Toggle Terraform and GCP API deletion protection on Cloud SQL."
   type        = bool

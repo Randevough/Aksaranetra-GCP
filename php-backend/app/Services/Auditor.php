@@ -10,10 +10,21 @@ use Throwable;
 
 class Auditor implements AuditorInterface
 {
+    private readonly ReportExporter $reportExporter;
+
     public function __construct(
         private readonly BridgeClientInterface $bridge,
-        private readonly ReportRendererInterface $reportRenderer
-    ) {}
+        private readonly ReportRendererInterface $reportRenderer,
+        ?ReportExporter $reportExporter = null,
+        private ?int $timeoutSeconds = null
+    ) {
+        $this->reportExporter = $reportExporter ?? new ReportExporter();
+    }
+
+    public function setTimeoutMs(int $timeoutMs): void
+    {
+        $this->timeoutSeconds = max(1, (int) ceil($timeoutMs / 1000));
+    }
 
     public function audit(AuditJob $job, ?callable $onProgress = null, ?callable $shouldCancel = null): array
     {
@@ -55,7 +66,8 @@ class Auditor implements AuditorInterface
                 url: $job->targetUrl,
                 artifactDir: $job->artifactDir,
                 onProgress: $onProgress,
-                shouldCancel: $shouldCancel
+                shouldCancel: $shouldCancel,
+                timeoutSeconds: $this->timeoutSeconds
             );
 
             $snapshot = $outcome['snapshot'] ?? null;
@@ -81,10 +93,16 @@ class Auditor implements AuditorInterface
 
         $pdfPath = $job->artifactDir . DIRECTORY_SEPARATOR . 'report.pdf';
         $reportHtmlPath = $job->artifactDir . DIRECTORY_SEPARATOR . 'report.html';
+        $reportJsonPath = $job->artifactDir . DIRECTORY_SEPARATOR . 'report.json';
+        $reportCsvPath = $job->artifactDir . DIRECTORY_SEPARATOR . 'report.csv';
 
         if (!file_exists($reportHtmlPath) && is_array($report)) {
             $reportHtml = $this->reportRenderer->render($snapshot ?? [], $report);
             file_put_contents($reportHtmlPath, $reportHtml);
+        }
+
+        if (is_array($snapshot) || is_array($report)) {
+            $this->reportExporter->write($snapshot ?? [], $report ?? [], $reportJsonPath, $reportCsvPath);
         }
 
         if (!file_exists($pdfPath) && file_exists($reportHtmlPath)) {
@@ -109,6 +127,9 @@ class Auditor implements AuditorInterface
                 'patched' => 'patched.html',
                 'reportPdf' => file_exists($pdfPath) ? 'report.pdf' : (file_exists($reportHtmlPath) ? 'report.html' : null),
                 'screenshot' => 'after.png',
+                'beforeScreenshot' => file_exists($job->artifactDir . DIRECTORY_SEPARATOR . 'before.png') ? 'before.png' : null,
+                'reportJson' => file_exists($reportJsonPath) ? 'report.json' : null,
+                'reportCsv' => file_exists($reportCsvPath) ? 'report.csv' : null,
             ],
         ];
     }

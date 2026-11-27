@@ -41,7 +41,7 @@ class AuditController
         }
 
         $url = $body['url'] ?? null;
-        $verdict = $this->getBridge()->checkUrl(is_string($url) ? $url : null);
+        $verdict = SecurityService::checkUrl(is_string($url) ? $url : null);
         if (!$verdict['ok']) {
             return response()->json([
                 'error' => $verdict['code'],
@@ -92,9 +92,15 @@ class AuditController
         $reuseExisting = ($body['reuseExisting'] ?? false) === true;
         $cached = $reuseExisting ? $store->findReusable($verdict['url'], $now) : null;
 
-        if ($cached && $cached->id !== $job->id && is_dir($cached->artifactDir)) {
-            $this->copyDirectory($cached->artifactDir, $job->artifactDir);
-            $store->completeQueued($job->id, $cached->result);
+        if ($cached && $cached->id !== $job->id) {
+            if ($config->artifactStore === 'gcs' && !empty($cached->result['manifest'])) {
+                $store->completeQueued($job->id, $cached->result);
+            } elseif (is_dir($cached->artifactDir)) {
+                $this->copyDirectory($cached->artifactDir, $job->artifactDir);
+                $store->completeQueued($job->id, $cached->result);
+            } else {
+                $this->getWorker()->kick();
+            }
         } else {
             $this->getWorker()->kick();
         }
@@ -125,8 +131,18 @@ class AuditController
             ], 404);
         }
 
+        $previewUrl = null;
+        if (($job->telemetry['earlyPreviewReady'] ?? false) === true) {
+            $shareToken = $this->getSecurity()->deriveShareToken([
+                'jobId' => $job->id,
+                'accessToken' => $token,
+                'secret' => $this->getConfig()->secret,
+            ]);
+            $previewUrl = "/audits/{$job->id}/artifacts/before-screenshot?token=" . urlencode($shareToken);
+        }
+
         return response()->json([
-            'job' => $job->toPublic($this->getStore()->queuePosition($job->id)),
+            'job' => $job->toPublic($this->getStore()->queuePosition($job->id), $previewUrl),
         ]);
     }
 

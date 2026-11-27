@@ -26,6 +26,7 @@ export function Limitation1() {
 
   return (
     <motion.div
+      aria-hidden="true"
       key="limit-1"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -89,6 +90,7 @@ export function Limitation1() {
 export function Limitation2() {
   return (
     <motion.div
+      aria-hidden="true"
       key="limit-2"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -146,6 +148,7 @@ export function Limitation2() {
 export function Limitation3() {
   return (
     <motion.div
+      aria-hidden="true"
       key="limit-3"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -221,6 +224,7 @@ export function Limitation3() {
 export function Limitation4() {
   return (
     <motion.div
+      aria-hidden="true"
       key="limit-4"
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}

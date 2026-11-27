@@ -109,13 +109,49 @@ class AuditorTest extends TestCase
         $this->assertSame('patched.html', $result['artifacts']['patched']);
         $this->assertSame('report.pdf', $result['artifacts']['reportPdf']);
         $this->assertSame('after.png', $result['artifacts']['screenshot']);
+        $this->assertSame('report.json', $result['artifacts']['reportJson']);
+        $this->assertSame('report.csv', $result['artifacts']['reportCsv']);
 
         $this->assertFileExists($dir . DIRECTORY_SEPARATOR . 'report.html');
         $this->assertFileExists($dir . DIRECTORY_SEPARATOR . 'report.pdf');
+        $this->assertFileExists($dir . DIRECTORY_SEPARATOR . 'report.json');
+        $this->assertFileExists($dir . DIRECTORY_SEPARATOR . 'report.csv');
 
         $html = (string) file_get_contents($dir . DIRECTORY_SEPARATOR . 'report.html');
         $this->assertStringStartsWith('<!doctype html><html lang="id">', $html);
         $this->assertStringContainsString('AksaraNetra · Engine', $html);
+    }
+
+    public function test_auditor_passes_timeout_seconds_to_bridge_audit(): void
+    {
+        $dir = $this->createTempDir('auditor-timeout-');
+        $job = $this->createJob($dir);
+        $capturedTimeout = null;
+
+        $bridge = new class($capturedTimeout) implements \App\Services\BridgeClientInterface {
+            public function __construct(private ?int &$capturedTimeout) {}
+            public function checkUrl(?string $url): array { return ['ok' => true]; }
+            public function audit(
+                string $id,
+                string $url,
+                string $artifactDir,
+                ?callable $onProgress = null,
+                ?callable $shouldCancel = null,
+                ?int $timeoutSeconds = null
+            ): array {
+                $this->capturedTimeout = $timeoutSeconds;
+                return ['type' => 'result', 'snapshot' => ['ok' => true]];
+            }
+            public function renderPdf(string $htmlPath, string $outPath, ?callable $shouldCancel = null, ?int $timeoutSeconds = null): bool { return true; }
+        };
+
+        $auditor = new Auditor($bridge, new ReportRenderer(), null, 45);
+        $auditor->audit($job);
+        $this->assertSame(45, $capturedTimeout);
+
+        $auditor->setTimeoutMs(90_000);
+        $auditor->audit($job);
+        $this->assertSame(90, $capturedTimeout);
     }
 
     public function test_auditor_resumes_from_checkpoint_without_calling_bridge_audit(): void

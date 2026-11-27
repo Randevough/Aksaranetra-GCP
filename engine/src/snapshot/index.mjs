@@ -31,6 +31,9 @@ export const FILE_NAMES = Object.freeze({
   wcagAfter: "axe-wcag-scan-after.json",
   ariaSnapshot: "aria-after.yml",
   screenshot: "after.png",
+  beforeScreenshot: "before.png",
+  reportJson: "report.json",
+  reportCsv: "report.csv",
 });
 
 /**
@@ -54,6 +57,35 @@ function summarize(metrics = {}) {
   };
 }
 
+function sanitizeRolledBackRecords(records) {
+  if (!Array.isArray(records)) return [];
+  return records.map((record) => {
+    if (!record || typeof record !== "object") return record;
+    return {
+      rule: record.rule ?? null,
+      selector: record.selector ?? null,
+      confidence: typeof record.confidence === "number" ? record.confidence : null,
+      source: record.source ?? null,
+      reason: record.reason ?? null,
+      snippet: record.snippet ?? null,
+    };
+  });
+}
+
+function defaultReadiness(report) {
+  return {
+    waitStrategy: "unknown",
+    hydrationAllowed: false,
+    loadTimeMs: 0,
+    settledAfterMs: 0,
+    domElements: 0,
+    partialLoad: Boolean(report?.partialRecovery || report?.warnings?.partialLoad),
+    possibleEmptyShell: Boolean(report?.warnings?.possibleEmptyShell),
+    viewport: { width: 1440, height: 1000 },
+    pageHeight: 0,
+  };
+}
+
 /**
  * Menyusun berkas ringkas yang dibaca frontend.
  *
@@ -74,6 +106,11 @@ export function createSnapshot({
   }
 
   const metrics = report.metrics || {};
+  const rolledBackRecords = sanitizeRolledBackRecords(report.rolledBackRecords);
+  const readiness = report.readiness || defaultReadiness(report);
+  const tabStops = Array.isArray(report.tabStops)
+    ? report.tabStops.slice(0, 40)
+    : [];
 
   return {
     formatVersion: SNAPSHOT_FORMAT_VERSION,
@@ -99,6 +136,7 @@ export function createSnapshot({
       fixed: report.fixed?.length ?? 0,
       review: report.review?.length ?? 0,
       skipped: report.skipped?.length ?? 0,
+      rolledBack: rolledBackRecords.length,
       verifiedOverrides: (report.fixed || []).filter(
         (record) => record.source === "verified-override",
       ).length,
@@ -113,11 +151,19 @@ export function createSnapshot({
 
     warnings: {
       rolledBack: report.rolledBack === true,
+      rolledBackRecords,
+      partialLoad: report.warnings?.partialLoad ?? null,
+      possibleEmptyShell: Boolean(
+        report.warnings?.possibleEmptyShell ?? readiness.possibleEmptyShell,
+      ),
       wcagRegressionClean: report.wcagRegression?.clean !== false,
       worsenedRules: report.wcagRegression?.worsened ?? [],
       duplicateLabels: report.duplicateLabels ?? [],
       staleOverrides: report.staleOverrides ?? [],
     },
+
+    readiness,
+    tabStops,
 
     files: { ...FILE_NAMES },
   };
@@ -167,6 +213,9 @@ export function writeSnapshot({ dir, snapshot, report, artifacts = {}, patchedPa
 
   if (artifacts.ariaSnapshot) {
     fs.writeFileSync(path.join(dir, FILE_NAMES.ariaSnapshot), artifacts.ariaSnapshot);
+  }
+  if (artifacts.beforeScreenshot) {
+    fs.writeFileSync(path.join(dir, FILE_NAMES.beforeScreenshot), artifacts.beforeScreenshot);
   }
   if (artifacts.screenshot) {
     fs.writeFileSync(path.join(dir, FILE_NAMES.screenshot), artifacts.screenshot);

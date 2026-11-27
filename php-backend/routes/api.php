@@ -17,6 +17,9 @@ Route::post('/audits', [AuditController::class, 'store']);
 Route::get('/audits/{id}/artifacts/{artifact}', [AuditArtifactController::class, 'show'])
     ->where('artifact', '.*');
 
+Route::get('/audits/{id}/report.{format}', [AuditArtifactController::class, 'export'])
+    ->where('format', 'json|csv');
+
 Route::get('/audits/{id}/result', [AuditResultController::class, 'show']);
 
 Route::get('/audits/{id}', [AuditController::class, 'show']);

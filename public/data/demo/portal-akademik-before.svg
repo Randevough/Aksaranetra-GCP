@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800" role="img" aria-label="Tangkapan layar simulasi Portal Akademik Kampus sebelum perbaikan">
+  <rect width="1280" height="800" fill="#f8fafc"/>
+  <!-- Sidebar -->
+  <rect width="240" height="800" fill="#1e293b"/>
+  <text x="28" y="48" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#ffffff">SIAKAD KAMPUS</text>
+  <text x="28" y="108" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Dashboard</text>
+  <text x="28" y="148" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Kartu Rencana Studi</text>
+  <text x="28" y="188" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Transkrip Nilai</text>
+  <text x="28" y="228" font-family="system-ui, sans-serif" font-size="14" fill="#94a3b8">Jadwal Kuliah</text>
+
+  <!-- Main Panel -->
+  <rect x="272" y="28" width="968" height="72" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="296" y="70" font-family="system-ui, sans-serif" font-size="20" font-weight="800" fill="#0f172a">Pengisian KRS Semester Genap</text>
+  <!-- Missing label search input -->
+  <rect x="860" y="44" width="260" height="40" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <text x="876" y="69" font-family="system-ui, sans-serif" font-size="13" fill="#94a3b8">Cari kode mata kuliah...</text>
+  <rect x="1132" y="44" width="84" height="40" rx="8" fill="#93c5fd"/>
+  <text x="1158" y="69" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Cari</text>
+
+  <!-- Alert box with color-only cue -->
+  <rect x="272" y="124" width="968" height="54" rx="10" fill="#fef2f2" stroke="#fecaca"/>
+  <text x="296" y="156" font-family="system-ui, sans-serif" font-size="14" fill="#f87171">Batas pengisian KRS berakhir 2 hari lagi. Pilih minimal 18 SKS.</text>
+
+  <!-- Table without scope/headers -->
+  <rect x="272" y="202" width="968" height="420" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <rect x="272" y="202" width="968" height="48" rx="14" fill="#f1f5f9"/>
+  <text x="296" y="231" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#64748b">KODE</text>
+  <text x="410" y="231" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#64748b">MATA KULIAH</text>
+  <text x="780" y="231" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#64748b">SKS</text>
+  <text x="880" y="231" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#64748b">DOSEN</text>
+  <text x="1120" y="231" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#64748b">AKSI</text>
+
+  <text x="296" y="292" font-family="system-ui, sans-serif" font-size="14" fill="#334155">IF301</text>
+  <text x="410" y="292" font-family="system-ui, sans-serif" font-size="14" fill="#0f172a">Interaksi Manusia dan Komputer</text>
+  <text x="780" y="292" font-family="system-ui, sans-serif" font-size="14" fill="#334155">3</text>
+  <text x="880" y="292" font-family="system-ui, sans-serif" font-size="14" fill="#475569">Dr. Andi Pratama</text>
+  <rect x="1120" y="270" width="32" height="32" rx="6" fill="#e2e8f0"/>
+  <text x="1131" y="291" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#64748b">+</text>
+
+  <line x1="296" y1="322" x2="1216" y2="322" stroke="#f1f5f9"/>
+  <text x="296" y="362" font-family="system-ui, sans-serif" font-size="14" fill="#334155">IF304</text>
+  <text x="410" y="362" font-family="system-ui, sans-serif" font-size="14" fill="#0f172a">Rekayasa Perangkat Lunak</text>
+  <text x="780" y="362" font-family="system-ui, sans-serif" font-size="14" fill="#334155">4</text>
+  <text x="880" y="362" font-family="system-ui, sans-serif" font-size="14" fill="#475569">Dr. Sari Lestari</text>
+  <rect x="1120" y="340" width="32" height="32" rx="6" fill="#e2e8f0"/>
+  <text x="1131" y="361" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#64748b">+</text>
+
+  <!-- Small contrast-failing pagination -->
+  <rect x="272" y="656" width="968" height="64" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="296" y="694" font-family="system-ui, sans-serif" font-size="13" fill="#94a3b8">Menampilkan 2 dari 24 mata kuliah</text>
+  <rect x="1080" y="670" width="136" height="36" rx="8" fill="#bfdbfe"/>
+  <text x="1110" y="693" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Simpan KRS</text>
+</svg>

@@ -322,4 +322,29 @@ class WorkerTest extends TestCase
         $activeWorker = new AuditWorker(store: $store, auditor: $fakeAuditor);
         $this->assertSame(0, $activeWorker->drain());
     }
+
+    public function test_audit_work_command_wires_timeout_option(): void
+    {
+        $root = $this->createTempDir('aksara-cmd-');
+        $store = new JobStore($root . DIRECTORY_SEPARATOR . 'jobs.sqlite');
+        $fakeAuditor = new FakeAuditor();
+        $worker = new AuditWorker(store: $store, auditor: $fakeAuditor, timeoutMs: 180000);
+
+        $cmd = new \App\Console\Commands\AuditWorkCommand();
+        $app = require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
+        $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        $app->instance(JobStore::class, $store);
+        $app->instance(\App\Services\AuditWorkerInterface::class, $worker);
+        $app->instance(\App\Services\AuditorInterface::class, $fakeAuditor);
+
+        $exit = $app->make(\Illuminate\Contracts\Console\Kernel::class)->call('audit:work', [
+            '--once' => true,
+            '--timeout' => '45000',
+        ]);
+
+        $this->assertSame(0, $exit);
+        $ref = new \ReflectionProperty($worker, 'timeoutMs');
+        $this->assertSame(45000, $ref->getValue($worker));
+        $store->close();
+    }
 }

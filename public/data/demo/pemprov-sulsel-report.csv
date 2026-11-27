@@ -1,0 +1,11 @@
+Rule_ID,Severity,Status,POUR,WCAG_SC,Regulations,Selector,Title_ID
+button-name,critical,fixed,robust,4.1.2,"UU-8-2016;PP-42-2020;SNI-ISO-40500",header button.btn-search,Tombol pencarian hanya ikon tanpa label pembaca layar
+button-name,critical,fixed,robust,4.1.2,"UU-8-2016;SPBE-2018;SNI-ISO-40500",header button.btn-menu,Tombol menu navigasi seluler tanpa nama aksesibel
+image-alt,critical,review,perceivable,1.1.1,"UU-8-2016;PP-42-2020;UU-KIP-2008;SNI-ISO-40500",.hero-banner img.banner-img,Gambar spanduk utama belum memiliki teks alternatif (alt)
+color-contrast,serious,fixed,perceivable,1.4.3,"UU-8-2016;PERMENPANRB-11-2024;SNI-ISO-40500",.hero-banner h1,"Kontras judul utama spanduk terlalu rendah (2,05:1)"
+link-name,serious,fixed,understandable,2.4.4,"UU-KIP-2008;SPBE-2018;SNI-ISO-40500",.hero-banner a.cta-primary,"Tautan tombol utama hanya berbunyi Klik di sini"
+color-contrast,serious,fixed,perceivable,1.4.3,"PERMENPANRB-11-2024;SNI-ISO-40500",.news-card .meta-date,"Kontras tanggal berita dan nama instansi gagal WCAG AA (1,48:1)"
+link-name,moderate,fixed,operable,2.4.4,"UU-KIP-2008;SNI-ISO-40500",.news-card a.read-more,Tautan Selengkapnya tidak memuat konteks judul berita
+focus-obscured,serious,review,operable,2.4.11,"UU-8-2016;PP-42-2020;PERMENPANRB-11-2024;SNI-ISO-40500",footer a.ppid-link,Bilah lengket bawah menutupi tautan footer saat fokus keyboard
+image-alt,moderate,review,perceivable,1.1.1,"PP-42-2020;SNI-ISO-40500",.news-card:first-child img,Thumbnail foto berita pertama tidak memiliki deskripsi alt
+html-has-lang,minor,fixed,understandable,3.1.1,"SPBE-2018;SNI-ISO-40500",html,Elemen html belum mendeklarasikan bahasa halaman

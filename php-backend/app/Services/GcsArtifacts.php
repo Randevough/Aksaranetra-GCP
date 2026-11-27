@@ -59,6 +59,7 @@ class GcsArtifacts
                 'pdf' => 'application/pdf',
                 'png' => 'image/png',
                 'json' => 'application/json',
+                'csv' => 'text/csv; charset=utf-8',
                 default => 'application/octet-stream',
             };
 
@@ -101,7 +102,45 @@ class GcsArtifacts
             throw new RuntimeException('Artifact missing in manifest: ' . $name);
         }
 
-        $storagePath = $manifest[$name]['path'];
+        return $this->readPath($manifest[$name]['path']);
+    }
+
+    public function uploadEarlyPreview(string $jobId, string $attemptId, string $localFilePath, ?callable $heartbeat = null): string
+    {
+        if ($heartbeat !== null && !$heartbeat()) {
+            throw new RuntimeException('Artifact lease lost');
+        }
+        if (!is_file($localFilePath)) {
+            throw new RuntimeException('Early preview file missing: ' . $localFilePath);
+        }
+
+        $storagePath = sprintf('jobs/%s/early-%s/before.png', $jobId, $attemptId);
+        $url = sprintf(
+            '%s/upload/storage/v1/b/%s/o?uploadType=media&name=%s&ifGenerationMatch=0',
+            self::BASE_URI,
+            rawurlencode($this->bucket),
+            rawurlencode($storagePath)
+        );
+
+        $this->http->request('POST', $url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->getBearerToken(),
+                'Content-Type' => 'image/png',
+            ],
+            'body' => (string) file_get_contents($localFilePath),
+            'timeout' => $this->timeoutSeconds,
+        ]);
+
+        return $storagePath;
+    }
+
+    public function readEarlyPreview(string $jobId, string $attemptId): string
+    {
+        return $this->readPath(sprintf('jobs/%s/early-%s/before.png', $jobId, $attemptId));
+    }
+
+    public function readPath(string $storagePath): string
+    {
         $url = sprintf(
             '%s/storage/v1/b/%s/o/%s?alt=media',
             self::BASE_URI,

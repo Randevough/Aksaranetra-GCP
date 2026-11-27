@@ -36,6 +36,8 @@ import {
   withExponentialBackoff,
   isTransientNetworkError,
 } from "../shared/retry.mjs";
+import { createTelemetryTracker } from "../shared/telemetry.mjs";
+import { buildComplianceReport } from "../compliance/index.mjs";
 
 /**
  * Nomor langkah. Dipakai supaya laporan kegagalan menyebut posisi yang tepat,
@@ -314,22 +316,32 @@ export async function auditUrl({
   onProgress = null,
 } = {}) {
   const use = { ...DEFAULT_DEPS, ...deps };
-  const progress = async (value, stage) => {
+  const telemetry = createTelemetryTracker();
+  const progress = async (value, stage, extra = {}) => {
     signal?.throwIfAborted();
-    await onProgress?.({ progress: value, stage });
+    await onProgress?.({
+      progress: value,
+      stage,
+      telemetry: telemetry.snapshot(),
+      ...extra,
+    });
   };
 
   // Langkah 1. Bentuk alamat.
+  telemetry.setStep("validate", "running");
   await progress(2, "Memvalidasi alamat halaman");
   const address = checkUrl(url);
   if (!address.ok) {
+    telemetry.setStep("validate", "warning", address.code);
     return failure(STAGES.checkAddress, address.code, address.message);
   }
+  telemetry.setStep("validate", "done");
 
   const target = address.url;
   const hostname = address.hostname;
 
   // Langkah 2. DNS. Satu alamat privat cukup untuk menolak seluruh domain.
+  telemetry.setStep("dns_robots", "running");
   let addresses = [];
   try {
     addresses = await withExponentialBackoff(
@@ -337,11 +349,13 @@ export async function auditUrl({
       { sleep: use.sleep, isRetryable: isTransientNetworkError },
     );
   } catch (error) {
+    telemetry.setStep("dns_robots", "warning", "dns-lookup-failed");
     return failure(STAGES.resolveDns, "dns-lookup-failed", errorDetail(error));
   }
 
   const resolved = checkResolvedAddresses(addresses);
   if (!resolved.ok) {
+    telemetry.setStep("dns_robots", "warning", resolved.code);
     return failure(STAGES.resolveDns, resolved.code, resolved.message);
   }
   await progress(10, "Alamat DNS terverifikasi aman");
@@ -354,6 +368,7 @@ export async function auditUrl({
       { sleep: use.sleep, isRetryable: isTransientNetworkError },
     );
   } catch (error) {
+    telemetry.setStep("dns_robots", "warning", "robots-fetch-failed");
     return failure(STAGES.robots, "robots-fetch-failed", errorDetail(error));
   }
 
@@ -363,8 +378,10 @@ export async function auditUrl({
     url: target,
   });
   if (!robots.ok) {
+    telemetry.setStep("dns_robots", "warning", robots.code);
     return failure(STAGES.robots, robots.code, robots.message);
   }
+  telemetry.setStep("dns_robots", "done");
   await progress(16, "Aturan robots.txt mengizinkan audit");
 
   // Langkah 4. Batas laju. Menunggu, bukan menolak. Menolak hanya akan membuat
@@ -372,6 +389,7 @@ export async function auditUrl({
   const delay = nextAllowedDelay({ host: hostname, now: use.now(), history });
   if (delay > 0) await use.sleep(delay);
   recordRequest({ host: hostname, now: use.now(), history });
+  telemetry.setStep("browser_ready", "running");
   await progress(22, "Menyiapkan browser audit");
 
   const siteId = id || hostname.replace(/[^a-z0-9]+/g, "-");
@@ -392,10 +410,18 @@ export async function auditUrl({
       // terlambat, permintaan pertama sudah lewat.
       let guard = createGuardStats();
       try {
-        guard = await use.attachGuard({ page, allowedDocumentUrl: target });
+        guard = await use.attachGuard({
+          page,
+          allowedDocumentUrl: target,
+          allowHydration: true,
+          hydrationTimeoutMs: 4000,
+        });
+        telemetry.setGuardStats(guard);
       } catch (error) {
+        telemetry.setStep("browser_ready", "warning", "guard-failed");
         return failure(STAGES.attachGuard, "guard-failed", errorDetail(error));
       }
+      telemetry.setStep("browser_ready", "done");
       await progress(30, "Guard jaringan aktif");
 
       // Langkah 7. Audit.
@@ -406,6 +432,9 @@ export async function auditUrl({
           url: target,
           signal,
           onProgress,
+          telemetry,
+          guardStats: guard,
+          hydrationAllowed: true,
         });
       } catch (error) {
         const detail = errorDetail(error);
@@ -416,6 +445,7 @@ export async function auditUrl({
       // Langkah 8. Dua tampilan hasil.
       let views;
       try {
+        telemetry.setStep("serialize", "running");
         await progress(80, "Membuat reader view dan halaman hasil");
         views = await use.serializePage({
           page,
@@ -423,26 +453,22 @@ export async function auditUrl({
           siteLabel: audited.siteConfig?.siteLabel || null,
           disclaimer: DISCLAIMER,
         });
+        telemetry.setStep("serialize", "done");
       } catch (error) {
+        telemetry.setStep("serialize", "warning", "serialize-failed");
         return failure(STAGES.serialize, "serialize-failed", errorDetail(error));
       }
 
-      // Langkah 9. Snapshot, plus tiga field tambahan.
-      //
-      // Ketiganya ditambahkan di sini, bukan di dalam src/snapshot, supaya
-      // bentuk snapshot yang sudah dipakai frontend tidak ikut berubah. Semua
-      // hanya menambah, tidak ada satu pun field lama yang diubah artinya.
-      //
-      //   guard            berapa permintaan jaringan yang ditolak
-      //   readerGuarantees hal yang selalu benar di tampilan mudah dibaca
-      //   decisions        daftar perubahan satu per satu, tanpa HTML mentah
-      //
-      // readerGuarantees sengaja tidak dihitung dari hasil audit. Isinya akibat
-      // dari cara kita membangun halaman, jadi nilainya sama untuk semua situs.
-      // Kalau suatu hari isinya berbeda antar situs, itu tanda ada yang salah.
       let snapshot;
       try {
+        telemetry.setStep("report", "running");
         await progress(86, "Menyusun laporan audit");
+        const compliance = buildComplianceReport({
+          report: audited.report,
+          wcagBefore: audited.artifacts?.wcagBefore,
+          wcagAfter: audited.artifacts?.wcagAfter,
+          issueBoundingBoxes: audited.report?.issueBoundingBoxes,
+        });
         snapshot = {
           ...createSnapshot({
             id: siteId,
@@ -454,14 +480,20 @@ export async function auditUrl({
           guard,
           readerGuarantees: guaranteesForSnapshot(),
           decisions: summarizeDecisions(audited.report),
+          score: compliance.score,
+          severity: compliance.severity,
+          regulations: compliance.regulations,
+          issues: compliance.issues,
         };
       } catch (error) {
+        telemetry.setStep("report", "warning", "snapshot-failed");
         return failure(STAGES.buildSnapshot, "snapshot-failed", errorDetail(error));
       }
 
       // Langkah 10. Validasi, dengan menyebut bagian mana yang belum ada.
       const validation = validateSnapshot(snapshot);
       if (!validation.ok) {
+        telemetry.setStep("report", "warning", "snapshot-incomplete");
         return failure(
           STAGES.validate,
           "snapshot-incomplete",
@@ -503,6 +535,7 @@ export async function auditUrl({
     }
   }
 
+  telemetry.setStep("report", "done");
   await progress(94, "Artefak utama selesai dibuat");
   return { ok: true, snapshot: outcome.snapshot, files };
 }

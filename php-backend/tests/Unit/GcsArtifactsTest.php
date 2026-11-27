@@ -74,10 +74,65 @@ class GcsArtifactsTest extends TestCase
             $this->assertSame('completed', $job->status);
             $this->assertArrayHasKey('manifest', $job->result);
             $this->assertArrayHasKey('reader.html', $job->result['manifest']);
+            $this->assertFalse(is_dir($dir), 'Local artifact directory must be cleaned up after GCS publish');
         } finally {
             @unlink($dir . '/reader.html');
             @rmdir($dir);
         }
+    }
+
+    public function test_worker_uploads_early_preview_to_gcs_and_ignores_upload_failure(): void
+    {
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(200), // early before.png upload
+            new Response(200), // final publish reader.html
+            new Response(200), // final publish before.png
+        ]));
+        $stack->push(Middleware::history($history));
+        $client = new Client(['handler' => $stack]);
+        $gcs = new GcsArtifacts('private-bucket', 'project-id', $client, fn () => 'token');
+        $dir = sys_get_temp_dir() . '/gcs-early-' . bin2hex(random_bytes(6));
+        mkdir($dir);
+        $now = (int) (microtime(true) * 1000);
+        $pdo = new \PDO('sqlite::memory:');
+        $store = new \App\Services\JobStore($pdo);
+        $store->createJob([
+            'id' => 'early-job',
+            'tokenHash' => 'a',
+            'shareTokenHash' => 'b',
+            'ipHash' => 'c',
+            'targetUrl' => 'https://example.com/',
+            'createdAt' => $now,
+            'expiresAt' => $now + 600000,
+            'artifactDir' => $dir,
+        ]);
+
+        $auditor = new class($dir) implements \App\Services\AuditorInterface {
+            public function __construct(private string $dir) {}
+            public function audit(\App\Models\AuditJob $job, ?callable $onProgress = null, ?callable $shouldCancel = null): array
+            {
+                file_put_contents($this->dir . '/before.png', 'early-png-bytes');
+                if ($onProgress !== null) {
+                    $onProgress([
+                        'progress' => 46,
+                        'stage' => 'Menangkap pratinjau',
+                        'telemetry' => ['steps' => [], 'stats' => [], 'earlyPreviewReady' => true, 'updatedAt' => '2026-11-27T00:00:00.000Z'],
+                    ]);
+                }
+                file_put_contents($this->dir . '/reader.html', 'reader');
+                return ['snapshot' => ['title' => 'early'], 'artifacts' => []];
+            }
+        };
+
+        $worker = new \App\Services\AuditWorker($store, $auditor, 180000, 1, $gcs);
+        $this->assertTrue($worker->processNext());
+        $job = $store->getJob('early-job');
+        $this->assertSame('completed', $job->status);
+        $this->assertTrue($job->telemetry['earlyPreviewReady']);
+        $this->assertCount(3, $history);
+        $this->assertStringContainsString('early-attempt-1-1', urldecode((string) $history[0]['request']->getUri()));
+        $this->assertFalse(is_dir($dir));
     }
 
     public function test_lost_lease_prevents_any_upload(): void

@@ -19,7 +19,7 @@
   --color-heading: #16181d;
   --color-text: #3f4451;
   --color-text-muted: #63697a;
-  --color-placeholder: #8b90a0;
+  --color-placeholder: #6b7080;
 
   /* --- Permukaan --- */
   --color-background: #ffffff;
@@ -81,6 +81,7 @@
   --shadow-sm: 0 2px 6px rgba(36, 27, 58, 0.07);
   --shadow-md: 0 8px 24px rgba(36, 27, 58, 0.1);
   --shadow-lg: 0 20px 48px rgba(36, 27, 58, 0.16);
+  --shadow-xl: 0 24px 56px rgba(15, 23, 42, 0.22);
 
   /* --- Gerakan --- */
   --transition-cepat: 140ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -136,7 +137,8 @@ body {
   supaya judulnya tidak tertutup saat dituju.
 */
 html {
-  scroll-padding-top: calc(var(--header-height) + 16px);
+  scroll-padding-top: calc(var(--header-height) + 28px);
+  scroll-padding-bottom: 92px;
 }
 
 body {
@@ -447,7 +449,7 @@ a {
   width: 100%;
   min-height: 56px;
   padding: 14px 16px;
-  border: 1.5px solid var(--color-border-strong);
+  border: 1.5px solid #8b92a3;
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-heading);
@@ -670,6 +672,13 @@ main {
   transform: none;
 }
 
+@media (scripting: none) {
+  .ungkap {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* --- Label monospace: badge & eyebrow bergaya teknis, ciri arah flat ini --- */
 .mono-pill {
   display: inline-flex;
@@ -744,6 +753,11 @@ main {
   }
 
   .angkat:hover {
+    transform: none !important;
+  }
+
+  .ungkap {
+    opacity: 1 !important;
     transform: none !important;
   }
 

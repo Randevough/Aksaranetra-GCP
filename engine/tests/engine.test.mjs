@@ -971,5 +971,135 @@ test("remediates complex real-world edge cases with multi-class icon fonts and f
   });
 });
 
+test("html-lang detects English vs Indonesian without hardcoding id and sends ambiguous pages to review", async () => {
+  await withPage(
+    `<!doctype html><html><head><title>News</title></head><body><main><h1>Welcome</h1><p>This is the official public information and services page for citizens and visitors.</p></main></body></html>`,
+    async (page) => {
+      const before = await axe(page);
+      const result = await remediatePage({
+        page,
+        axeResult: before,
+        rules: ["html-has-lang"],
+        config: { configured: false, defaultLang: "id" },
+      });
+      assert.equal(await page.locator("html").getAttribute("lang"), "en");
+      assert.equal(result.fixed[0].patches[0].value, "en");
+    },
+  );
+
+  await withPage(
+    `<!doctype html><html><head><title>Portal</title></head><body><main><h1>Halo</h1></main></body></html>`,
+    async (page) => {
+      const before = await axe(page);
+      const result = await remediatePage({
+        page,
+        axeResult: before,
+        rules: ["html-has-lang"],
+        config: { configured: false, defaultLang: "id" },
+      });
+      assert.equal(await page.locator("html").getAttribute("lang"), null);
+      assert.equal(result.review.length, 1);
+      assert.ok(result.review[0].confidence < 0.8);
+    },
+  );
+});
+
+test("document-title does not mutate head before apply and cleans up on rollback", async () => {
+  const { resolveDocumentTitleCandidates } = await import("../src/rules/document-title.mjs");
+  await withPage(
+    `<!doctype html><html><head></head><body><main><h1>Profil Layanan Publik</h1></main></body></html>`,
+    async (page) => {
+      const candidates = await resolveDocumentTitleCandidates(page, ["html"], {});
+      assert.equal(candidates[0].selector, "head > title");
+      assert.equal(await page.locator("head > title").count(), 0);
+
+      const applied = await applyCandidates(page, candidates, {
+        applyThreshold: 0.8,
+        reviewThreshold: 0.6,
+      });
+      assert.equal(applied.fixed.length, 1);
+      assert.equal(await page.title(), "Profil Layanan Publik");
+
+      await rollbackSingleRecord(page, applied.fixed[0]);
+      assert.equal(await page.locator("head > title").count(), 0);
+    },
+  );
+});
+
+test("serializer strips javascript: and vbscript: URLs, formaction, and unsafe inline styles", async () => {
+  const { serializePage } = await import("../src/serializer/index.mjs");
+  await withPage(
+    `<!doctype html><html lang="id"><head><title>Uji</title></head><body>
+      <main>
+        <a id="bad-js" href="javascript:alert(1)">Bad JS</a>
+        <a id="bad-vbs" href="vbscript:msgbox(1)">Bad VBS</a>
+        <img id="bad-img" src="javascript:alert(2)" alt="x">
+        <button id="bad-btn" formaction="https://evil.test" style="width:expression(alert(1))">Kirim</button>
+      </main>
+    </body></html>`,
+    async (page) => {
+      const { patchedPage } = await serializePage({
+        page,
+        sourceUrl: "https://contoh.go.id/",
+        disclaimer: "Disclaimer test",
+      });
+      assert.equal(/javascript:/i.test(patchedPage), false);
+      assert.equal(/vbscript:/i.test(patchedPage), false);
+      assert.equal(/formaction=/i.test(patchedPage), false);
+      assert.equal(/expression\s*\(/i.test(patchedPage), false);
+    },
+  );
+});
+
+test("auditPage captures early before.png, bounding boxes, tabStops with 2.4.7 & 2.4.11, and readiness", async () => {
+  await withPage(
+    `<!doctype html><html><head><title>Uji Probes</title>
+      <style>
+        header.sticky { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: #fff; z-index: 99; }
+        .no-focus:focus { outline: none; box-shadow: none; }
+        main { padding-top: 20px; }
+      </style>
+    </head><body>
+      <header class="sticky">Sticky Banner</header>
+      <main>
+        <a class="obscured-link" href="#a" style="position:fixed;top:10px;left:20px;z-index:1;">Tertutup</a>
+        <button class="no-focus" style="margin-top:80px;"></button>
+      </main>
+    </body></html>`,
+    async (page) => {
+      const originalGoto = page.goto.bind(page);
+      page.goto = async () => ({
+        ok: () => true,
+        status: () => 200,
+        headers: () => ({ "content-type": "text/html" }),
+      });
+      page.url = () => "https://contoh.go.id/";
+
+      const progressEvents = [];
+      const audited = await auditPage({
+        page,
+        url: "https://contoh.go.id/",
+        siteConfig: { host: "contoh.go.id", configured: false, siteLabel: "" },
+        onProgress: (ev) => progressEvents.push(ev),
+      });
+      page.goto = originalGoto;
+
+      const earlyEvent = progressEvents.find((e) => e.progress === 46);
+      assert.ok(earlyEvent, "Must emit progress 46 for early before.png");
+      assert.ok(Buffer.isBuffer(earlyEvent.earlyBeforeScreenshot));
+      assert.equal(earlyEvent.telemetry.earlyPreviewReady, true);
+
+      assert.ok(Buffer.isBuffer(audited.artifacts.beforeScreenshot));
+      assert.ok(audited.report.readiness);
+      assert.equal(audited.report.readiness.partialLoad, false);
+      assert.ok(audited.report.readiness.domElements > 0);
+      assert.ok(audited.report.tabStops.length >= 2);
+      assert.equal(audited.report.tabStops[0].obscured, true);
+      assert.equal(audited.report.tabStops[1].hasVisibleFocus, false);
+      assert.ok(Object.keys(audited.report.issueBoundingBoxes).length >= 1);
+    },
+  );
+});
+
 
 

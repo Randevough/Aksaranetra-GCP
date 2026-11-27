@@ -18,13 +18,24 @@ const navItems: NavItem[] = [
   { href: "/katalog", label: "Riwayat" },
 ];
 
+function getScrollBehavior(): ScrollBehavior {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return "auto";
+  }
+  return "smooth";
+}
+
 export default function Header() {
   const pathname = usePathname();
   const [sectionAktif, setSectionAktif] = useState<string | null>(null);
 
   useEffect(() => {
     if (pathname !== "/") {
-      setSectionAktif(null);
+      queueMicrotask(() => setSectionAktif(null));
       return;
     }
 
@@ -53,7 +64,10 @@ export default function Header() {
     if (href === "/#cara-kerja") return sectionAktif === "cara-kerja";
     if (href === "/#tentang") return sectionAktif === "tentang";
     if (href === "/") {
-      return pathname === "/" && (sectionAktif === null || sectionAktif === "hero-utama");
+      return (
+        pathname === "/" &&
+        (sectionAktif === null || sectionAktif === "hero-utama")
+      );
     }
     return pathname === href;
   };
@@ -62,21 +76,25 @@ export default function Header() {
     ["/", "/#cara-kerja", "/#tentang"].includes(item.href),
   );
   const tautanUtama = navItems.find((item) => item.href === "/katalog")!;
+
   const handleNavClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string,
   ) => {
+    const behavior = getScrollBehavior();
     if (pathname === "/" && href.startsWith("/#")) {
       e.preventDefault();
       const targetId = href.replace("/#", "");
       const targetEl = document.getElementById(targetId);
       if (targetEl) {
-        targetEl.scrollIntoView({ behavior: "smooth" });
+        targetEl.scrollIntoView({ behavior });
+        targetEl.focus({ preventScroll: true });
         window.history.pushState(null, "", href);
       }
     } else if (pathname === "/" && href === "/") {
       e.preventDefault();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior });
+      document.getElementById("main-content")?.focus({ preventScroll: true });
       window.history.pushState(null, "", "/");
     }
   };
@@ -84,7 +102,8 @@ export default function Header() {
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === "/") {
       e.preventDefault();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: getScrollBehavior() });
+      document.getElementById("main-content")?.focus({ preventScroll: true });
       window.history.pushState(null, "", "/");
     }
   };
@@ -100,7 +119,7 @@ export default function Header() {
         >
           <Image
             src="/AN - Nav Icon.png"
-            alt="AksaraNetra Logo"
+            alt=""
             width={32}
             height={32}
             className={styles.brandTanda}
@@ -129,13 +148,17 @@ export default function Header() {
               </Link>
             );
           })}
-        </nav>
 
-        <div className={styles.headerAksi}>
-          <Link href={tautanUtama.href} className={styles.aksiUtama}>
-            {tautanUtama.label}
-          </Link>
-        </div>
+          <div className={styles.headerAksi}>
+            <Link
+              href={tautanUtama.href}
+              className={styles.aksiUtama}
+              aria-current={isActive(tautanUtama.href) ? "page" : undefined}
+            >
+              {tautanUtama.label}
+            </Link>
+          </div>
+        </nav>
       </div>
     </header>
   );

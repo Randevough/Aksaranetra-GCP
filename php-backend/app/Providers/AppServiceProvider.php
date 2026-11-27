@@ -50,9 +50,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(AuditorInterface::class, function ($app) {
+            $config = $app->make(AksaraConfig::class);
+
             return new Auditor(
                 $app->make(BridgeClientInterface::class),
-                $app->make(ReportRendererInterface::class)
+                $app->make(ReportRendererInterface::class),
+                null,
+                max(1, (int) ceil($config->timeoutMs / 1000))
             );
         });
 

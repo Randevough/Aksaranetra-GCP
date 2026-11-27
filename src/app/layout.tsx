@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import NotificationBar from "@/components/NotificationBar";
 import ViewportBlur from "@/components/ViewportBlur";
 import BlueGlow from "@/components/BlueGlow";
+import MotionProvider from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -28,33 +29,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // data-scroll-behavior memberi tahu Next bahwa scroll-behavior: smooth di
-    // CSS memang disengaja, sehingga peringatan di konsol berhenti muncul.
-    <html
-      lang="id"
-      data-scroll-behavior="smooth"
-    >
-      {/*
-        suppressHydrationWarning hanya dipasang di body, bukan di seluruh
-        pohon. Alasannya sempit dan spesifik: ekstensi browser seperti
-        ColorZilla menempelkan atribut cz-shortcut-listen ke body sebelum React
-        sempat jalan, dan React melaporkannya sebagai ketidakcocokan.
-        Peringatan itu bukan bug kita dan tidak bisa kita cegah dari sisi kode.
-        Yang penting, ini tidak menyembunyikan ketidakcocokan di dalam halaman,
-        karena sifatnya tidak menurun ke elemen anak.
-      */}
+    <html lang="id" data-scroll-behavior="smooth">
       <body suppressHydrationWarning>
-        <a href="#main-content" className="skip-link">
-          Langsung ke konten utama
-        </a>
-        <BlueGlow variant="global" />
-        <ViewportBlur />
-        <Header />
-        <div id="main-content" tabIndex={-1}>
-          {children}
-        </div>
-        <Footer />
-        <NotificationBar />
+        <MotionProvider>
+          <a href="#main-content" className="skip-link">
+            Langsung ke konten utama
+          </a>
+          <BlueGlow variant="global" />
+          <ViewportBlur />
+          <Header />
+          <div id="main-content" tabIndex={-1}>
+            {children}
+          </div>
+          <Footer />
+          <NotificationBar />
+        </MotionProvider>
       </body>
     </html>
   );

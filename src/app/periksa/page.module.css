@@ -26,7 +26,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.formIntro h2 {
+.formIntro h1 {
   margin-bottom: 4px;
   font-size: 19px;
 }
@@ -92,4 +92,41 @@
 
 .exampleButton:hover {
   border-color: var(--color-primary-bright);
+}
+
+.errorText {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.demoRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.demoLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 7px 13px;
+  border: 1px solid var(--color-card-highlight);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.demoLink:hover {
+  border-color: var(--color-primary-bright);
+  background: var(--color-card-highlight);
 }

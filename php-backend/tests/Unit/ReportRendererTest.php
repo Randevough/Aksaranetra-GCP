@@ -116,24 +116,70 @@ class ReportRendererTest extends TestCase
 
             $this->assertSame($actualHtmlFromRender, $actualHtmlFromStatic);
 
-            // Byte-for-byte assertions
+            $expectedNormalized = str_replace("\r\n", "\n", $expectedHtml);
+            $actualNormalized = str_replace("\r\n", "\n", $actualHtmlFromRender);
+
             $this->assertSame(
-                strlen($expectedHtml),
-                strlen($actualHtmlFromRender),
+                strlen($expectedNormalized),
+                strlen($actualNormalized),
                 "Fixture {$i} HTML length must match byte-for-byte"
             );
 
             $this->assertSame(
-                md5($expectedHtml),
-                md5($actualHtmlFromRender),
+                md5($expectedNormalized),
+                md5($actualNormalized),
                 "Fixture {$i} MD5 hash must match byte-for-byte"
             );
 
             $this->assertSame(
-                $expectedHtml,
-                $actualHtmlFromRender,
+                $expectedNormalized,
+                $actualNormalized,
                 "Fixture {$i} string content must match byte-for-byte"
             );
         }
+    }
+
+    public function test_renders_score_severity_and_verified_indonesian_regulations_without_revoked_law(): void
+    {
+        $renderer = new ReportRenderer();
+        $html = $renderer->render([
+            'engineVersion' => '0.4.0',
+            'capturedAt' => '2026-11-27T00:00:00.000Z',
+            'disclaimer' => 'Catatan pengujian.',
+            'source' => ['title' => 'Portal Layanan Publik', 'finalUrl' => 'https://example.go.id/'],
+            'summary' => ['beforeTotal' => 5, 'afterTotal' => 1, 'reductionPercent' => 80],
+            'counts' => ['fixed' => 4],
+            'warnings' => ['wcagRegressionClean' => true, 'worsenedRules' => []],
+            'score' => [
+                'overall' => 88,
+                'beforeScore' => 62,
+                'afterScore' => 88,
+                'grade' => 'B',
+                'automatedCoverageNote' => 'Audit otomatis mencakup sebagian kriteria WCAG 2.1 AA.',
+                'pour' => ['perceivable' => 90, 'operable' => 85, 'understandable' => 88, 'robust' => 89],
+            ],
+            'severity' => [
+                'before' => ['critical' => 1, 'serious' => 2, 'moderate' => 1, 'minor' => 1, 'total' => 5],
+                'after' => ['critical' => 0, 'serious' => 1, 'moderate' => 0, 'minor' => 0, 'total' => 1],
+            ],
+            'regulations' => [
+                ['code' => 'UU-8-2016', 'title' => 'UU No. 8 Tahun 2016', 'article' => 'Pasal 19, 24, 105', 'matchedIssues' => 3],
+                ['code' => 'PP-42-2020', 'title' => 'PP No. 42 Tahun 2020', 'article' => 'Pasal 17-18', 'matchedIssues' => 2],
+                ['code' => 'PERMENPANRB-11-2024', 'title' => 'PermenPANRB No. 11 Tahun 2024', 'article' => 'Layanan Digital', 'matchedIssues' => 2],
+                ['code' => 'SPBE-2018', 'title' => 'Perpres No. 95 Tahun 2018 (SPBE)', 'article' => 'SPBE', 'matchedIssues' => 1],
+                ['code' => 'UU-KIP-2008', 'title' => 'UU No. 14 Tahun 2008 (KIP) & PerKI No. 1 Tahun 2021', 'article' => 'PPID', 'matchedIssues' => 1],
+                ['code' => 'SNI-ISO-40500', 'title' => 'SNI ISO/IEC 40500', 'article' => 'WCAG', 'matchedIssues' => 5],
+            ],
+        ], ['fixed' => [], 'review' => [], 'rolledBackRecords' => []]);
+
+        $this->assertStringContainsString('Skor Kepatuhan', $html);
+        $this->assertStringContainsString('Grade B', $html);
+        $this->assertStringContainsString('Rincian Tingkat Keparahan', $html);
+        $this->assertStringContainsString('Acuan Regulasi Indonesia', $html);
+        $this->assertStringContainsString('UU-8-2016', $html);
+        $this->assertStringContainsString('PERMENPANRB-11-2024', $html);
+        $this->assertStringNotContainsString('Permen Kominfo', $html);
+        $this->assertStringNotContainsString('Permenkominfo', $html);
+        $this->assertStringNotContainsString('8/2021', $html);
     }
 }

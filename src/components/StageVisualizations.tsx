@@ -7,6 +7,7 @@ import styles from "./StageVisualizations.module.css";
 export function Stage1() {
   return (
     <motion.div
+      aria-hidden="true"
       key="stage-0"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -64,6 +65,7 @@ export function Stage1() {
 export function Stage2() {
   return (
     <motion.div
+      aria-hidden="true"
       key="stage-1"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -111,11 +113,12 @@ export function Stage3() {
   const fixes = [
     { id: 1, type: "safe", label: "Added aria-label to button" },
     { id: 2, type: "human", label: "Ambiguous contrast ratio" },
-    { id: 3, type: "safe", label: "Inferred image alt text" },
+    { id: 3, type: "safe", label: "Added document lang attribute" },
   ];
 
   return (
     <motion.div
+      aria-hidden="true"
       key="stage-2"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -161,6 +164,7 @@ export function Stage3() {
 export function Stage4() {
   return (
     <motion.div
+      aria-hidden="true"
       key="stage-3"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -208,6 +212,7 @@ export function Stage4() {
 export function Stage5() {
   return (
     <motion.div
+      aria-hidden="true"
       key="stage-4"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}

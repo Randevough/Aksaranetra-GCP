@@ -32,14 +32,9 @@ export async function resolveDocumentTitleCandidates(
         patches: [],
       });
 
-      // Pastikan ada elemen <title> di <head>
-      let titleElement = document.querySelector("head > title");
-      if (!titleElement) {
-        titleElement = document.createElement("title");
-        document.head?.appendChild(titleElement);
-      }
-
-      const existingTitle = clean(document.title || titleElement.textContent || "");
+      // Read-only check: never mutate document.head during candidate resolution
+      const titleElement = document.querySelector("head > title");
+      const existingTitle = clean(document.title || titleElement?.textContent || "");
       if (existingTitle && existingTitle.length >= 2 && !/^(untitled|document|index)$/i.test(existingTitle)) {
         return selectors.map((selector) =>
           skip(selector, "existing-name", "Document already has a descriptive title"),

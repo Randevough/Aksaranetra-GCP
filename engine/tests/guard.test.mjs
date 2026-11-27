@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   ALWAYS_BLOCKED,
   CHECKED_TYPES,
+  attachGuard,
   createGuardStats,
+  createHostDnsVerifier,
   decideRequest,
 } from "../src/guard/index.mjs";
 
@@ -179,4 +181,111 @@ test("blocks document redirects exceeding 1 hop", () => {
 
   assert.equal(verdict.allow, false);
   assert.equal(verdict.reason, "document-redirect-limit-exceeded");
+});
+
+test("allows same-registrable www <-> apex document redirects", () => {
+  const toWww = decideRequest({
+    resourceType: "document",
+    url: "https://www.sulselprov.go.id/",
+    allowedDocumentUrl: "https://sulselprov.go.id/",
+    redirectCount: 1,
+  });
+  assert.equal(toWww.allow, true);
+  assert.equal(toWww.reason, "document-same-host-redirect-allowed");
+
+  const toApex = decideRequest({
+    resourceType: "document",
+    url: "https://sulselprov.go.id/",
+    allowedDocumentUrl: "https://www.sulselprov.go.id/",
+    redirectCount: 1,
+  });
+  assert.equal(toApex.allow, true);
+
+  const subDomain = decideRequest({
+    resourceType: "document",
+    url: "https://evil.sulselprov.go.id/",
+    allowedDocumentUrl: "https://sulselprov.go.id/",
+    redirectCount: 1,
+  });
+  assert.equal(subDomain.allow, false);
+  assert.equal(subDomain.reason, "document-redirect-cross-host-blocked");
+});
+
+test("allows first-party script, xhr, and fetch during hydration and blocks third-party", () => {
+  for (const type of ["script", "xhr", "fetch"]) {
+    const firstParty = decideRequest({
+      resourceType: type,
+      url: `https://www.sulselprov.go.id/api/${type}`,
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(firstParty.allow, true);
+    assert.equal(firstParty.reason, `hydration-first-party-${type}-allowed`);
+
+    const thirdParty = decideRequest({
+      resourceType: type,
+      url: "https://analytics.example.com/track",
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(thirdParty.allow, false);
+    assert.equal(thirdParty.reason, "hydration-third-party-blocked");
+
+    const invalid = decideRequest({
+      resourceType: type,
+      url: "http://127.0.0.1/internal",
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(invalid.allow, false);
+  }
+});
+
+test("verifies and caches non-main-host subresource DNS lookups to block SSRF", async () => {
+  const lookups = [];
+  const verifier = createHostDnsVerifier({
+    mainHostname: "sulselprov.go.id",
+    resolveHost: async (host) => {
+      lookups.push(host);
+      if (host === "rebind.evil.com") return ["127.0.0.1"];
+      if (host === "cdn.public.test") return ["93.184.216.34"];
+      throw new Error("ENOTFOUND");
+    },
+  });
+
+  assert.equal(await verifier("sulselprov.go.id"), true);
+  assert.equal(await verifier("cdn.public.test"), true);
+  assert.equal(await verifier("cdn.public.test"), true);
+  assert.equal(await verifier("rebind.evil.com"), false);
+  assert.equal(await verifier("missing.invalid"), false);
+  assert.deepEqual(lookups, ["cdn.public.test", "rebind.evil.com", "missing.invalid"]);
+
+  let handler;
+  const mockPage = {
+    route: async (_pattern, fn) => {
+      handler = fn;
+    },
+  };
+
+  const stats = await attachGuard({
+    page: mockPage,
+    allowedDocumentUrl: TARGET,
+    resolveHost: async (host) =>
+      host === "rebind.evil.com" ? ["169.254.169.254"] : ["93.184.216.34"],
+  });
+
+  const actions = [];
+  await handler({
+    request: () => ({
+      resourceType: () => "image",
+      url: () => "https://rebind.evil.com/secret.png",
+      redirectedFrom: () => null,
+    }),
+    continue: async () => actions.push("continue"),
+    abort: async () => actions.push("abort"),
+  });
+
+  assert.deepEqual(actions, ["abort"]);
+  assert.equal(stats.blocked, 1);
+  assert.deepEqual(stats.blockedHosts, ["rebind.evil.com"]);
 });

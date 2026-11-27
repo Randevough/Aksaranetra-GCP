@@ -158,10 +158,12 @@ function HeroCarousel() {
   }, [measure]);
 
   useEffect(() => {
-    let animId: number;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let animId = 0;
     const baseSpeed = 0.65; // Kecepatan gerak otomatis per frame (piksel)
 
     const loop = () => {
+      if (mq.matches) return;
       if (singleSetWidthRef.current > 0) {
         if (!isDraggingRef.current) {
           // Efek inersia setelah digeser pengguna
@@ -189,8 +191,19 @@ function HeroCarousel() {
       animId = requestAnimationFrame(loop);
     };
 
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
+    const startOrStop = () => {
+      cancelAnimationFrame(animId);
+      if (!mq.matches) {
+        animId = requestAnimationFrame(loop);
+      }
+    };
+
+    startOrStop();
+    mq.addEventListener("change", startOrStop);
+    return () => {
+      cancelAnimationFrame(animId);
+      mq.removeEventListener("change", startOrStop);
+    };
   }, []);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
@@ -242,18 +255,25 @@ function HeroCarousel() {
       style={{ cursor: isGrabbing ? "grabbing" : "grab" }}
     >
       <div className={styles.carouselTrack} ref={trackRef}>
-        {ALL_SLIDES.map((slide, i) => (
-          <div key={`${slide.src}-${i}`} className={styles.carouselCard}>
-            <div className={styles.carouselCardInner}>
-              <img
-                src={slide.src}
-                alt={slide.alt}
-                className={styles.carouselImg}
-                draggable={false}
-              />
+        {ALL_SLIDES.map((slide, i) => {
+          const isClone = i >= SLIDES.length;
+          return (
+            <div
+              key={`${slide.src}-${i}`}
+              className={styles.carouselCard}
+              aria-hidden={isClone ? "true" : undefined}
+            >
+              <div className={styles.carouselCardInner}>
+                <img
+                  src={slide.src}
+                  alt={isClone ? "" : slide.alt}
+                  className={styles.carouselImg}
+                  draggable={false}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -291,6 +311,12 @@ export default function Home() {
             <a href="#cara-kerja" className="btn btn-secondary">
               Lihat cara kerja
             </a>
+            <Link
+              href="/result?demo=pemprov-sulsel-demo"
+              className={styles.heroLinkGhost}
+            >
+              Lihat Demo Interaktif
+            </Link>
           </div>
         </div>
         {/* Screenshot carousel di bawah hero */}
@@ -300,6 +326,7 @@ export default function Home() {
       {/* ============ CARA KERJA ============ */}
       <section
         id="cara-kerja"
+        tabIndex={-1}
         className={styles.sectionWrap}
         aria-labelledby="cara-kerja-title"
       >
@@ -375,6 +402,7 @@ export default function Home() {
       {/* ============ TENTANG ============ */}
       <section
         id="tentang"
+        tabIndex={-1}
         className={`${styles.sectionWrap} ${styles.sectionAlt}`}
         aria-labelledby="tentang-title"
       >

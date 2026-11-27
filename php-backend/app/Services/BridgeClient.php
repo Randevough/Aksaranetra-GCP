@@ -84,10 +84,14 @@ class BridgeClient implements BridgeClientInterface
             $type = $data['type'] ?? '';
             if ($type === 'progress' && isset($data['progress'])) {
                 if ($onProgress !== null) {
-                    $onProgress([
+                    $update = [
                         'progress' => (int) $data['progress'],
                         'stage' => (string) ($data['stage'] ?? ''),
-                    ]);
+                    ];
+                    if (isset($data['telemetry']) && is_array($data['telemetry'])) {
+                        $update['telemetry'] = $data['telemetry'];
+                    }
+                    $onProgress($update);
                 }
             } elseif ($type === 'result' || $type === 'error') {
                 $result = $data;

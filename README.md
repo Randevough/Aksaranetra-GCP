@@ -1,6 +1,6 @@
 # AksaraNetra
 
-Platform audit aksesibilitas web terstandarisasi untuk regulasi Indonesia (UU No. 8/2016, Permen Kominfo No. 8/2021) dan kepatuhan global **WCAG 2.1 Level AA**.
+Platform audit aksesibilitas web terstandarisasi untuk regulasi Indonesia (UU No. 8/2016, PP No. 42/2020, PermenPANRB No. 11/2024, Perpres No. 95/2018 SPBE, UU KIP No. 14/2008 & PerKI No. 1/2021, SNI ISO/IEC 40500) dan kepatuhan global **WCAG 2.1 Level AA**.
 
 Proyek ini menggunakan arsitektur monorepo terpadu:
 - **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Lucide React, Framer Motion.
