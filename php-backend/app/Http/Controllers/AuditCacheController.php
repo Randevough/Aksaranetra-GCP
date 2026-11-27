@@ -31,7 +31,11 @@ class AuditCacheController
         }
 
         $now = (int) (microtime(true) * 1000);
-        $cached = $this->store->findReusable($verdict['url'], $now);
+        $options = JobStore::normalizeOptions([
+            'mode' => $request->query('mode'),
+            'maxPages' => $request->query('maxPages'),
+        ]);
+        $cached = $this->store->findReusable($verdict['url'], $now, $options['mode'], $options['maxPages']);
 
         return response()->json([
             'available' => $cached !== null,

@@ -41,7 +41,12 @@ if (command === "audit") {
     process.exit(1);
   }
 
-  const { id, url, artifactDir } = params;
+  const { id, url, artifactDir, mode, maxPages } = params;
+  const normalizedMode = mode === "multi" ? "multi" : "single";
+  const parsedMaxPages = Number(maxPages);
+  const normalizedMaxPages = normalizedMode === "multi"
+    ? Math.max(1, Math.min(5, Number.isFinite(parsedMaxPages) ? Math.trunc(parsedMaxPages) : 3))
+    : 1;
   const { auditUrl } = await import("../../engine/src/api/index.mjs");
 
   const onProgress = async (update) => {
@@ -80,6 +85,8 @@ if (command === "audit") {
       id,
       origin: "manual",
       outputDir: artifactDir,
+      mode: normalizedMode,
+      maxPages: normalizedMaxPages,
       signal: controller.signal,
       onProgress,
     });

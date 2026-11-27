@@ -347,4 +347,43 @@ class WorkerTest extends TestCase
         $this->assertSame(45000, $ref->getValue($worker));
         $store->close();
     }
+
+    public function test_multi_page_job_uses_at_least_240s_timeout_in_worker(): void
+    {
+        $root = $this->createTempDir('aksara-worker-multi-');
+        $store = new JobStore($root . DIRECTORY_SEPARATOR . 'jobs.sqlite');
+        $now = (int) (microtime(true) * 1000);
+
+        $store->createJob([
+            'id' => 'multi-timeout-check',
+            'tokenHash' => str_repeat('a', 64),
+            'shareTokenHash' => str_repeat('b', 64),
+            'ipHash' => str_repeat('c', 64),
+            'targetUrl' => 'https://example.com/',
+            'mode' => 'multi',
+            'maxPages' => 3,
+            'createdAt' => $now,
+            'expiresAt' => $now + 60_000,
+            'artifactDir' => $root . DIRECTORY_SEPARATOR . 'multi-timeout-check',
+        ]);
+
+        $fakeAuditor = new FakeAuditor();
+        $fakeAuditor->setHandler(function (AuditJob $job, ?callable $onProgress, ?callable $shouldCancel) {
+            usleep(80_000); // > 50ms worker timeout, well below 240_000ms multi-page floor
+            $this->assertFalse($shouldCancel !== null && $shouldCancel());
+
+            return ['snapshot' => ['ok' => true], 'artifacts' => []];
+        });
+
+        $worker = new AuditWorker(
+            store: $store,
+            auditor: $fakeAuditor,
+            timeoutMs: 50,
+            concurrency: 1
+        );
+
+        $worker->processNext();
+        $this->assertSame('completed', $store->getJob('multi-timeout-check')?->status);
+        $store->close();
+    }
 }

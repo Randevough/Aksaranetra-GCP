@@ -51,14 +51,18 @@ class BridgeClient implements BridgeClientInterface
         string $artifactDir,
         ?callable $onProgress = null,
         ?callable $shouldCancel = null,
-        ?int $timeoutSeconds = null
+        ?int $timeoutSeconds = null,
+        array $options = []
     ): array {
         $env = $this->buildEnv();
         $script = $this->scriptPath ?: base_path('bridge/audit-cli.mjs');
+        $normalized = JobStore::normalizeOptions($options);
         $input = json_encode([
             'id' => $id,
             'url' => $url,
             'artifactDir' => $artifactDir,
+            'mode' => $normalized['mode'],
+            'maxPages' => $normalized['maxPages'],
         ], JSON_THROW_ON_ERROR);
 
         $process = new Process(

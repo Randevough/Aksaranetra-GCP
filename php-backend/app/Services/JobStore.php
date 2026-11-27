@@ -10,9 +10,10 @@ use Throwable;
 
 class JobStore
 {
-    private const COLUMNS = 'id, token_hash, share_token_hash, ip_hash, target_url, status,
-      stage, progress, attempts, cancel_requested, result_json, telemetry_json, error_code, error_message,
-      created_at, updated_at, started_at, finished_at, expires_at, artifact_dir, lease_token, lease_expires_at';
+    private const COLUMNS = 'id, token_hash, share_token_hash, ip_hash, target_url, target_host, status,
+      stage, progress, attempts, cancel_requested, result_json, telemetry_json, audit_options_json,
+      error_code, error_message, created_at, updated_at, started_at, finished_at, expires_at,
+      artifact_dir, lease_token, lease_expires_at';
 
     private ?PDO $pdo = null;
     private bool $postgres = false;
@@ -101,6 +102,7 @@ class JobStore
             share_token_hash TEXT NOT NULL,
             ip_hash TEXT NOT NULL,
             target_url TEXT NOT NULL,
+            target_host TEXT,
             status TEXT NOT NULL CHECK(status IN ('queued','running','completed','failed','cancelled')),
             stage TEXT NOT NULL,
             progress INTEGER NOT NULL CHECK(progress BETWEEN 0 AND 100),
@@ -108,6 +110,7 @@ class JobStore
             cancel_requested INTEGER NOT NULL DEFAULT 0,
             result_json TEXT,
             telemetry_json TEXT,
+            audit_options_json TEXT,
             error_code TEXT,
             error_message TEXT,
             created_at BIGINT NOT NULL,
@@ -130,6 +133,13 @@ class JobStore
         if (!in_array('telemetry_json', $columnNames, true)) {
             $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN telemetry_json TEXT');
         }
+        if (!in_array('target_host', $columnNames, true)) {
+            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN target_host TEXT');
+        }
+        if (!in_array('audit_options_json', $columnNames, true)) {
+            $this->pdo->exec('ALTER TABLE audit_jobs ADD COLUMN audit_options_json TEXT');
+        }
+        $this->pdo->exec('CREATE INDEX IF NOT EXISTS audit_jobs_host_idx ON audit_jobs(target_host, status, finished_at)');
     }
 
     public function recoverInterrupted(): int
@@ -190,6 +200,33 @@ class JobStore
         return count($runningJobs);
     }
 
+    public static function normalizeHost(?string $host): ?string
+    {
+        if ($host === null) {
+            return null;
+        }
+        $normalized = strtolower(trim(rtrim($host, '.')));
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * @return array{mode: 'single'|'multi', maxPages: int}
+     */
+    public static function normalizeOptions(array $data): array
+    {
+        $mode = ($data['mode'] ?? null) === 'multi' ? 'multi' : 'single';
+        $rawMaxPages = $data['maxPages'] ?? $data['max_pages'] ?? null;
+        $maxPages = $mode === 'multi'
+            ? (is_numeric($rawMaxPages) ? max(1, min(5, (int) $rawMaxPages)) : 3)
+            : 1;
+
+        return [
+            'mode' => $mode,
+            'maxPages' => $maxPages,
+        ];
+    }
+
     public function createJob(array|object $job): ?AuditJob
     {
         $data = is_object($job) ? (array) $job : $job;
@@ -203,7 +240,12 @@ class JobStore
         $expiresAt = $data['expiresAt'] ?? $data['expires_at'];
         $artifactDir = $data['artifactDir'] ?? $data['artifact_dir'];
 
-        $sql = "INSERT INTO audit_jobs (" . "id, token_hash, share_token_hash, ip_hash, target_url, status, stage, progress, attempts, cancel_requested, result_json, error_code, error_message, created_at, updated_at, started_at, finished_at, expires_at, artifact_dir" . ") VALUES (?, ?, ?, ?, ?, 'queued', ?, 0, 0, 0, NULL, NULL, NULL, ?, ?, NULL, NULL, ?, ?)";
+        $parsedHost = parse_url((string) $targetUrl, PHP_URL_HOST);
+        $targetHost = self::normalizeHost($data['targetHost'] ?? $data['target_host'] ?? (is_string($parsedHost) ? $parsedHost : null));
+        $options = self::normalizeOptions($data);
+        $auditOptionsJson = json_encode($options, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $sql = "INSERT INTO audit_jobs (id, token_hash, share_token_hash, ip_hash, target_url, target_host, status, stage, progress, attempts, cancel_requested, result_json, audit_options_json, error_code, error_message, created_at, updated_at, started_at, finished_at, expires_at, artifact_dir) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, 0, 0, 0, NULL, ?, NULL, NULL, ?, ?, NULL, NULL, ?, ?)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
             $id,
@@ -211,7 +253,9 @@ class JobStore
             $shareTokenHash,
             $ipHash,
             $targetUrl,
+            $targetHost,
             'Menunggu antrean',
+            $auditOptionsJson,
             $createdAt,
             $createdAt,
             $expiresAt,
@@ -253,13 +297,42 @@ class JobStore
         return (int) ($row['total'] ?? 0);
     }
 
-    public function findReusable(string $targetUrl, ?int $now = null): ?AuditJob
+    public function findReusable(string $targetUrl, ?int $now = null, string $mode = 'single', ?int $maxPages = null): ?AuditJob
     {
         $now = $now ?? ($this->now)();
+        $options = self::normalizeOptions(['mode' => $mode, 'maxPages' => $maxPages]);
+
         $stmt = $this->pdo->prepare("SELECT " . self::COLUMNS . " FROM audit_jobs
             WHERE target_url = ? AND status = 'completed' AND expires_at > CAST(? AS BIGINT)
-            ORDER BY finished_at DESC LIMIT 1");
+            ORDER BY finished_at DESC");
         $stmt->execute([$targetUrl, $now]);
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $candidate = AuditJob::fromRow($row);
+            if (
+                $candidate !== null
+                && $candidate->mode === $options['mode']
+                && $candidate->maxPages === $options['maxPages']
+            ) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    public function findLatestCompletedByHost(string $host, ?int $now = null): ?AuditJob
+    {
+        $normalizedHost = self::normalizeHost($host);
+        if ($normalizedHost === null) {
+            return null;
+        }
+
+        $now = $now ?? ($this->now)();
+        $stmt = $this->pdo->prepare("SELECT " . self::COLUMNS . " FROM audit_jobs
+            WHERE target_host = ? AND status = 'completed' AND expires_at > CAST(? AS BIGINT)
+            ORDER BY finished_at DESC LIMIT 1");
+        $stmt->execute([$normalizedHost, $now]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $row ? AuditJob::fromRow($row) : null;

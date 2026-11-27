@@ -91,14 +91,15 @@ class FakeBridgeClient implements BridgeClientInterface
         string $artifactDir,
         ?callable $onProgress = null,
         ?callable $shouldCancel = null,
-        ?int $timeoutSeconds = null
+        ?int $timeoutSeconds = null,
+        array $options = []
     ): array {
         if ($shouldCancel !== null && $shouldCancel()) {
             throw new AuditCancelledException('Audit dibatalkan.');
         }
 
         if ($this->auditHandler !== null) {
-            return ($this->auditHandler)($id, $url, $artifactDir, $onProgress, $shouldCancel);
+            return ($this->auditHandler)($id, $url, $artifactDir, $onProgress, $shouldCancel, $timeoutSeconds, $options);
         }
 
         if ($onProgress !== null) {

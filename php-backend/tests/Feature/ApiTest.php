@@ -639,4 +639,72 @@ class ApiTest extends TestCase
             'message' => 'Endpoint tidak ditemukan.',
         ]);
     }
+
+    public function test_multi_page_options_validation_clamping_and_cache_isolation(): void
+    {
+        // Rejects invalid mode
+        $badMode = $this->createJob('https://example.com/bad-mode', ['mode' => 'invalid']);
+        $badMode->assertStatus(400);
+        $badMode->assertJson(['error' => 'bad-request']);
+
+        // Single mode forces maxPages = 1 even if maxPages is passed
+        $single = $this->createJob('https://example.com/multi-test', ['mode' => 'single', 'maxPages' => 5]);
+        $single->assertStatus(202);
+        $this->assertSame('single', $single->json('mode'));
+        $this->assertSame(1, $single->json('maxPages'));
+        $singleJob = $this->store->claimNext();
+        $this->assertNotNull($singleJob);
+        $this->assertSame('example.com', $singleJob->targetHost);
+        mkdir($singleJob->artifactDir, 0777, true);
+        file_put_contents($singleJob->artifactDir . DIRECTORY_SEPARATOR . 'reader.html', 'single');
+        $this->store->complete($singleJob->id, ['snapshot' => ['mode' => 'single']]);
+
+        // Multi request with reuseExisting=true must NOT reuse single cached job
+        $multiDefault = $this->createJob('https://example.com/multi-test', [
+            'mode' => 'multi',
+            'reuseExisting' => true,
+        ]);
+        $multiDefault->assertStatus(202);
+        $this->assertSame('multi', $multiDefault->json('mode'));
+        $this->assertSame(3, $multiDefault->json('maxPages'));
+        $this->assertNotSame('completed', $multiDefault->json('status'));
+
+        // Clamps maxPages > 5 to 5
+        $multiClamped = $this->createJob('https://example.com/multi-clamp', [
+            'mode' => 'multi',
+            'maxPages' => 99,
+        ]);
+        $multiClamped->assertStatus(202);
+        $this->assertSame('multi', $multiClamped->json('mode'));
+        $this->assertSame(5, $multiClamped->json('maxPages'));
+
+        // Complete multiDefault (maxPages=3) and verify cache lookup and reuse match mode + maxPages
+        $multiJob = $this->store->claimNext();
+        $this->assertSame($multiDefault->json('jobId'), $multiJob->id);
+        mkdir($multiJob->artifactDir, 0777, true);
+        file_put_contents($multiJob->artifactDir . DIRECTORY_SEPARATOR . 'reader.html', 'multi-3');
+        $this->store->complete($multiJob->id, ['snapshot' => ['mode' => 'multi']]);
+
+        $cacheMulti3 = $this->get('/audits/cache?url=' . urlencode('https://example.com/multi-test') . '&mode=multi&maxPages=3', [
+            'Origin' => 'https://frontend.test',
+        ]);
+        $cacheMulti3->assertStatus(200);
+        $this->assertTrue($cacheMulti3->json('available'));
+
+        $cacheMulti5 = $this->get('/audits/cache?url=' . urlencode('https://example.com/multi-test') . '&mode=multi&maxPages=5', [
+            'Origin' => 'https://frontend.test',
+        ]);
+        $cacheMulti5->assertStatus(200);
+        $this->assertFalse($cacheMulti5->json('available'));
+
+        $reusedMulti = $this->createJob('https://example.com/multi-test', [
+            'mode' => 'multi',
+            'maxPages' => 3,
+            'reuseExisting' => true,
+        ]);
+        $reusedMulti->assertStatus(200);
+        $this->assertSame('completed', $reusedMulti->json('status'));
+        $this->assertSame('multi', $reusedMulti->json('mode'));
+        $this->assertSame(3, $reusedMulti->json('maxPages'));
+    }
 }

@@ -23,6 +23,7 @@ interface BridgeClientInterface
      * @param (callable(array{progress: int, stage: string}): void)|null $onProgress
      * @param (callable(): bool)|null $shouldCancel
      * @param int|null $timeoutSeconds
+     * @param array{mode?: string, maxPages?: int} $options
      * @return array{type: string, snapshot: array, files?: array}
      */
     public function audit(
@@ -31,7 +32,8 @@ interface BridgeClientInterface
         string $artifactDir,
         ?callable $onProgress = null,
         ?callable $shouldCancel = null,
-        ?int $timeoutSeconds = null
+        ?int $timeoutSeconds = null,
+        array $options = []
     ): array;
 
     /**

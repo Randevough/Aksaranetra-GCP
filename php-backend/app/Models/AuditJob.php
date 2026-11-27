@@ -30,6 +30,9 @@ class AuditJob implements JsonSerializable
         public readonly string $artifactDir,
         public readonly ?string $leaseToken = null,
         public readonly ?array $telemetry = null,
+        public readonly ?string $targetHost = null,
+        public readonly string $mode = 'single',
+        public readonly int $maxPages = 1,
     ) {}
 
     public static function fromRow(object|array|null $row): ?self
@@ -41,6 +44,13 @@ class AuditJob implements JsonSerializable
         if (is_object($row)) {
             $row = (array) $row;
         }
+
+        $options = !empty($row['audit_options_json']) ? json_decode((string) $row['audit_options_json'], true) : null;
+        $mode = is_array($options) && ($options['mode'] ?? null) === 'multi' ? 'multi' : 'single';
+        $maxPages = $mode === 'multi'
+            ? (isset($options['maxPages']) && is_numeric($options['maxPages']) ? max(1, min(5, (int) $options['maxPages'])) : 3)
+            : 1;
+        $targetHost = isset($row['target_host']) && $row['target_host'] !== '' ? (string) $row['target_host'] : null;
 
         return new self(
             id: (string) $row['id'],
@@ -64,6 +74,9 @@ class AuditJob implements JsonSerializable
             artifactDir: (string) $row['artifact_dir'],
             leaseToken: $row['lease_token'] ?? null,
             telemetry: !empty($row['telemetry_json']) ? json_decode((string) $row['telemetry_json'], true) : null,
+            targetHost: $targetHost,
+            mode: $mode,
+            maxPages: $maxPages,
         );
     }
 
@@ -75,6 +88,9 @@ class AuditJob implements JsonSerializable
             'shareTokenHash' => $this->shareTokenHash,
             'ipHash' => $this->ipHash,
             'targetUrl' => $this->targetUrl,
+            'targetHost' => $this->targetHost,
+            'mode' => $this->mode,
+            'maxPages' => $this->maxPages,
             'status' => $this->status,
             'stage' => $this->stage,
             'progress' => $this->progress,
@@ -115,6 +131,8 @@ class AuditJob implements JsonSerializable
         return [
             'jobId' => $this->id,
             'url' => $this->targetUrl,
+            'mode' => $this->mode,
+            'maxPages' => $this->maxPages,
             'status' => $this->status,
             'stage' => $this->stage,
             'progress' => $this->progress,

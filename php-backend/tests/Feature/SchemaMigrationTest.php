@@ -17,6 +17,7 @@ class SchemaMigrationTest extends TestCase
         $create = require database_path('migrations/2026_10_14_000000_create_audit_jobs_table.php');
         $upgrade = require database_path('migrations/2026_11_09_000000_add_audit_job_leases.php');
         $telemetryUpgrade = require database_path('migrations/2026_11_27_000000_add_telemetry_json_to_audit_jobs_table.php');
+        $wave2Upgrade = require database_path('migrations/2026_11_28_000000_add_wave2_columns_to_audit_jobs_table.php');
         $create->up();
         $this->assertTrue(Schema::hasColumns('audit_jobs', ['lease_token', 'lease_expires_at']));
         Schema::dropColumns('audit_jobs', ['lease_token', 'lease_expires_at']);
@@ -29,11 +30,21 @@ class SchemaMigrationTest extends TestCase
         $upgrade->up();
         $telemetryUpgrade->up();
         $telemetryUpgrade->up();
-        $this->assertTrue(Schema::hasColumns('audit_jobs', ['lease_token', 'lease_expires_at', 'telemetry_json']));
+        $wave2Upgrade->up();
+        $wave2Upgrade->up();
+        $this->assertTrue(Schema::hasColumns('audit_jobs', [
+            'lease_token',
+            'lease_expires_at',
+            'telemetry_json',
+            'target_host',
+            'audit_options_json',
+        ]));
+        $indexes = array_column(DB::select("PRAGMA index_list('audit_jobs')"), 'name');
+        $this->assertContains('audit_jobs_host_idx', $indexes);
         $this->assertSame('keep', DB::table('audit_jobs')->value('id'));
     }
 
-    public function test_job_store_sqlite_alter_guard_adds_telemetry_json(): void
+    public function test_job_store_sqlite_alter_guard_adds_wave2_columns_and_host_index(): void
     {
         $pdo = new \PDO('sqlite::memory:');
         $pdo->exec("CREATE TABLE audit_jobs (
@@ -63,5 +74,10 @@ class SchemaMigrationTest extends TestCase
         new \App\Services\JobStore($pdo);
         $columns = array_column($pdo->query('PRAGMA table_info(audit_jobs)')->fetchAll(\PDO::FETCH_ASSOC), 'name');
         $this->assertContains('telemetry_json', $columns);
+        $this->assertContains('target_host', $columns);
+        $this->assertContains('audit_options_json', $columns);
+
+        $indexes = array_column($pdo->query("PRAGMA index_list('audit_jobs')")->fetchAll(\PDO::FETCH_ASSOC), 'name');
+        $this->assertContains('audit_jobs_host_idx', $indexes);
     }
 }

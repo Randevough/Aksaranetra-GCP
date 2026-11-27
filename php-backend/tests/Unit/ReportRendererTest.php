@@ -182,4 +182,87 @@ class ReportRendererTest extends TestCase
         $this->assertStringNotContainsString('Permenkominfo', $html);
         $this->assertStringNotContainsString('8/2021', $html);
     }
+
+    public function test_renders_wave2_sections_cleanly_with_html_escaping(): void
+    {
+        $renderer = new ReportRenderer();
+        $html = $renderer->render([
+            'engineVersion' => '0.5.0',
+            'capturedAt' => '2026-11-28T00:00:00.000Z',
+            'disclaimer' => 'Catatan pengujian.',
+            'source' => ['title' => 'Portal Wave 2', 'finalUrl' => 'https://example.go.id/'],
+            'summary' => ['beforeTotal' => 4, 'afterTotal' => 1, 'reductionPercent' => 75],
+            'counts' => ['fixed' => 3],
+            'warnings' => ['wcagRegressionClean' => true, 'worsenedRules' => []],
+            'enginesUsed' => ['axe-core', 'ibm-ace'],
+            'mobileAudit' => [
+                'viewport' => ['width' => 320, 'height' => 568],
+                'reflowOk' => false,
+                'horizontalOverflowPx' => 42,
+                'textSpacingOk' => true,
+                'clippedElementsCount' => 0,
+                'smallTargetsCount' => 3,
+                'pinchZoomBlocked' => true,
+                'osPreferences' => [
+                    'reducedMotionChecked' => true,
+                    'reducedMotionUnboundedAnimations' => 2,
+                    'forcedColorsChecked' => true,
+                ],
+            ],
+            'detectors' => [
+                'overlay' => ['detected' => true, 'vendors' => ['UserWay']],
+                'captcha' => ['detected' => true, 'types' => ['reCAPTCHA'], 'inaccessibleCount' => 1],
+            ],
+            'pdfAudit' => [
+                'discoveredCount' => 2,
+                'auditedCount' => 1,
+                'scannedImageCount' => 1,
+                'untaggedCount' => 1,
+                'items' => [
+                    [
+                        'filename' => 'formulir.pdf',
+                        'pageCount' => 4,
+                        'isTagged' => false,
+                        'hasTextLayer' => false,
+                        'hasTitle' => false,
+                        'hasLang' => false,
+                        'status' => 'scanned-image-only',
+                    ],
+                ],
+            ],
+            'multiPage' => [
+                'mode' => 'multi',
+                'requestedMaxPages' => 3,
+                'crawledCount' => 2,
+                'averageAfterScore' => 88,
+                'pages' => [
+                    ['title' => 'Beranda', 'url' => 'https://example.go.id/', 'beforeScore' => 60, 'afterScore' => 88, 'issuesCount' => 2, 'status' => 'completed'],
+                ],
+            ],
+            'clusters' => [
+                [
+                    'ruleId' => 'image-alt',
+                    'impact' => 'serious',
+                    'titleId' => 'Gambar tanpa alt <script>',
+                    'selectorPattern' => 'img.banner',
+                    'affectedPages' => ['https://example.go.id/'],
+                    'occurrences' => 5,
+                    'blastRadiusPercent' => 100,
+                ],
+            ],
+        ], ['fixed' => [], 'review' => [], 'rolledBackRecords' => []]);
+
+        $this->assertStringContainsString('Mesin Audit', $html);
+        $this->assertStringContainsString('axe-core, ibm-ace', $html);
+        $this->assertStringContainsString('Audit Mobile &amp; Preferensi OS', $html);
+        $this->assertStringContainsString('Meluber (42px)', $html);
+        $this->assertStringContainsString('Detektor Overlay &amp; CAPTCHA', $html);
+        $this->assertStringContainsString('UserWay', $html);
+        $this->assertStringContainsString('Audit Dokumen PDF', $html);
+        $this->assertStringContainsString('formulir.pdf', $html);
+        $this->assertStringContainsString('Ringkasan Multi-Halaman', $html);
+        $this->assertStringContainsString('Klaster Temuan Berulang', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
 }

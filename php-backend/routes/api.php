@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AuditArtifactController;
+use App\Http\Controllers\AuditBadgeController;
 use App\Http\Controllers\AuditCacheController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuditResultController;
@@ -10,6 +11,9 @@ use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'show']);
+
+Route::get('/badges/{domain}.svg', [AuditBadgeController::class, 'show'])
+    ->where('domain', '[^/]+');
 
 Route::get('/audits/cache', [AuditCacheController::class, 'show']);
 Route::post('/audits', [AuditController::class, 'store']);

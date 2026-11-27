@@ -61,13 +61,24 @@ class Auditor implements AuditorInterface
         }
 
         if ($snapshot === null || $report === null) {
+            $effectiveTimeoutSeconds = $this->timeoutSeconds;
+            if ($job->mode === 'multi') {
+                $effectiveTimeoutSeconds = $effectiveTimeoutSeconds !== null
+                    ? max($effectiveTimeoutSeconds, 240)
+                    : 240;
+            }
+
             $outcome = $this->bridge->audit(
                 id: $job->id,
                 url: $job->targetUrl,
                 artifactDir: $job->artifactDir,
                 onProgress: $onProgress,
                 shouldCancel: $shouldCancel,
-                timeoutSeconds: $this->timeoutSeconds
+                timeoutSeconds: $effectiveTimeoutSeconds,
+                options: [
+                    'mode' => $job->mode,
+                    'maxPages' => $job->maxPages,
+                ]
             );
 
             $snapshot = $outcome['snapshot'] ?? null;

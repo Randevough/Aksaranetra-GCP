@@ -97,6 +97,9 @@ class AuditWorker implements AuditWorkerInterface
     {
         $this->activeJobId = $job->id;
         $this->activeJobCancelled = false;
+        $effectiveTimeoutMs = $job->mode === 'multi'
+            ? max($this->timeoutMs, 240_000)
+            : $this->timeoutMs;
         $startTime = microtime(true);
         $timedOut = false;
         $leaseLost = false;
@@ -111,7 +114,7 @@ class AuditWorker implements AuditWorkerInterface
             return !$leaseLost;
         };
 
-        $shouldCancel = function () use ($job, $startTime, &$timedOut, &$lastHeartbeat, $ownsLease): bool {
+        $shouldCancel = function () use ($job, $startTime, $effectiveTimeoutMs, &$timedOut, &$lastHeartbeat, $ownsLease): bool {
             if (microtime(true) - $lastHeartbeat >= 10) {
                 $lastHeartbeat = microtime(true);
                 if (!$ownsLease()) {
@@ -125,7 +128,7 @@ class AuditWorker implements AuditWorkerInterface
                 return true;
             }
             $elapsedMs = (microtime(true) - $startTime) * 1000;
-            if ($elapsedMs >= $this->timeoutMs) {
+            if ($elapsedMs >= $effectiveTimeoutMs) {
                 $timedOut = true;
 
                 return true;
@@ -175,7 +178,7 @@ class AuditWorker implements AuditWorkerInterface
             if ($timedOut) {
                 $this->store->fail($job->id, [
                     'code' => 'audit-timeout',
-                    'message' => 'Audit melewati batas ' . (int) round($this->timeoutMs / 1000) . ' detik.',
+                    'message' => 'Audit melewati batas ' . (int) round($effectiveTimeoutMs / 1000) . ' detik.',
                 ], $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } elseif ($this->activeJobCancelled || ($current !== null && $current->cancelRequested)) {
@@ -206,7 +209,7 @@ class AuditWorker implements AuditWorkerInterface
             if ($timedOut || ($error instanceof AuditTimeoutException)) {
                 $this->store->fail($job->id, [
                     'code' => 'audit-timeout',
-                    'message' => 'Audit melewati batas ' . (int) round($this->timeoutMs / 1000) . ' detik.',
+                    'message' => 'Audit melewati batas ' . (int) round($effectiveTimeoutMs / 1000) . ' detik.',
                 ], $job->leaseToken);
                 $this->deleteArtifactDir($job->artifactDir);
             } elseif ($this->activeJobCancelled || ($current !== null && $current->cancelRequested) || ($error instanceof AuditCancelledException)) {

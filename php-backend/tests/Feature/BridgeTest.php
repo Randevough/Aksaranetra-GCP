@@ -91,4 +91,30 @@ JS);
             @unlink($script);
         }
     }
+
+    public function test_bridge_forwards_mode_and_max_pages_options_via_stdin(): void
+    {
+        $script = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'aksara-bridge-options-' . uniqid() . '.mjs';
+        file_put_contents($script, <<<'JS'
+let raw = '';
+process.stdin.on('data', (c) => { raw += c; });
+process.stdin.on('end', () => {
+  const input = JSON.parse(raw);
+  process.stdout.write(JSON.stringify({ type: 'result', snapshot: { received: input } }) + '\n');
+});
+JS);
+
+        try {
+            $client = new BridgeClient($script);
+            $res = $client->audit('job-multi', 'https://example.com/', sys_get_temp_dir(), null, null, null, [
+                'mode' => 'multi',
+                'maxPages' => 4,
+            ]);
+
+            $this->assertSame('multi', $res['snapshot']['received']['mode']);
+            $this->assertSame(4, $res['snapshot']['received']['maxPages']);
+        } finally {
+            @unlink($script);
+        }
+    }
 }

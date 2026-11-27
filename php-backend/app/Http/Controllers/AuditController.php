@@ -49,6 +49,19 @@ class AuditController
             ], 400);
         }
 
+        if (array_key_exists('mode', $body) && $body['mode'] !== null) {
+            if (!is_string($body['mode']) || !in_array($body['mode'], ['single', 'multi'], true)) {
+                return response()->json([
+                    'error' => 'bad-request',
+                    'message' => 'Parameter mode harus "single" atau "multi".',
+                ], 400);
+            }
+        }
+
+        $options = JobStore::normalizeOptions($body);
+        $mode = $options['mode'];
+        $maxPages = $options['maxPages'];
+
         $config = $this->getConfig();
         $security = $this->getSecurity();
         $store = $this->getStore();
@@ -84,13 +97,15 @@ class AuditController
             'shareTokenHash' => $security->digest($shareToken, $config->secret),
             'ipHash' => $ipHash,
             'targetUrl' => $verdict['url'],
+            'mode' => $mode,
+            'maxPages' => $maxPages,
             'createdAt' => $now,
             'expiresAt' => $now + $config->retentionMs,
             'artifactDir' => $artifactDir,
         ]);
 
         $reuseExisting = ($body['reuseExisting'] ?? false) === true;
-        $cached = $reuseExisting ? $store->findReusable($verdict['url'], $now) : null;
+        $cached = $reuseExisting ? $store->findReusable($verdict['url'], $now, $mode, $maxPages) : null;
 
         if ($cached && $cached->id !== $job->id) {
             if ($config->artifactStore === 'gcs' && !empty($cached->result['manifest'])) {
@@ -112,6 +127,8 @@ class AuditController
             'jobId' => $id,
             'accessToken' => $accessToken,
             'status' => $current->status,
+            'mode' => $current->mode,
+            'maxPages' => $current->maxPages,
             'statusPath' => "/audits/{$id}",
             'expiresAt' => AuditJob::formatIsoMilliseconds($current->expiresAt),
         ], $statusCode, [

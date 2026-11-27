@@ -137,7 +137,8 @@ class AuditorTest extends TestCase
                 string $artifactDir,
                 ?callable $onProgress = null,
                 ?callable $shouldCancel = null,
-                ?int $timeoutSeconds = null
+                ?int $timeoutSeconds = null,
+                array $options = []
             ): array {
                 $this->capturedTimeout = $timeoutSeconds;
                 return ['type' => 'result', 'snapshot' => ['ok' => true]];
@@ -152,6 +153,33 @@ class AuditorTest extends TestCase
         $auditor->setTimeoutMs(90_000);
         $auditor->audit($job);
         $this->assertSame(90, $capturedTimeout);
+
+        // Multi-page mode enforces at least 240s timeout and passes mode/maxPages options
+        $multiJob = new AuditJob(
+            id: 'aud_multi_12345678901234',
+            tokenHash: str_repeat('a', 64),
+            shareTokenHash: str_repeat('b', 64),
+            ipHash: str_repeat('c', 64),
+            targetUrl: 'https://example.com/',
+            status: 'running',
+            stage: 'Menyiapkan audit',
+            progress: 5,
+            attempts: 1,
+            cancelRequested: false,
+            result: null,
+            errorCode: null,
+            errorMessage: null,
+            createdAt: 1000,
+            updatedAt: 1000,
+            startedAt: 1000,
+            finishedAt: null,
+            expiresAt: 61000,
+            artifactDir: $this->createTempDir('auditor-multi-timeout-'),
+            mode: 'multi',
+            maxPages: 4
+        );
+        $auditor->audit($multiJob);
+        $this->assertSame(240, $capturedTimeout);
     }
 
     public function test_auditor_resumes_from_checkpoint_without_calling_bridge_audit(): void

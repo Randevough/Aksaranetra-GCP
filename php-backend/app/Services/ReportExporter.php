@@ -17,6 +17,7 @@ class ReportExporter
         'Selector',
         'Judul_Masalah',
         'Saran_Perbaikan',
+        'Engines',
     ];
 
     /**
@@ -34,6 +35,12 @@ class ReportExporter
             'score' => $snapshot['score'] ?? null,
             'severity' => $snapshot['severity'] ?? null,
             'regulations' => $snapshot['regulations'] ?? [],
+            'enginesUsed' => $snapshot['enginesUsed'] ?? [],
+            'mobileAudit' => $snapshot['mobileAudit'] ?? null,
+            'pdfAudit' => $snapshot['pdfAudit'] ?? null,
+            'detectors' => $snapshot['detectors'] ?? null,
+            'multiPage' => $snapshot['multiPage'] ?? null,
+            'clusters' => $snapshot['clusters'] ?? [],
             'issues' => $snapshot['issues'] ?? [],
             'tabStops' => $snapshot['tabStops'] ?? [],
             'readiness' => $snapshot['readiness'] ?? null,
@@ -70,6 +77,7 @@ class ReportExporter
                     (string) ($issue['selector'] ?? ''),
                     (string) ($issue['titleId'] ?? ''),
                     (string) ($issue['helpId'] ?? ''),
+                    implode('; ', array_map('strval', (array) ($issue['engines'] ?? []))),
                 ]);
             }
         } else {
@@ -97,6 +105,7 @@ class ReportExporter
                         '',
                         (string) ($record['selector'] ?? ''),
                         (string) ($record['rule'] ?? ''),
+                        '',
                         '',
                     ]);
                 }

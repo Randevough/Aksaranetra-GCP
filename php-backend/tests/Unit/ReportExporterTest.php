@@ -27,6 +27,7 @@ class ReportExporterTest extends TestCase
                     'selector' => 'button[aria-label="Kirim, Sekarang"]',
                     'titleId' => "Kontras tombol \"Kirim\" rendah\nPerlu perbaikan",
                     'helpId' => 'Naikkan rasio kontras minimal 4.5:1',
+                    'engines' => ['axe-core', 'ibm-ace'],
                 ],
             ],
         ];
@@ -39,12 +40,36 @@ class ReportExporterTest extends TestCase
         $body = substr($csv, 3);
         $lines = explode("\r\n", rtrim($body, "\r\n"));
         $this->assertSame(
-            'Issue_ID,Rule_ID,Severity,Status,POUR,WCAG_SC,Regulasi_Indonesia,Selector,Judul_Masalah,Saran_Perbaikan',
+            'Issue_ID,Rule_ID,Severity,Status,POUR,WCAG_SC,Regulasi_Indonesia,Selector,Judul_Masalah,Saran_Perbaikan,Engines',
             $lines[0]
         );
         $this->assertStringContainsString('"button[aria-label=""Kirim, Sekarang""]"', $body);
         $this->assertStringContainsString("\"Kontras tombol \"\"Kirim\"\" rendah\nPerlu perbaikan\"", $body);
         $this->assertStringContainsString('UU-8-2016; PP-42-2020', $body);
+        $this->assertStringContainsString('axe-core; ibm-ace', $body);
+    }
+
+    public function test_build_json_data_includes_wave2_sections(): void
+    {
+        $exporter = new ReportExporter();
+        $snapshot = [
+            'id' => 'aud_wave2',
+            'enginesUsed' => ['axe-core', 'ibm-ace'],
+            'mobileAudit' => ['viewport' => ['width' => 320, 'height' => 568], 'reflowOk' => true],
+            'pdfAudit' => ['discoveredCount' => 1, 'auditedCount' => 1, 'scannedImageCount' => 0, 'untaggedCount' => 1, 'items' => []],
+            'detectors' => ['overlay' => ['detected' => true, 'vendors' => ['UserWay'], 'summaryId' => 'ov-1']],
+            'multiPage' => ['mode' => 'multi', 'requestedMaxPages' => 3, 'crawledCount' => 2, 'averageAfterScore' => 84, 'pages' => []],
+            'clusters' => [['id' => 'cl-1', 'ruleId' => 'image-alt', 'occurrences' => 4]],
+        ];
+
+        $json = $exporter->buildJsonData($snapshot, []);
+
+        $this->assertSame(['axe-core', 'ibm-ace'], $json['enginesUsed']);
+        $this->assertTrue($json['mobileAudit']['reflowOk']);
+        $this->assertSame(1, $json['pdfAudit']['untaggedCount']);
+        $this->assertTrue($json['detectors']['overlay']['detected']);
+        $this->assertSame('multi', $json['multiPage']['mode']);
+        $this->assertCount(1, $json['clusters']);
     }
 
     public function test_write_creates_json_and_csv_files_with_legacy_fallback(): void

@@ -11,6 +11,25 @@ APP_DIR="/opt/aksaranetra"
 AR_HOST="${region}-docker.pkg.dev"
 AR_PREFIX="$${AR_HOST}/${project_id}/${artifact_registry_repo}"
 
+# 0. Provision idempotent 2 GB swapfile for OOM safety on e2-medium
+if ! swapon --show | grep -q '/swapfile'; then
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile
+    mkswap /swapfile
+  fi
+  swapon /swapfile
+fi
+if ! grep -q '^/swapfile ' /etc/fstab; then
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+sysctl -w vm.swappiness=10 >/dev/null
+if ! grep -q '^vm.swappiness=' /etc/sysctl.conf; then
+  echo 'vm.swappiness=10' >> /etc/sysctl.conf
+else
+  sed -i 's/^vm.swappiness=.*/vm.swappiness=10/' /etc/sysctl.conf
+fi
+
 # 1. Install base packages and Docker CE + Compose v2
 if ! command -v docker >/dev/null 2>&1; then
   apt-get update -y
@@ -66,7 +85,7 @@ BACKEND_DATA_DIR=/data
 TRUST_PROXY=1
 HA_MODE=1
 RUN_MIGRATIONS=0
-AUDIT_TIMEOUT_MS=180000
+AUDIT_TIMEOUT_MS=240000
 RESULT_RETENTION_MS=604800000
 CHROMIUM_LOW_RESOURCE_MODE=1
 

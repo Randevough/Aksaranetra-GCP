@@ -318,4 +318,61 @@ class StoreTest extends TestCase
         $httpStore->close();
         $workerStore->close();
     }
+
+    public function test_find_latest_completed_by_host_and_mode_reusable_filtering(): void
+    {
+        $root = $this->createTempDir('aksara-host-');
+        $db = $root . DIRECTORY_SEPARATOR . 'jobs.sqlite';
+        $now = 1000;
+
+        $store = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now]);
+
+        $store->createJob([
+            'id' => 'job-single',
+            'tokenHash' => str_repeat('a', 64),
+            'shareTokenHash' => str_repeat('b', 64),
+            'ipHash' => str_repeat('c', 64),
+            'targetUrl' => 'https://Portal.Example.GO.ID/layanan',
+            'mode' => 'single',
+            'maxPages' => 5,
+            'createdAt' => $now,
+            'expiresAt' => $now + 50000,
+            'artifactDir' => $root . DIRECTORY_SEPARATOR . 'job-single',
+        ]);
+        $single = $store->claimNext();
+        $this->assertSame('portal.example.go.id', $single->targetHost);
+        $this->assertSame('single', $single->mode);
+        $this->assertSame(1, $single->maxPages);
+        $store->complete('job-single', ['score' => 80]);
+
+        $now += 100;
+        $store->createJob([
+            'id' => 'job-multi',
+            'tokenHash' => str_repeat('a', 64),
+            'shareTokenHash' => str_repeat('b', 64),
+            'ipHash' => str_repeat('c', 64),
+            'targetUrl' => 'https://Portal.Example.GO.ID/layanan',
+            'mode' => 'multi',
+            'maxPages' => 4,
+            'createdAt' => $now,
+            'expiresAt' => $now + 50000,
+            'artifactDir' => $root . DIRECTORY_SEPARATOR . 'job-multi',
+        ]);
+        $store->claimNext();
+        $store->complete('job-multi', ['score' => 91]);
+
+        $latest = $store->findLatestCompletedByHost('PORTAL.EXAMPLE.GO.ID', $now);
+        $this->assertNotNull($latest);
+        $this->assertSame('job-multi', $latest->id);
+
+        $reuseSingle = $store->findReusable('https://Portal.Example.GO.ID/layanan', $now, 'single', 1);
+        $this->assertSame('job-single', $reuseSingle?->id);
+
+        $reuseMulti4 = $store->findReusable('https://Portal.Example.GO.ID/layanan', $now, 'multi', 4);
+        $this->assertSame('job-multi', $reuseMulti4?->id);
+
+        $this->assertNull($store->findReusable('https://Portal.Example.GO.ID/layanan', $now, 'multi', 3));
+
+        $store->close();
+    }
 }
