@@ -431,7 +431,7 @@ export function useAuditJob() {
           setPhase("cancelled");
           return;
         }
-        timer = setTimeout(poll, 1000);
+        timer = setTimeout(poll, 800);
       } catch (error) {
         if (!active) return;
         consecutiveErrors.current += 1;

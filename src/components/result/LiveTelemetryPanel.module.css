@@ -1,7 +1,7 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   width: 100%;
   max-width: 920px;
 }
@@ -9,11 +9,11 @@
 .statusCard {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   width: 100%;
-  padding: clamp(24px, 4vw, 38px);
+  padding: clamp(22px, 3.6vw, 34px);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-float);
 }
@@ -32,32 +32,60 @@
 .statusLabel {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   margin-bottom: 8px;
   color: var(--color-primary-mid);
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .activeDot {
+  position: relative;
   display: inline-block;
   width: 9px;
   height: 9px;
   flex: none;
   border-radius: 50%;
-  background: var(--color-primary-bright);
+  background: var(--color-primary);
+}
+
+.activeDotReconnecting {
+  background: var(--color-warning);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .activeDot {
-    animation: pulse 1.6s ease-in-out infinite;
+  .activeDot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid var(--color-primary);
+    opacity: 0.55;
+    animation: liveRing 1.8s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+  }
+
+  .activeDotReconnecting::after {
+    border-color: var(--color-warning);
+  }
+}
+
+@keyframes liveRing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.75;
+  }
+  75%,
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
   }
 }
 
 .stageArea h1 {
-  font-size: clamp(23px, 3vw, 30px);
+  color: var(--color-heading);
+  font-size: clamp(22px, 2.9vw, 29px);
 }
 
 .targetUrl {
@@ -67,9 +95,40 @@
   overflow-wrap: anywhere;
 }
 
+.statusMetrics {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
+
+.elapsedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  line-height: 1;
+}
+
+.elapsedLabel {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.elapsedValue {
+  color: var(--color-heading);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 .percent {
   color: var(--color-primary);
-  font-size: clamp(28px, 4vw, 38px);
+  font-size: clamp(28px, 3.8vw, 36px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -89,17 +148,41 @@
   position: relative;
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-button);
+  background: var(--color-primary);
+  overflow: hidden;
+}
+
+.progressBarShimmer {
+  display: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .progressBarFill {
     transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+
+  .progressBarShimmer {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.42) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: progressShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
 }
 
-.progressBarGlow {
-  display: none;
+@keyframes progressShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .statusMeta {
@@ -107,9 +190,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px 20px;
+  gap: 10px 18px;
   color: var(--color-text-muted);
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .metaActions {
@@ -130,6 +213,9 @@
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .notifyButton:hover {
@@ -147,9 +233,9 @@
 
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
-  padding: 14px;
+  padding: 12px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
@@ -169,29 +255,29 @@
 
 .statsRow dd {
   color: var(--color-heading);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .xrayGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 .pipelineBox,
 .previewBox {
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
 .subHeading {
   margin-bottom: 12px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--color-heading);
 }
@@ -199,7 +285,7 @@
 .stepList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -207,13 +293,17 @@
 
 .stepItem {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 8px 11px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-border);
   font-size: 13.5px;
+  transition:
+    background-color 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .step_done {
@@ -223,7 +313,8 @@
 
 .step_running {
   background: var(--color-primary-soft);
-  border-color: var(--color-primary-bright);
+  border-color: var(--color-primary);
+  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.12);
 }
 
 .step_warning {
@@ -235,13 +326,58 @@
   background: var(--color-surface-sunken);
 }
 
-.stepStateBadge {
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-heading);
+.stepIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   font-size: 11px;
   font-weight: 800;
+  line-height: 1;
+}
+
+.stepIcon_done {
+  background: var(--color-success);
+  color: #ffffff;
+}
+
+.stepIcon_warning {
+  background: var(--color-warning);
+  color: #ffffff;
+}
+
+.stepSpinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-inline: 1px;
+  border-radius: 50%;
+  border: 2.25px solid var(--color-card-highlight);
+  border-top-color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stepSpinner {
+    animation: stepSpin 0.8s linear infinite;
+  }
+}
+
+@keyframes stepSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stepDotPending {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-inline: 4px;
+  border-radius: 50%;
+  border: 1.75px solid var(--color-border-strong);
+  background: var(--color-surface);
 }
 
 .stepText {
@@ -253,12 +389,32 @@
 .stepLabel {
   color: var(--color-heading);
   font-weight: 700;
+  line-height: 1.3;
 }
 
 .stepDetail {
   color: var(--color-text-muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.stepTrailing {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.stepStateBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step_running .stepStateBadge {
+  color: var(--color-primary-dark);
 }
 
 .stepDuration {
@@ -271,7 +427,7 @@
 .previewFrame {
   position: relative;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--color-surface-sunken);
   aspect-ratio: 16 / 10;
@@ -289,47 +445,195 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(37, 99, 235, 0.14) 50%,
-    transparent 100%
-  );
-  background-size: 100% 48px;
-  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.scanLine {
+  display: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .scanOverlay {
-    animation: scanSweep 2.4s linear infinite;
+  .scanLine {
+    display: block;
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 44px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(37, 99, 235, 0.16) 72%,
+      rgba(37, 99, 235, 0.45) 100%
+    );
+    border-bottom: 1.5px solid rgba(37, 99, 235, 0.45);
+    animation: scanSweep 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 }
 
 @keyframes scanSweep {
   0% {
-    background-position: 0 -48px;
+    transform: translateY(-48px);
+    opacity: 0;
+  }
+  12%,
+  88% {
+    opacity: 1;
   }
   100% {
-    background-position: 0 calc(100% + 48px);
+    transform: translateY(260px);
+    opacity: 0;
   }
 }
 
 .previewPlaceholder {
-  display: grid;
-  place-items: center;
-  min-height: 220px;
-  padding: 20px;
-  border: 1px dashed #8b92a3;
-  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  aspect-ratio: 16 / 10;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.scannerBrowser {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.scannerTopbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+}
+
+.scannerDots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.scannerDots i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.scannerUrlPill {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scannerWireframe {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  flex: 1;
+}
+
+.wireHero {
+  display: block;
+  width: 62%;
+  height: 16px;
+  border-radius: 6px;
+  background: var(--color-card-accent);
+}
+
+.wireCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex: 1;
+}
+
+.wireBlock {
+  display: block;
+  min-height: 44px;
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+}
+
+.wireLineShort {
+  display: block;
+  width: 44%;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--color-border);
+}
+
+.scannerBeam {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scannerBeam {
+    display: block;
+    position: absolute;
+    inset-inline: 0;
+    top: 32px;
+    height: 38px;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(37, 99, 235, 0.14) 75%,
+      rgba(37, 99, 235, 0.42) 100%
+    );
+    border-bottom: 1.5px solid rgba(37, 99, 235, 0.45);
+    animation: scannerSweep 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+}
+
+@keyframes scannerSweep {
+  0% {
+    transform: translateY(-38px);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(180px);
+    opacity: 0;
+  }
+}
+
+.placeholderCaption {
+  margin-top: 10px;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .challengeCard {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -338,37 +642,59 @@
 .challengeToggle {
   display: flex;
   width: 100%;
-  min-height: 54px;
+  min-height: 52px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 22px;
+  padding: 12px 20px;
   border: none;
   background: var(--color-surface);
   color: var(--color-heading);
   font: inherit;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 800;
   text-align: left;
   cursor: pointer;
+  transition: background-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .challengeToggle:hover {
   background: var(--color-surface-sunken);
 }
 
+.challengeTitle {
+  color: var(--color-heading);
+}
+
 .toggleHint {
-  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   background: var(--color-primary-soft);
   color: var(--color-primary-dark);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   flex: none;
 }
 
+.toggleChevron {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleChevronOpen {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggleChevron {
+    transition: none;
+  }
+}
+
 .challengeBody {
-  padding: 0 22px 22px;
+  padding: 0 20px 20px;
   border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -378,13 +704,13 @@
 .quizMeta {
   margin-top: 14px;
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 
 .quizPrompt {
   color: var(--color-heading);
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
 }
 
@@ -402,14 +728,17 @@
   background: var(--color-surface);
   color: var(--color-heading);
   font: inherit;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .quizOption:hover {
-  border-color: var(--color-primary-bright);
+  border-color: var(--color-primary);
   background: var(--color-surface-sunken);
 }
 
@@ -426,9 +755,9 @@
 }
 
 .quizFeedback {
-  min-height: 24px;
+  min-height: 22px;
   color: var(--color-text);
-  font-size: 14.5px;
+  font-size: 14px;
 }
 
 .quizNav {
@@ -445,5 +774,10 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .statusMetrics {
+    width: 100%;
+    justify-content: space-between;
   }
 }

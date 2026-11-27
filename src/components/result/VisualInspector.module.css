@@ -1,27 +1,22 @@
-.section {
+.wrapper {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-top: clamp(20px, 3vw, 28px);
-  border-top: 1px solid var(--color-border);
+  gap: 14px;
 }
 
-.headerRow h2 {
-  font-size: clamp(21px, 2.4vw, 26px);
-  margin-bottom: 6px;
-}
-
-.lead {
-  max-width: 64ch;
-  color: var(--color-text-muted);
-  font-size: 15px;
+.toolbarRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
 }
 
 .tabList {
   display: flex;
+  flex-wrap: nowrap;
   overflow-x: auto;
   gap: 4px;
-  border-bottom: 1px solid var(--color-border);
   scrollbar-width: thin;
 }
 
@@ -29,15 +24,20 @@
   position: relative;
   flex: none;
   min-height: 44px;
-  padding: 10px 16px;
-  border: none;
-  background: transparent;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background var(--transition-cepat),
+    border-color var(--transition-cepat),
+    color var(--transition-cepat);
 }
 
 .tabBtn:hover {
@@ -46,21 +46,34 @@
 }
 
 .tabBtn[aria-selected="true"] {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
   color: var(--color-primary-dark);
 }
 
-.tabBtn[aria-selected="true"]::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  border-block-end: 3px solid var(--color-primary-button);
+.fullImageLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--color-primary-bright);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fullImageLink:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-primary-hover);
 }
 
 .panelBox {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -71,7 +84,7 @@
   position: relative;
   width: 100%;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--color-surface-sunken);
 }
@@ -94,11 +107,11 @@
   height: 28px;
   padding: 0 6px;
   border: 2px solid #ffffff;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
@@ -119,7 +132,7 @@
 }
 
 .pinActive {
-  outline: 3px solid #0f172a;
+  outline: 3px solid var(--color-heading);
   outline-offset: 2px;
   z-index: 5;
 }
@@ -130,9 +143,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
 }
 
@@ -141,15 +154,23 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  font-size: 14.5px;
+  font-size: 14px;
+  color: var(--color-heading);
 }
 
 .pinDetailText code {
   padding: 2px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   font-size: 12.5px;
+  color: var(--color-text);
+}
+
+.pinDetailBar :global(.btn) {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 13.5px;
 }
 
 .badge {
@@ -179,13 +200,15 @@
 .focusSummaryRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 18px;
-  font-size: 14px;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 13.5px;
   color: var(--color-text);
 }
 
 .flagWarn {
   padding: 4px 10px;
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-pill);
   background: var(--color-danger-soft);
   color: var(--color-danger);
@@ -193,6 +216,7 @@
 
 .flagOk {
   padding: 4px 10px;
+  border: 1px solid var(--color-success-border);
   border-radius: var(--radius-pill);
   background: var(--color-success-soft);
   color: var(--color-success);
@@ -234,13 +258,13 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .focusTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .focusTable th,
@@ -253,7 +277,7 @@
 .focusTable thead th {
   background: var(--color-surface-sunken);
   color: var(--color-heading);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -292,7 +316,7 @@
 .rangeInput {
   flex: 1;
   min-width: 200px;
-  accent-color: var(--color-primary-button);
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 
@@ -300,7 +324,7 @@
   position: relative;
   width: 100%;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--color-surface-sunken);
 }
@@ -325,7 +349,7 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--color-primary-button);
+  background: var(--color-primary);
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -337,7 +361,7 @@
   transform: translate(-50%, -50%);
   padding: 4px 8px;
   border-radius: var(--radius-pill);
-  background: var(--color-primary-button);
+  background: var(--color-primary);
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
@@ -350,7 +374,7 @@
   top: 12px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(22, 24, 29, 0.88);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -367,10 +391,16 @@
 
 .emptyNotice {
   padding: 24px;
-  border: 1px dashed #8b92a3;
-  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
   font-size: 14.5px;
   text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabBtn {
+    transition: none;
+  }
 }

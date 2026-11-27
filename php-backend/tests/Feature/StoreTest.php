@@ -85,6 +85,7 @@ class StoreTest extends TestCase
         // Restart 1: Recover interrupted job (attempts < 2, no checkpoint -> recovers to queued, progress 0)
         $now += 100;
         $store = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now]);
+        $this->assertSame(1, $store->recoverInterrupted());
         $jobAfterRestart1 = $store->getJob('job-1');
         $this->assertNotNull($jobAfterRestart1);
         $this->assertSame('queued', $jobAfterRestart1->status);
@@ -100,6 +101,7 @@ class StoreTest extends TestCase
         // Restart 2: Attempts >= 2 -> recovers to failed with errorCode 'server-restarted'
         $now += 100;
         $store = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now]);
+        $this->assertSame(1, $store->recoverInterrupted());
         $jobAfterRestart2 = $store->getJob('job-1');
         $this->assertNotNull($jobAfterRestart2);
         $this->assertSame('failed', $jobAfterRestart2->status);
@@ -149,6 +151,7 @@ class StoreTest extends TestCase
         // Server restarts: detected checkpoint
         $now += 100;
         $store = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now]);
+        $this->assertSame(1, $store->recoverInterrupted());
         $job = $store->getJob('job-checkpoint');
 
         $this->assertNotNull($job);
@@ -271,5 +274,48 @@ class StoreTest extends TestCase
         $this->assertSame(['cached' => true], $cachedJob->result);
 
         $store->close();
+    }
+
+    public function test_concurrent_http_store_instance_does_not_reset_running_job(): void
+    {
+        $root = $this->createTempDir('aksara-concurrent-http-');
+        $db = $root . DIRECTORY_SEPARATOR . 'jobs.sqlite';
+        $now = 1000;
+
+        $workerStore = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now]);
+        $this->createTestJob($workerStore, $root, 'job-running', $now);
+
+        $claimed = $workerStore->claimNext();
+        $this->assertNotNull($claimed);
+        $this->assertSame('running', $claimed->status);
+
+        $telemetry = [
+            'steps' => [
+                ['id' => 'capture_before', 'label' => 'Mengambil pratinjau', 'status' => 'done'],
+                ['id' => 'audit_wcag', 'label' => 'Mengaudit WCAG', 'status' => 'running'],
+            ],
+            'stats' => ['domElements' => 240],
+            'earlyPreviewReady' => true,
+            'updatedAt' => '2026-11-27T17:00:00.000Z',
+        ];
+        $workerStore->updateProgress('job-running', [
+            'stage' => 'Menangkap pratinjau awal',
+            'progress' => 46,
+            'telemetry' => $telemetry,
+        ]);
+
+        // Simulate an HTTP polling request opening a fresh JobStore instance on the same SQLite DB
+        $httpStore = new JobStore(['databasePath' => $db, 'now' => fn(): int => $now + 50]);
+        $polledJob = $httpStore->getJob('job-running');
+
+        $this->assertNotNull($polledJob);
+        $this->assertSame('running', $polledJob->status);
+        $this->assertSame(46, $polledJob->progress);
+        $this->assertSame('Menangkap pratinjau awal', $polledJob->stage);
+        $this->assertSame($telemetry, $polledJob->telemetry);
+        $this->assertNull($polledJob->errorCode);
+
+        $httpStore->close();
+        $workerStore->close();
     }
 }

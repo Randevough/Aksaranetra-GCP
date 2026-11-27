@@ -132,6 +132,7 @@ function ResultPageContent() {
           isReconnecting={isReconnecting}
           notifyOptIn={notifyOptIn}
           onEnableNotify={() => void requestBrowserNotification()}
+          headingRef={phaseHeadingRef}
         />
       )}
 

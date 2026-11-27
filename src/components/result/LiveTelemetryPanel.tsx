@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { AuditJob, TelemetryStep, artifactUrl } from "@/lib/audit-api";
 import { friendlyStage, useSmoothProgress } from "@/hooks/useAuditJob";
 import styles from "./LiveTelemetryPanel.module.css";
+
+export interface LiveTelemetryPanelProps {
+  job: AuditJob | null;
+  onCancel: () => void;
+  isReconnecting?: boolean;
+  notifyOptIn?: boolean;
+  onEnableNotify?: () => void;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+}
 
 interface QuizQuestion {
   id: string;
@@ -90,16 +99,16 @@ const MICRO_QUIZ: QuizQuestion[] = [
 ];
 
 const FALLBACK_STEPS: Array<{ id: TelemetryStep["id"]; label: string }> = [
-  { id: "validate", label: "Validasi alamat publik" },
+  { id: "validate", label: "Validasi alamat" },
   { id: "dns_robots", label: "Verifikasi DNS & robots.txt" },
-  { id: "browser_ready", label: "Menyiapkan peramban terisolasi" },
+  { id: "browser_ready", label: "Menyiapkan peramban" },
   { id: "hydration", label: "Menunggu stabilitas DOM" },
-  { id: "capture_before", label: "Memotret kondisi awal halaman" },
-  { id: "audit_wcag", label: "Memindai pelanggaran WCAG 2.1 AA" },
-  { id: "tab_walk", label: "Menguji alur fokus keyboard" },
-  { id: "remediate", label: "Menguji perbaikan aman & rollback" },
-  { id: "serialize", label: "Menyiapkan versi ramah akses" },
-  { id: "report", label: "Menyusun laporan & ekspor" },
+  { id: "capture_before", label: "Potret kondisi awal" },
+  { id: "audit_wcag", label: "Pindai WCAG 2.1 AA" },
+  { id: "tab_walk", label: "Uji alur fokus keyboard" },
+  { id: "remediate", label: "Uji perbaikan & rollback" },
+  { id: "serialize", label: "Buat versi ramah akses" },
+  { id: "report", label: "Susun laporan & ekspor" },
 ];
 
 function stepStatusLabel(status: TelemetryStep["status"]) {
@@ -109,24 +118,95 @@ function stepStatusLabel(status: TelemetryStep["status"]) {
   return "Menunggu";
 }
 
+function formatElapsedSeconds(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function displayHost(rawUrl?: string): string {
+  if (!rawUrl) return "Memuat pratinjau";
+  try {
+    return new URL(rawUrl).hostname;
+  } catch {
+    return rawUrl;
+  }
+}
+
+function StepIndicator({ status }: { status: TelemetryStep["status"] }) {
+  if (status === "done") {
+    return (
+      <span className={`${styles.stepIcon} ${styles.stepIcon_done}`} aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 6.2L4.9 8.6L9.5 3.6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+  if (status === "running") {
+    return <span className={styles.stepSpinner} aria-hidden="true" />;
+  }
+  if (status === "warning") {
+    return (
+      <span className={`${styles.stepIcon} ${styles.stepIcon_warning}`} aria-hidden="true">
+        !
+      </span>
+    );
+  }
+  return <span className={styles.stepDotPending} aria-hidden="true" />;
+}
+
 export default function LiveTelemetryPanel({
   job,
   onCancel,
   isReconnecting = false,
   notifyOptIn = false,
   onEnableNotify,
-}: {
-  job: AuditJob | null;
-  onCancel: () => void;
-  isReconnecting?: boolean;
-  notifyOptIn?: boolean;
-  onEnableNotify?: () => void;
-}) {
+  headingRef,
+}: LiveTelemetryPanelProps) {
   const rawProgress = typeof job?.progress === "number" ? job.progress : 0;
   const smoothProgress = useSmoothProgress(rawProgress);
   const stage = isReconnecting
     ? "Menghubungkan kembali ke layanan..."
     : friendlyStage(job?.stage, job?.status);
+
+  const isActive = !job || job.status === "queued" || job.status === "running";
+  const anchorIso = job?.createdAt ?? job?.startedAt ?? null;
+  const fallbackStartRef = useRef<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (fallbackStartRef.current === null) {
+      fallbackStartRef.current = Date.now();
+    }
+    const parsedStart = anchorIso ? Date.parse(anchorIso) : Number.NaN;
+    const startMs = Number.isFinite(parsedStart)
+      ? parsedStart
+      : fallbackStartRef.current;
+
+    const syncElapsed = () => {
+      const next = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+      setElapsedSeconds((prev) => (prev === next ? prev : next));
+    };
+
+    const initialTimer = setTimeout(syncElapsed, 0);
+    if (!isActive) {
+      return () => clearTimeout(initialTimer);
+    }
+
+    const interval = setInterval(syncElapsed, 500);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [anchorIso, isActive]);
 
   const telemetry = job?.telemetry ?? null;
   const steps: TelemetryStep[] =
@@ -154,6 +234,7 @@ export default function LiveTelemetryPanel({
     "Notification" in window &&
     Notification.permission !== "denied" &&
     !notifyOptIn;
+  const formattedElapsed = formatElapsedSeconds(elapsedSeconds);
 
   return (
     <div className={styles.wrapper}>
@@ -161,21 +242,45 @@ export default function LiveTelemetryPanel({
         <div className={styles.statusTop}>
           <div className={styles.stageColumn}>
             <p className={styles.statusLabel}>
-              <span className={styles.activeDot} aria-hidden="true" />
-              {isReconnecting
-                ? "Menunggu server siap..."
-                : job?.status === "queued"
-                  ? "Menunggu giliran"
-                  : "Pemeriksaan berjalan"}
+              <span
+                className={`${styles.activeDot} ${
+                  isReconnecting ? styles.activeDotReconnecting : ""
+                }`}
+                aria-hidden="true"
+              />
+              <span>
+                {isReconnecting
+                  ? "Menyambung ulang"
+                  : job?.status === "queued"
+                    ? "Dalam antrean"
+                    : "Pemeriksaan langsung"}
+              </span>
             </p>
             <div className={styles.stageArea}>
-              <h1 id="status-title" tabIndex={-1}>
+              <h1 id="status-title" ref={headingRef} tabIndex={-1}>
                 {stage}
               </h1>
             </div>
             {job?.url && <p className={styles.targetUrl}>{job.url}</p>}
           </div>
-          <strong className={styles.percent}>{smoothProgress}%</strong>
+
+          <div className={styles.statusMetrics}>
+            {isActive && (
+              <div
+                className={styles.elapsedPill}
+                aria-label={`Waktu berjalan ${formattedElapsed}`}
+              >
+                <span className={styles.elapsedLabel}>Waktu</span>
+                <time
+                  className={styles.elapsedValue}
+                  dateTime={`PT${elapsedSeconds}S`}
+                >
+                  {formattedElapsed}
+                </time>
+              </div>
+            )}
+            <strong className={styles.percent}>{smoothProgress}%</strong>
+          </div>
         </div>
 
         <div
@@ -190,17 +295,17 @@ export default function LiveTelemetryPanel({
             className={styles.progressBarFill}
             style={{ width: `${Math.max(smoothProgress, 3)}%` }}
           >
-            <span className={styles.progressBarGlow} aria-hidden="true" />
+            <span className={styles.progressBarShimmer} aria-hidden="true" />
           </div>
         </div>
 
         <div className={styles.statusMeta}>
           <span>
             {isReconnecting
-              ? "Server sedang memulihkan koneksi, proses akan otomatis berlanjut."
+              ? "Menghubungkan kembali ke layanan..."
               : job?.queuePosition
-                ? `Urutan antrean saat ini: ${job.queuePosition}`
-                : "Hasil akan terbuka otomatis begitu pemeriksaan tuntas."}
+                ? `Urutan antrean #${job.queuePosition}`
+                : "Hasil terbuka otomatis setelah selesai."}
           </span>
           <div className={styles.metaActions}>
             {showNotifyOffer && onEnableNotify && (
@@ -237,13 +342,13 @@ export default function LiveTelemetryPanel({
             )}
             {typeof telemetry.stats.requestsAllowed === "number" && (
               <div>
-                <dt>Permintaan diizinkan</dt>
+                <dt>Diizinkan</dt>
                 <dd>{telemetry.stats.requestsAllowed}</dd>
               </div>
             )}
             {typeof telemetry.stats.requestsBlocked === "number" && (
               <div>
-                <dt>Permintaan diblokir</dt>
+                <dt>Diblokir</dt>
                 <dd>{telemetry.stats.requestsBlocked}</dd>
               </div>
             )}
@@ -255,7 +360,7 @@ export default function LiveTelemetryPanel({
             )}
             {typeof telemetry.stats.tabStopsCount === "number" && (
               <div>
-                <dt>Titik Tab diuji</dt>
+                <dt>Titik Tab</dt>
                 <dd>{telemetry.stats.tabStopsCount}</dd>
               </div>
             )}
@@ -264,27 +369,31 @@ export default function LiveTelemetryPanel({
 
         <div className={styles.xrayGrid}>
           <div className={styles.pipelineBox}>
-            <h2 className={styles.subHeading}>Alur kerja mesin pemeriksaan</h2>
+            <h2 className={styles.subHeading}>Alur pemeriksaan</h2>
             <ol className={styles.stepList}>
               {steps.map((step) => (
                 <li
                   key={step.id}
                   className={`${styles.stepItem} ${styles[`step_${step.status}`]}`}
                 >
-                  <span className={styles.stepStateBadge}>
-                    {stepStatusLabel(step.status)}
-                  </span>
+                  <StepIndicator status={step.status} />
                   <div className={styles.stepText}>
                     <span className={styles.stepLabel}>{step.label}</span>
                     {step.detail && (
                       <span className={styles.stepDetail}>{step.detail}</span>
                     )}
                   </div>
-                  {typeof step.durationMs === "number" && (
-                    <span className={styles.stepDuration}>
-                      {step.durationMs} ms
-                    </span>
-                  )}
+                  <div className={styles.stepTrailing}>
+                    {typeof step.durationMs === "number" ? (
+                      <span className={styles.stepDuration}>
+                        {step.durationMs} ms
+                      </span>
+                    ) : (
+                      <span className={styles.stepStateBadge}>
+                        {stepStatusLabel(step.status)}
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ol>
@@ -299,13 +408,35 @@ export default function LiveTelemetryPanel({
                   alt={`Tangkapan awal halaman ${job.url}`}
                   className={styles.previewImg}
                 />
-                <div className={styles.scanOverlay} aria-hidden="true" />
+                <div className={styles.scanOverlay} aria-hidden="true">
+                  <span className={styles.scanLine} />
+                </div>
               </div>
             ) : (
               <div className={styles.previewPlaceholder}>
-                <p>
-                  Tangkapan awal halaman akan muncul di sini setelah DOM selesai
-                  dimuat dengan aman.
+                <div className={styles.scannerBrowser} aria-hidden="true">
+                  <div className={styles.scannerTopbar}>
+                    <span className={styles.scannerDots}>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    <span className={styles.scannerUrlPill}>
+                      {displayHost(job?.url)}
+                    </span>
+                  </div>
+                  <div className={styles.scannerWireframe}>
+                    <span className={styles.wireHero} />
+                    <div className={styles.wireCols}>
+                      <span className={styles.wireBlock} />
+                      <span className={styles.wireBlock} />
+                    </div>
+                    <span className={styles.wireLineShort} />
+                  </div>
+                  <div className={styles.scannerBeam} />
+                </div>
+                <p className={styles.placeholderCaption}>
+                  Menunggu tangkapan awal halaman...
                 </p>
               </div>
             )}
@@ -313,7 +444,10 @@ export default function LiveTelemetryPanel({
         </div>
       </section>
 
-      <section className={styles.challengeCard} aria-label="Latihan singkat aksesibilitas">
+      <section
+        className={styles.challengeCard}
+        aria-label="Latihan singkat aksesibilitas"
+      >
         <button
           type="button"
           className={styles.challengeToggle}
@@ -321,9 +455,29 @@ export default function LiveTelemetryPanel({
           aria-controls="uji-10-detik-panel"
           onClick={() => setChallengeOpen((prev) => !prev)}
         >
-          <span>Uji Aksesibilitas 10 Detik (opsional sambil menunggu)</span>
+          <span className={styles.challengeTitle}>
+            Uji Aksesibilitas 10 Detik
+          </span>
           <span className={styles.toggleHint}>
-            {challengeOpen ? "Tutup" : "Buka kuis"}
+            <span>{challengeOpen ? "Tutup" : "Buka kuis"}</span>
+            <svg
+              className={`${styles.toggleChevron} ${
+                challengeOpen ? styles.toggleChevronOpen : ""
+              }`}
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M3.5 5.25L7 8.75L10.5 5.25"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </span>
         </button>
 
@@ -333,7 +487,11 @@ export default function LiveTelemetryPanel({
               Pertanyaan {questionIndex + 1} dari {MICRO_QUIZ.length}
             </p>
             <p className={styles.quizPrompt}>{activeQuestion.prompt}</p>
-            <div className={styles.quizOptions} role="group" aria-label="Pilihan jawaban">
+            <div
+              className={styles.quizOptions}
+              role="group"
+              aria-label="Pilihan jawaban"
+            >
               {activeQuestion.options.map((option) => {
                 const isSelected = selectedOption === option.id;
                 return (

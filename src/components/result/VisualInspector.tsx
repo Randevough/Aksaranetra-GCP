@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { AuditIssue, PageReadiness, TabStop } from "@/lib/audit-api";
 import styles from "./VisualInspector.module.css";
 
-type TabKey = "pins" | "focus" | "compare";
+type ModeKey = "pins" | "focus" | "compare";
 
 const IMPACT_LABEL: Record<AuditIssue["impact"], string> = {
   critical: "Kritis",
@@ -32,12 +32,12 @@ export default function VisualInspector({
   onSelectIssue?: (issueId: string) => void;
   onJumpToIssue?: (issueId: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("pins");
+  const [activeMode, setActiveMode] = useState<ModeKey>("pins");
   const [sliderPos, setSliderPos] = useState(50);
   const [beforeBroken, setBeforeBroken] = useState(false);
   const [afterBroken, setAfterBroken] = useState(false);
 
-  const tabRefs = useRef<Record<TabKey, HTMLButtonElement | null>>({
+  const tabRefs = useRef<Record<ModeKey, HTMLButtonElement | null>>({
     pins: null,
     focus: null,
     compare: null,
@@ -65,8 +65,8 @@ export default function VisualInspector({
     return { obscuredCount, noFocusCount };
   }, [tabStops]);
 
-  const tabOrder: TabKey[] = ["pins", "focus", "compare"];
-  const handleTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, current: TabKey) => {
+  const tabOrder: ModeKey[] = ["pins", "focus", "compare"];
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, current: ModeKey) => {
     const idx = tabOrder.indexOf(current);
     let nextIdx = -1;
     if (e.key === "ArrowRight") nextIdx = (idx + 1) % tabOrder.length;
@@ -78,13 +78,14 @@ export default function VisualInspector({
     if (nextIdx !== -1) {
       e.preventDefault();
       const nextTab = tabOrder[nextIdx];
-      setActiveTab(nextTab);
+      setActiveMode(nextTab);
       tabRefs.current[nextTab]?.focus();
     }
   };
 
   const hasBefore = Boolean(beforeUrl) && !beforeBroken;
   const hasAfter = Boolean(afterUrl) && !afterBroken;
+  const fullImageHref = activeMode === "compare" ? afterUrl || beforeUrl : beforeUrl || afterUrl;
 
   const toPercentX = (x: number) =>
     Math.max(2, Math.min(97, (x / stageWidth) * 100));
@@ -92,74 +93,78 @@ export default function VisualInspector({
     Math.max(2, Math.min(96, (y / stageHeight) * 100));
 
   return (
-    <section className={styles.section} aria-labelledby="visual-inspector-title">
-      <div className={styles.headerRow}>
-        <div>
-          <h2 id="visual-inspector-title">Inspeksi Visual &amp; Alur Fokus</h2>
-          <p className={styles.lead}>
-            Tinjau titik temuan pada tangkapan layar awal, urutan fokus keyboard,
-            serta perbandingan sebelum dan sesudah perbaikan.
-          </p>
+    <section className={styles.wrapper} aria-label="Inspeksi visual halaman">
+      <div className={styles.toolbarRow}>
+        <div
+          role="tablist"
+          aria-label="Mode inspeksi visual halaman"
+          className={styles.tabList}
+        >
+          <button
+            ref={(el) => {
+              tabRefs.current.pins = el;
+            }}
+            id="inspector-tab-pins"
+            type="button"
+            role="tab"
+            aria-selected={activeMode === "pins"}
+            tabIndex={activeMode === "pins" ? 0 : -1}
+            className={styles.tabBtn}
+            onClick={() => setActiveMode("pins")}
+            onKeyDown={(e) => handleTabKeyDown(e, "pins")}
+          >
+            Pin Temuan ({pinnedIssues.length})
+          </button>
+          <button
+            ref={(el) => {
+              tabRefs.current.focus = el;
+            }}
+            id="inspector-tab-focus"
+            type="button"
+            role="tab"
+            aria-selected={activeMode === "focus"}
+            tabIndex={activeMode === "focus" ? 0 : -1}
+            className={styles.tabBtn}
+            onClick={() => setActiveMode("focus")}
+            onKeyDown={(e) => handleTabKeyDown(e, "focus")}
+          >
+            Alur Fokus Keyboard ({tabStops.length})
+          </button>
+          <button
+            ref={(el) => {
+              tabRefs.current.compare = el;
+            }}
+            id="inspector-tab-compare"
+            type="button"
+            role="tab"
+            aria-selected={activeMode === "compare"}
+            tabIndex={activeMode === "compare" ? 0 : -1}
+            className={styles.tabBtn}
+            onClick={() => setActiveMode("compare")}
+            onKeyDown={(e) => handleTabKeyDown(e, "compare")}
+          >
+            Slider Sebelum &amp; Sesudah
+          </button>
         </div>
+
+        {fullImageHref && (
+          <a
+            href={fullImageHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.fullImageLink}
+          >
+            Buka gambar penuh
+            <span className="sr-only"> (buka di tab baru)</span>
+          </a>
+        )}
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Mode inspeksi visual halaman"
-        className={styles.tabList}
-      >
-        <button
-          ref={(el) => {
-            tabRefs.current.pins = el;
-          }}
-          id="tab-pins"
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "pins"}
-          tabIndex={activeTab === "pins" ? 0 : -1}
-          className={styles.tabBtn}
-          onClick={() => setActiveTab("pins")}
-          onKeyDown={(e) => handleTabKeyDown(e, "pins")}
-        >
-          Pin Temuan ({pinnedIssues.length})
-        </button>
-        <button
-          ref={(el) => {
-            tabRefs.current.focus = el;
-          }}
-          id="tab-focus"
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "focus"}
-          tabIndex={activeTab === "focus" ? 0 : -1}
-          className={styles.tabBtn}
-          onClick={() => setActiveTab("focus")}
-          onKeyDown={(e) => handleTabKeyDown(e, "focus")}
-        >
-          Alur Fokus Keyboard ({tabStops.length})
-        </button>
-        <button
-          ref={(el) => {
-            tabRefs.current.compare = el;
-          }}
-          id="tab-compare"
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "compare"}
-          tabIndex={activeTab === "compare" ? 0 : -1}
-          className={styles.tabBtn}
-          onClick={() => setActiveTab("compare")}
-          onKeyDown={(e) => handleTabKeyDown(e, "compare")}
-        >
-          Perbandingan Sebelum &amp; Sesudah
-        </button>
-      </div>
-
-      {/* Panel 1: Pin Temuan */}
+      {/* Mode 1: Pin Temuan */}
       <div
         role="tabpanel"
-        aria-labelledby="tab-pins"
-        hidden={activeTab !== "pins"}
+        aria-labelledby="inspector-tab-pins"
+        hidden={activeMode !== "pins"}
       >
         <div className={styles.panelBox}>
           {hasBefore ? (
@@ -199,7 +204,7 @@ export default function VisualInspector({
             <div className={styles.emptyNotice}>
               <p>
                 Tangkapan layar awal belum tersedia untuk halaman ini. Gunakan
-                daftar temuan di bawah untuk meninjau setiap elemen.
+                tab Daftar Temuan untuk meninjau setiap elemen.
               </p>
             </div>
           )}
@@ -221,7 +226,7 @@ export default function VisualInspector({
                   className="btn btn-secondary"
                   onClick={() => onJumpToIssue(selectedIssue.id)}
                 >
-                  Lihat rincian temuan
+                  Lihat detail temuan
                 </button>
               )}
             </div>
@@ -229,17 +234,19 @@ export default function VisualInspector({
         </div>
       </div>
 
-      {/* Panel 2: Alur Fokus Keyboard */}
+      {/* Mode 2: Alur Fokus Keyboard */}
       <div
         role="tabpanel"
-        aria-labelledby="tab-focus"
-        hidden={activeTab !== "focus"}
+        aria-labelledby="inspector-tab-focus"
+        hidden={activeMode !== "focus"}
       >
         <div className={styles.panelBox}>
           <div className={styles.focusSummaryRow}>
-            <span>Total titik Tab diuji: <strong>{tabStops.length}</strong></span>
+            <span>
+              Total titik Tab: <strong>{tabStops.length}</strong>
+            </span>
             <span className={focusFlags.obscuredCount > 0 ? styles.flagWarn : styles.flagOk}>
-              Tertutup elemen lengket (WCAG 2.4.11):{" "}
+              Tertutup elemen (WCAG 2.4.11):{" "}
               <strong>{focusFlags.obscuredCount}</strong>
             </span>
             <span className={focusFlags.noFocusCount > 0 ? styles.flagWarn : styles.flagOk}>
@@ -304,7 +311,12 @@ export default function VisualInspector({
           )}
 
           {tabStops.length > 0 && (
-            <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Daftar urutan fokus keyboard">
+            <div
+              className={styles.tableWrap}
+              tabIndex={0}
+              role="region"
+              aria-label="Daftar urutan fokus keyboard"
+            >
               <table className={styles.focusTable}>
                 <thead>
                   <tr>
@@ -341,11 +353,11 @@ export default function VisualInspector({
         </div>
       </div>
 
-      {/* Panel 3: Perbandingan Sebelum & Sesudah */}
+      {/* Mode 3: Slider Sebelum & Sesudah */}
       <div
         role="tabpanel"
-        aria-labelledby="tab-compare"
-        hidden={activeTab !== "compare"}
+        aria-labelledby="inspector-tab-compare"
+        hidden={activeMode !== "compare"}
       >
         <div className={styles.panelBox}>
           {hasBefore && hasAfter ? (

@@ -34,6 +34,7 @@ const telemetryPanel = read("src/components/result/LiveTelemetryPanel.tsx");
 const scoreOverview = read("src/components/result/ScoreOverview.tsx");
 const visualInspector = read("src/components/result/VisualInspector.tsx");
 const issueExplorer = read("src/components/result/IssueExplorer.tsx");
+const webReaderPanel = read("src/components/result/WebReaderPanel.tsx");
 const resultWorkspace = read("src/components/result/ResultWorkspace.tsx");
 const packageJson = JSON.parse(read("package.json"));
 
@@ -80,7 +81,7 @@ test("refresh resume keeps the secret out of the URL", () => {
 });
 
 test("live telemetry is polled, cancellable, and renders progressbar + early preview", () => {
-  assert.match(useAuditJobFile, /setTimeout\(poll,\s*1000\)/);
+  assert.match(useAuditJobFile, /setTimeout\(poll,\s*800\)/);
   assert.match(useAuditJobFile, /loadResult/);
   assert.match(resultPage, /aria-live="polite"/);
   assert.match(resultPage, /Gunakan hasil tersimpan/);
@@ -89,31 +90,37 @@ test("live telemetry is polled, cancellable, and renders progressbar + early pre
   assert.match(telemetryPanel, /role="progressbar"/);
   assert.match(telemetryPanel, /aria-valuenow/);
   assert.match(telemetryPanel, /job\.previewUrl/);
+  assert.match(telemetryPanel, /headingRef/);
 });
 
-test("source HTML is never injected and Wave 1 exports + inspector tabs are present", () => {
+test("source HTML is never injected and Wave 1 exports + inspector/reader tabs are present", () => {
   const srcFiles = collectFiles(path.join(rootDir, "src"), [".ts", ".tsx"]);
   for (const file of srcFiles) {
     const text = fs.readFileSync(file, "utf8");
     assert.doesNotMatch(text, /dangerouslySetInnerHTML/, `Found dangerouslySetInnerHTML in ${file}`);
   }
 
-  assert.match(resultWorkspace, /Buka versi ramah akses/);
-  assert.match(resultWorkspace, /Lihat halaman setelah perbaikan/);
+  assert.match(resultWorkspace, /Buka Web Reader/);
+  assert.match(resultWorkspace, /Lihat Halaman Diperbaiki/);
   assert.match(resultWorkspace, /Unduh laporan PDF/);
   assert.match(resultWorkspace, /Export JSON/);
   assert.match(resultWorkspace, /Export CSV/);
   assert.match(resultWorkspace, /\(buka di tab baru\)/);
+  assert.match(resultWorkspace, /role="tablist"/);
 
-  assert.match(scoreOverview, /Skor Aksesibilitas/);
+  assert.match(scoreOverview, /Skor/);
   assert.match(scoreOverview, /POUR/);
   assert.match(visualInspector, /role="tablist"/);
   assert.match(visualInspector, /Pin Temuan/);
   assert.match(visualInspector, /Alur Fokus Keyboard/);
   assert.match(visualInspector, /WCAG 2\.4\.7/);
   assert.match(visualInspector, /WCAG 2\.4\.11/);
+  assert.match(issueExplorer, /DEFAULT_VISIBLE_COUNT\s*=\s*8/);
   assert.match(issueExplorer, /Salin Perbaikan/);
   assert.match(issueExplorer, /aria-live="polite"/);
+  assert.match(webReaderPanel, /DOMParser/);
+  assert.match(webReaderPanel, /speechSynthesis/);
+  assert.match(webReaderPanel, /showModal/);
 });
 
 test("instant demo route and static demo fixtures align with AuditResult contract", () => {

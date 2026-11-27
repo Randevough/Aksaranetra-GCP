@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AuditIssue,
   ImpactLevel,
@@ -8,6 +8,8 @@ import type {
   RegulationReference,
 } from "@/lib/audit-api";
 import styles from "./IssueExplorer.module.css";
+
+const DEFAULT_VISIBLE_COUNT = 8;
 
 const IMPACT_LABEL: Record<ImpactLevel, string> = {
   critical: "Kritis",
@@ -48,6 +50,10 @@ export default function IssueExplorer({
   const [pourFilter, setPourFilter] = useState<PourPrinciple | "all">("all");
   const [regFilter, setRegFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(() =>
+    selectedIssueId ? { [selectedIssueId]: true } : {},
+  );
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyAnnouncement, setCopyAnnouncement] = useState("");
 
@@ -77,6 +83,19 @@ export default function IssueExplorer({
     });
   }, [issues, pourFilter, query, regFilter, severityFilter, statusFilter]);
 
+  useEffect(() => {
+    if (!selectedIssueId) return;
+    queueMicrotask(() => {
+      setExpandedIds((prev) =>
+        prev[selectedIssueId] ? prev : { ...prev, [selectedIssueId]: true },
+      );
+      const idx = filtered.findIndex((item) => item.id === selectedIssueId);
+      if (idx >= DEFAULT_VISIBLE_COUNT) {
+        setShowAll(true);
+      }
+    });
+  }, [filtered, selectedIssueId]);
+
   const hasActiveFilter =
     severityFilter !== "all" ||
     statusFilter !== "all" ||
@@ -90,6 +109,10 @@ export default function IssueExplorer({
     setPourFilter("all");
     setRegFilter("all");
     setQuery("");
+  };
+
+  const toggleIssue = (issueId: string) => {
+    setExpandedIds((prev) => ({ ...prev, [issueId]: !prev[issueId] }));
   };
 
   const handleCopy = async (issue: AuditIssue) => {
@@ -111,29 +134,23 @@ export default function IssueExplorer({
   };
 
   if (issues.length === 0) {
-    return null;
+    return (
+      <div className={styles.emptyFilter}>
+        <p>Tidak ada temuan tercatat pada pemeriksaan ini.</p>
+      </div>
+    );
   }
+
+  const visibleIssues = showAll
+    ? filtered
+    : filtered.slice(0, DEFAULT_VISIBLE_COUNT);
 
   return (
     <section
       id="issue-explorer"
       className={styles.section}
-      aria-labelledby="issue-explorer-title"
+      aria-label="Daftar temuan per elemen"
     >
-      <div className={styles.headerRow}>
-        <div>
-          <h2 id="issue-explorer-title">Daftar Temuan Per Elemen</h2>
-          <p className={styles.lead}>
-            Rincian elemen bermasalah dalam Bahasa Indonesia beserta pemetaan WCAG,
-            regulasi, dan cuplikan kode perbaikan.
-          </p>
-        </div>
-        <p className={styles.resultCount} aria-live="polite">
-          Menampilkan <strong>{filtered.length}</strong> dari{" "}
-          <strong>{issues.length}</strong> temuan
-        </p>
-      </div>
-
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {copyAnnouncement}
       </p>
@@ -225,17 +242,23 @@ export default function IssueExplorer({
           </div>
         </div>
 
-        {hasActiveFilter && (
-          <div className={styles.filterActions}>
+        <div className={styles.filterBarFooter}>
+          <p className={styles.resultCount} aria-live="polite">
+            Menampilkan <strong>{visibleIssues.length}</strong> dari{" "}
+            <strong>{filtered.length}</strong> temuan
+            {filtered.length !== issues.length ? ` (total ${issues.length})` : ""}
+          </p>
+
+          {hasActiveFilter && (
             <button
               type="button"
-              className="btn btn-secondary"
+              className={styles.resetButton}
               onClick={resetFilters}
             >
               Atur ulang filter
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </search>
 
       {filtered.length === 0 ? (
@@ -250,19 +273,28 @@ export default function IssueExplorer({
           </button>
         </div>
       ) : (
-        <ul className={styles.issueList}>
-          {filtered.map((issue) => {
-            const isSelected = selectedIssueId === issue.id;
-            return (
-              <li
-                key={issue.id}
-                id={`issue-card-${issue.id}`}
-                className={`${styles.issueCard} ${
-                  isSelected ? styles.issueSelected : ""
-                }`}
-              >
-                <div className={styles.cardTop}>
-                  <div className={styles.badges}>
+        <>
+          <ul className={styles.accordionList}>
+            {visibleIssues.map((issue) => {
+              const isSelected = selectedIssueId === issue.id;
+              const isExpanded = Boolean(expandedIds[issue.id]);
+              const panelId = `issue-panel-${issue.id}`;
+
+              return (
+                <li
+                  key={issue.id}
+                  id={`issue-card-${issue.id}`}
+                  className={`${styles.accordionItem} ${
+                    isSelected ? styles.issueSelected : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-controls={panelId}
+                    className={styles.accordionTrigger}
+                    onClick={() => toggleIssue(issue.id)}
+                  >
                     <span
                       className={`${styles.impactBadge} ${
                         styles[`impact_${issue.impact}`]
@@ -270,6 +302,8 @@ export default function IssueExplorer({
                     >
                       {IMPACT_LABEL[issue.impact]}
                     </span>
+                    <span className={styles.rowTitle}>{issue.titleId}</span>
+                    <code className={styles.rowSelector}>{issue.selector}</code>
                     <span
                       className={`${styles.statusBadge} ${
                         styles[`status_${issue.status}`]
@@ -277,78 +311,102 @@ export default function IssueExplorer({
                     >
                       {STATUS_LABEL[issue.status]}
                     </span>
-                    <span className={styles.pourBadge}>
-                      {POUR_LABEL[issue.pour]}
+                    <span
+                      className={`${styles.chevron} ${
+                        isExpanded ? styles.chevronOpen : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ▾
                     </span>
-                    <code className={styles.ruleCode}>{issue.ruleId}</code>
-                  </div>
-
-                  <div className={styles.scGroup}>
-                    {issue.wcagSc.map((sc) => (
-                      <span key={sc} className={styles.scChip}>
-                        WCAG {sc}
-                      </span>
-                    ))}
-                    {issue.regulations.map((reg) => (
-                      <span key={reg} className={styles.regChip}>
-                        {reg}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <h3 className={styles.issueTitle}>{issue.titleId}</h3>
-                <p className={styles.issueDesc}>{issue.descriptionId}</p>
-                <p className={styles.issueHelp}>
-                  <strong>Saran perbaikan:</strong> {issue.helpId}
-                </p>
-
-                <div className={styles.selectorRow}>
-                  <span>Selektor:</span>
-                  <code>{issue.selector}</code>
-                </div>
-
-                {(issue.htmlBefore || issue.htmlAfter) && (
-                  <div className={styles.diffGrid}>
-                    {issue.htmlBefore && (
-                      <div className={styles.codeBlock}>
-                        <span className={styles.codeLabelBefore}>Sebelum</span>
-                        <pre>
-                          <code>{issue.htmlBefore}</code>
-                        </pre>
-                      </div>
-                    )}
-                    <div className={styles.codeBlock}>
-                      <span className={styles.codeLabelAfter}>
-                        {issue.htmlAfter ? "Sesudah (Perbaikan)" : "Perlu Tinjauan Manual"}
-                      </span>
-                      <pre>
-                        <code>
-                          {issue.htmlAfter ??
-                            "Tidak diubah otomatis untuk mencegah deskripsi keliru."}
-                        </code>
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                <div className={styles.cardFooter}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => void handleCopy(issue)}
-                  >
-                    {copiedId === issue.id
-                      ? "Tersalin"
-                      : issue.htmlAfter
-                        ? "Salin Perbaikan"
-                        : "Salin Panduan & Selektor"}
                   </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+
+                  {isExpanded && (
+                    <div id={panelId} className={styles.accordionBody}>
+                      <div className={styles.metaTags}>
+                        <span className={styles.pourBadge}>
+                          {POUR_LABEL[issue.pour]}
+                        </span>
+                        <code className={styles.ruleCode}>{issue.ruleId}</code>
+                        {issue.wcagSc.map((sc) => (
+                          <span key={sc} className={styles.scChip}>
+                            WCAG {sc}
+                          </span>
+                        ))}
+                        {issue.regulations.map((reg) => (
+                          <span key={reg} className={styles.regChip}>
+                            {reg}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p className={styles.issueDesc}>{issue.descriptionId}</p>
+                      <p className={styles.issueHelp}>
+                        <strong>Saran perbaikan:</strong> {issue.helpId}
+                      </p>
+
+                      {(issue.htmlBefore || issue.htmlAfter) && (
+                        <div className={styles.diffGrid}>
+                          {issue.htmlBefore && (
+                            <div className={styles.codeBlock}>
+                              <span className={styles.codeLabelBefore}>
+                                Sebelum
+                              </span>
+                              <pre>
+                                <code>{issue.htmlBefore}</code>
+                              </pre>
+                            </div>
+                          )}
+                          <div className={styles.codeBlock}>
+                            <span className={styles.codeLabelAfter}>
+                              {issue.htmlAfter
+                                ? "Sesudah (Perbaikan)"
+                                : "Perlu Tinjauan Manual"}
+                            </span>
+                            <pre>
+                              <code>
+                                {issue.htmlAfter ??
+                                  "Tidak diubah otomatis untuk mencegah deskripsi keliru."}
+                              </code>
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={styles.cardFooter}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => void handleCopy(issue)}
+                        >
+                          {copiedId === issue.id
+                            ? "Tersalin"
+                            : issue.htmlAfter
+                              ? "Salin Perbaikan"
+                              : "Salin Panduan & Selektor"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          {filtered.length > DEFAULT_VISIBLE_COUNT && (
+            <div className={styles.showAllRow}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowAll((prev) => !prev)}
+              >
+                {showAll
+                  ? `Tampilkan ${DEFAULT_VISIBLE_COUNT} temuan`
+                  : `Tampilkan semua (${filtered.length})`}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
