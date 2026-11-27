@@ -110,3 +110,56 @@ export function attachCardLinks(blocks = []) {
     return href ? { ...rest, href } : rest;
   });
 }
+
+function normalizeTableRow(row = []) {
+  return (Array.isArray(row) ? row : [])
+    .map((cell) => String(cell ?? "").replace(/\s+/g, " ").trim());
+}
+
+/**
+ * Normalizes and validates rich reader block shapes (table, blockquote, code, figcaption)
+ * before HTML rendering. Pure and DOM-free.
+ */
+export function normalizeRichBlock(block) {
+  if (!block || typeof block !== "object") return null;
+
+  if (block.type === "blockquote") {
+    const text = String(block.text ?? "").trim();
+    if (!text) return null;
+    const cite = String(block.cite ?? "").trim() || null;
+    return { type: "blockquote", text, ...(cite ? { cite } : {}) };
+  }
+
+  if (block.type === "code") {
+    const text = String(block.text ?? "").replace(/\r\n/g, "\n");
+    if (!text.trim()) return null;
+    const language = String(block.language ?? "").trim() || null;
+    return { type: "code", text, ...(language ? { language } : {}) };
+  }
+
+  if (block.type === "figcaption") {
+    const text = String(block.text ?? "").trim();
+    return text ? { type: "figcaption", text } : null;
+  }
+
+  if (block.type === "table") {
+    const caption = String(block.caption ?? "").trim() || null;
+    const headers = normalizeTableRow(block.headers);
+    const rows = (Array.isArray(block.rows) ? block.rows : [])
+      .map(normalizeTableRow)
+      .filter((row) => row.some(Boolean));
+
+    const hasHeaders = headers.some(Boolean);
+    if (!hasHeaders && rows.length === 0) return null;
+
+    return {
+      type: "table",
+      ...(caption ? { caption } : {}),
+      headers: hasHeaders ? headers : [],
+      rows,
+    };
+  }
+
+  return block;
+}
+

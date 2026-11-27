@@ -100,6 +100,12 @@ export function createSnapshot({
   patchedPage = null,
   readerView = null,
   origin = "catalog",
+  enginesUsed,
+  mobileAudit,
+  pdfAudit,
+  detectors,
+  multiPage,
+  clusters,
 }) {
   if (!report?.page?.requestedUrl) {
     throw new Error("Snapshot butuh report dengan page.requestedUrl.");
@@ -111,6 +117,13 @@ export function createSnapshot({
   const tabStops = Array.isArray(report.tabStops)
     ? report.tabStops.slice(0, 40)
     : [];
+
+  const resolvedEnginesUsed = enginesUsed ?? report.enginesUsed;
+  const resolvedMobileAudit = mobileAudit ?? report.mobileAudit;
+  const resolvedPdfAudit = pdfAudit ?? report.pdfAudit;
+  const resolvedDetectors = detectors ?? report.detectors;
+  const resolvedMultiPage = multiPage ?? report.multiPage;
+  const resolvedClusters = clusters ?? report.clusters;
 
   return {
     formatVersion: SNAPSHOT_FORMAT_VERSION,
@@ -164,6 +177,13 @@ export function createSnapshot({
 
     readiness,
     tabStops,
+
+    ...(resolvedEnginesUsed !== undefined ? { enginesUsed: resolvedEnginesUsed } : {}),
+    ...(resolvedMobileAudit !== undefined ? { mobileAudit: resolvedMobileAudit } : {}),
+    ...(resolvedPdfAudit !== undefined ? { pdfAudit: resolvedPdfAudit } : {}),
+    ...(resolvedDetectors !== undefined ? { detectors: resolvedDetectors } : {}),
+    ...(resolvedMultiPage !== undefined ? { multiPage: resolvedMultiPage } : {}),
+    ...(resolvedClusters !== undefined ? { clusters: resolvedClusters } : {}),
 
     files: { ...FILE_NAMES },
   };

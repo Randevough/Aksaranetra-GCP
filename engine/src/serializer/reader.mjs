@@ -12,7 +12,7 @@
  */
 
 import { absolutizeUrl, escapeHtml } from "./sanitize.mjs";
-import { dedupeHeadings } from "./blocks.mjs";
+import { dedupeHeadings, normalizeRichBlock } from "./blocks.mjs";
 
 /**
  * Warna teks dipilih supaya rasio kontrasnya melewati ambang AAA, yaitu 7:1
@@ -101,6 +101,71 @@ li { margin-bottom: 0.5em; }
  */
 p, li, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
 img, table, pre { max-width: 100%; }
+blockquote {
+  border-left: 4px solid ${READER_TOKENS.rule};
+  margin: 1.5rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: ${READER_TOKENS.text};
+}
+blockquote p:last-child { margin-bottom: 0; }
+blockquote cite {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: ${READER_TOKENS.muted};
+  font-style: italic;
+}
+pre {
+  background: #f5f5f5;
+  color: ${READER_TOKENS.text};
+  border: 1px solid ${READER_TOKENS.rule};
+  border-radius: 0.375rem;
+  padding: 0.875rem 1rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+figure { margin: 1.5rem 0; }
+figcaption, .keterangan-gambar {
+  color: ${READER_TOKENS.muted};
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: ${READER_TOKENS.text};
+}
+th, td {
+  border: 1px solid ${READER_TOKENS.rule};
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+th {
+  background: #f5f5f5;
+  color: ${READER_TOKENS.text};
+  font-weight: 600;
+}
 `.trim();
 
 /**
@@ -128,30 +193,33 @@ export function normalizeOutline(blocks = []) {
 function renderBlock(block, baseUrl) {
   if (!block) return "";
 
-  switch (block.type) {
+  const normalized = normalizeRichBlock(block);
+  if (!normalized) return "";
+
+  switch (normalized.type) {
     case "heading": {
-      const text = escapeHtml(block.text);
+      const text = escapeHtml(normalized.text);
       if (!text.trim()) return "";
 
       // Judul berita di situs pemerintah hampir selalu berupa tautan. Kalau
       // tautannya dibuang, pengguna bisa membaca daftar judul tetapi tidak
       // bisa membuka satu berita pun, dan reader view jadi jalan buntu.
-      const href = block.href ? absolutizeUrl(block.href, baseUrl) : null;
+      const href = normalized.href ? absolutizeUrl(normalized.href, baseUrl) : null;
       const inner = href
         ? `<a href="${escapeHtml(href)}">${text}</a>`
         : text;
 
-      return `<h${block.level}>${inner}</h${block.level}>`;
+      return `<h${normalized.level}>${inner}</h${normalized.level}>`;
     }
 
     case "paragraph": {
-      const text = escapeHtml(block.text);
+      const text = escapeHtml(normalized.text);
       return text.trim() ? `<p>${text}</p>` : "";
     }
 
     case "list": {
-      const tag = block.ordered ? "ol" : "ul";
-      const items = (block.items || [])
+      const tag = normalized.ordered ? "ol" : "ul";
+      const items = (normalized.items || [])
         .filter((item) => String(item ?? "").trim())
         .map((item) => `<li>${escapeHtml(item)}</li>`)
         .join("");
@@ -159,21 +227,59 @@ function renderBlock(block, baseUrl) {
     }
 
     case "image": {
-      const source = absolutizeUrl(block.src, baseUrl);
+      const source = absolutizeUrl(normalized.src, baseUrl);
       if (!source) return "";
-      const alt = String(block.alt ?? "").trim();
+      const alt = String(normalized.alt ?? "").trim();
 
       // Gambar tanpa alt disembunyikan dari pembaca layar. Kita tidak
       // mengarang deskripsi, dan alt kosong lebih baik daripada nama berkas
       // yang dibacakan huruf per huruf.
-      return alt
+      const imgTag = alt
         ? `<img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}">`
         : `<img src="${escapeHtml(source)}" alt="" role="presentation">`;
+      const caption = String(normalized.caption ?? "").trim();
+      return caption
+        ? `<figure>${imgTag}<figcaption>${escapeHtml(caption)}</figcaption></figure>`
+        : imgTag;
+    }
+
+    case "figcaption": {
+      const text = escapeHtml(normalized.text);
+      return text.trim() ? `<p class="keterangan-gambar">${text}</p>` : "";
+    }
+
+    case "blockquote": {
+      const text = escapeHtml(normalized.text);
+      if (!text.trim()) return "";
+      const cite = normalized.cite ? `<cite>${escapeHtml(normalized.cite)}</cite>` : "";
+      return `<blockquote><p>${text}</p>${cite}</blockquote>`;
+    }
+
+    case "code": {
+      const text = escapeHtml(normalized.text);
+      return text.trim() ? `<pre><code>${text}</code></pre>` : "";
+    }
+
+    case "table": {
+      const caption = normalized.caption ? `<caption>${escapeHtml(normalized.caption)}</caption>` : "";
+      const label = escapeHtml(normalized.caption || "Tabel data");
+      const headers = (normalized.headers || []).some(Boolean)
+        ? `<thead><tr>${normalized.headers
+            .map((cell) => (cell ? `<th scope="col">${escapeHtml(cell)}</th>` : "<td></td>"))
+            .join("")}</tr></thead>`
+        : "";
+      const rows = (normalized.rows || []).length
+        ? `<tbody>${normalized.rows
+            .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+            .join("")}</tbody>`
+        : "";
+      if (!headers && !rows) return "";
+      return `<div class="table-wrap" tabindex="0" role="region" aria-label="${label}"><table>${caption}${headers}${rows}</table></div>`;
     }
 
     case "link": {
-      const href = absolutizeUrl(block.href, baseUrl);
-      const text = escapeHtml(block.text);
+      const href = absolutizeUrl(normalized.href, baseUrl);
+      const text = escapeHtml(normalized.text);
       if (!href || !text.trim()) return "";
       return `<p><a href="${escapeHtml(href)}">${text}</a></p>`;
     }

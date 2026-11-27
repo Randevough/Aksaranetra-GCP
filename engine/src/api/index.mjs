@@ -38,6 +38,14 @@ import {
 } from "../shared/retry.mjs";
 import { createTelemetryTracker } from "../shared/telemetry.mjs";
 import { buildComplianceReport } from "../compliance/index.mjs";
+import { auditDiscoveredPdfs } from "../pdf/index.mjs";
+import {
+  buildIssueClusters,
+  buildMultiPageSummary,
+  crawlSecondaryPages,
+  discoverPageLinks,
+  normalizeCrawlOptions,
+} from "./crawl.mjs";
 
 /**
  * Nomor langkah. Dipakai supaya laporan kegagalan menyebut posisi yang tepat,
@@ -288,6 +296,8 @@ const DEFAULT_DEPS = Object.freeze({
   auditPage: runAudit,
   serializePage,
   writeSnapshot,
+  discoverLinks: discoverPageLinks,
+  auditDiscoveredPdfs,
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 });
@@ -310,11 +320,14 @@ export async function auditUrl({
   origin = "manual",
   outputDir = null,
   id = null,
+  mode = "single",
+  maxPages = 1,
   deps = {},
   history = defaultHistory,
   signal = null,
   onProgress = null,
 } = {}) {
+  const crawlConfig = normalizeCrawlOptions({ mode, maxPages });
   const use = { ...DEFAULT_DEPS, ...deps };
   const telemetry = createTelemetryTracker();
   const progress = async (value, stage, extra = {}) => {
@@ -459,16 +472,82 @@ export async function auditUrl({
         return failure(STAGES.serialize, "serialize-failed", errorDetail(error));
       }
 
+      const discovered = await use.discoverLinks(page, target).catch(() => ({
+        internalUrls: [],
+        pdfUrls: [],
+      }));
+      const discoveredPdfUrls = [
+        ...new Set([
+          ...(audited.discoveredPdfUrls || []),
+          ...(audited.report?.discoveredPdfUrls || []),
+          ...(discovered?.pdfUrls || []),
+        ]),
+      ];
+
       let snapshot;
       try {
         telemetry.setStep("report", "running");
-        await progress(86, "Menyusun laporan audit");
         const compliance = buildComplianceReport({
           report: audited.report,
           wcagBefore: audited.artifacts?.wcagBefore,
           wcagAfter: audited.artifacts?.wcagAfter,
           issueBoundingBoxes: audited.report?.issueBoundingBoxes,
         });
+
+        const primaryPageUrl = audited.report?.page?.finalUrl || target;
+        const crawledPages = [
+          {
+            url: primaryPageUrl,
+            title: audited.report?.page?.title || "",
+            beforeScore: compliance.score.beforeScore,
+            afterScore: compliance.score.afterScore,
+            issuesCount: compliance.issues.length,
+            status: "completed",
+            error: null,
+          },
+        ];
+        const completedAudits = [
+          { url: primaryPageUrl, issues: compliance.issues },
+        ];
+
+        if (crawlConfig.mode === "multi" && crawlConfig.requestedMaxPages > 1) {
+          const secondary = await crawlSecondaryPages({
+            page,
+            primaryHostname: hostname,
+            candidateUrls: discovered?.internalUrls || [],
+            maxSecondary: crawlConfig.requestedMaxPages - 1,
+            robotsResponse,
+            use,
+            signal,
+            history,
+            nextAllowedDelay,
+            recordRequest,
+            onProgress,
+            telemetry,
+          });
+          crawledPages.push(...secondary.pages);
+          completedAudits.push(...secondary.completedAudits);
+          for (const pdf of secondary.collectedPdfUrls || []) {
+            if (pdf && !discoveredPdfUrls.includes(pdf)) {
+              discoveredPdfUrls.push(pdf);
+            }
+          }
+        }
+
+        const multiPage = buildMultiPageSummary({
+          mode: crawlConfig.mode,
+          requestedMaxPages: crawlConfig.requestedMaxPages,
+          pages: crawledPages,
+        });
+        const clusters = buildIssueClusters(completedAudits);
+
+        await progress(86, "Menyusun laporan audit");
+
+        const enginesUsed =
+          audited.report?.enginesUsed ?? audited.enginesUsed ?? compliance.enginesUsed;
+        const mobileAudit = audited.report?.mobileAudit ?? audited.mobileAudit;
+        const detectors = audited.report?.detectors ?? audited.detectors;
+
         snapshot = {
           ...createSnapshot({
             id: siteId,
@@ -476,6 +555,11 @@ export async function auditUrl({
             patchedPage: views.patchedPage,
             readerView: views.readerView,
             origin,
+            enginesUsed,
+            mobileAudit,
+            detectors,
+            multiPage,
+            clusters,
           }),
           guard,
           readerGuarantees: guaranteesForSnapshot(),
@@ -486,6 +570,7 @@ export async function auditUrl({
           issues: compliance.issues,
         };
       } catch (error) {
+        if (error?.name === "AbortError") throw error;
         telemetry.setStep("report", "warning", "snapshot-failed");
         return failure(STAGES.buildSnapshot, "snapshot-failed", errorDetail(error));
       }
@@ -508,13 +593,45 @@ export async function auditUrl({
         report: audited.report,
         artifacts: audited.artifacts,
         views,
+        discoveredPdfUrls,
       };
     }, { signal, hostResolverRules });
   } catch (error) {
+    if (error?.name === "AbortError") {
+      return failure(STAGES.openBrowser, "audit-failed", errorDetail(error));
+    }
     return failure(STAGES.openBrowser, "browser-failed", errorDetail(error));
   }
 
   if (!outcome?.ok) return outcome;
+
+  if (outcome.discoveredPdfUrls?.length > 0) {
+    await progress(89, "Mengaudit dokumen PDF tertaut");
+    try {
+      const pdfAudit = await use.auditDiscoveredPdfs({
+        pdfUrls: outcome.discoveredPdfUrls,
+        baseUrl: target,
+        signal,
+        deps: {
+          resolveHost: use.resolveHost,
+          ...(deps.fetchPdf ? { fetchPdf: deps.fetchPdf } : {}),
+          ...(deps.getDocument ? { getDocument: deps.getDocument } : {}),
+        },
+      });
+      outcome.snapshot.pdfAudit = pdfAudit;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return failure(STAGES.buildSnapshot, "audit-failed", errorDetail(error));
+      }
+      outcome.snapshot.pdfAudit = {
+        discoveredCount: outcome.discoveredPdfUrls.length,
+        auditedCount: 0,
+        scannedImageCount: 0,
+        untaggedCount: 0,
+        items: [],
+      };
+    }
+  }
 
   // Langkah 11. Menulis berkas, setelah browser ditutup.
   let files = null;
