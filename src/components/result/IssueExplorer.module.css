@@ -1,29 +1,29 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .filterBox {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--color-border);
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
 }
 
 .filterGrid {
   display: grid;
   grid-template-columns: minmax(200px, 1.4fr) repeat(4, minmax(125px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .filterField {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .filterField label {
@@ -35,7 +35,14 @@
 .filterField :global(.input) {
   min-height: 44px;
   padding: 8px 12px;
+  border-color: rgba(15, 23, 42, 0.16);
+  background: #ffffff;
   font-size: 14px;
+}
+
+.filterField :global(.input:focus-visible) {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 1px;
 }
 
 .filterBarFooter {
@@ -43,7 +50,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 4px;
 }
 
 .resultCount {
@@ -53,35 +61,46 @@
 
 .resultCount strong {
   color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
 }
 
 .resetButton {
-  min-height: 38px;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border-strong);
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
   color: var(--color-primary-dark);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    border-color var(--transition-cepat),
+    background-color var(--transition-cepat),
+    box-shadow var(--transition-cepat);
 }
 
 .resetButton:hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+
+.resetButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .emptyFilter {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 28px 20px;
-  border: 1px dashed var(--color-border-strong);
+  gap: 14px;
+  padding: 32px 22px;
+  border: 1px dashed rgba(15, 23, 42, 0.18);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: #f6f8fc;
   text-align: center;
   color: var(--color-text-muted);
 }
@@ -89,23 +108,32 @@
 .accordionList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
 .accordionItem {
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow:
+    var(--shadow-sm),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
   overflow: hidden;
+  transition: border-color var(--transition-cepat), box-shadow var(--transition-cepat);
+}
+
+.accordionItem:hover {
+  border-color: rgba(15, 23, 42, 0.16);
 }
 
 .issueSelected {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-soft);
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.14),
+    var(--shadow-sm);
 }
 
 .accordionTrigger {
@@ -114,19 +142,24 @@
   align-items: center;
   gap: 10px 12px;
   width: 100%;
-  min-height: 52px;
-  padding: 10px 14px;
+  min-height: 54px;
+  padding: 12px 16px;
   border: none;
   background: transparent;
   color: var(--color-heading);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition-cepat);
+  transition: background-color var(--transition-cepat);
 }
 
 .accordionTrigger:hover {
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
+}
+
+.accordionTrigger:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: -3px;
 }
 
 .rowTitle {
@@ -140,11 +173,11 @@
 
 .rowSelector {
   max-width: 24ch;
-  padding: 2px 7px;
-  border: 1px solid var(--color-border);
+  padding: 3px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
+  background: #f6f8fc;
+  color: var(--color-text);
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -155,8 +188,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   color: var(--color-text-muted);
   font-size: 14px;
   transition: transform var(--transition-cepat);
@@ -169,10 +202,10 @@
 .accordionBody {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 16px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  gap: 14px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
 }
 
 .metaTags {
@@ -184,27 +217,35 @@
 
 .impactBadge {
   padding: 3px 10px;
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  color: #ffffff;
   font-size: 11.5px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .impact_critical {
-  background: #b0284b;
+  background: #fff1f2;
+  border-color: rgba(159, 18, 57, 0.24);
+  color: #9f1239;
 }
 
 .impact_serious {
-  background: #c2410c;
+  background: #fff7ed;
+  border-color: rgba(154, 52, 18, 0.24);
+  color: #9a3412;
 }
 
 .impact_moderate {
-  background: #8a5c0b;
+  background: #fefce8;
+  border-color: rgba(133, 77, 14, 0.24);
+  color: #854d0e;
 }
 
 .impact_minor {
-  background: #1d4ed8;
+  background: #f1f5f9;
+  border-color: rgba(51, 65, 85, 0.24);
+  color: #334155;
 }
 
 .statusBadge {
@@ -217,46 +258,48 @@
 }
 
 .status_fixed {
-  border-color: var(--color-success-border);
-  background: var(--color-success-soft);
-  color: var(--color-success);
+  border-color: rgba(15, 118, 110, 0.24);
+  background: #f0fdfa;
+  color: #0f766e;
 }
 
 .status_review,
 .status_open {
-  border-color: var(--color-warning-border);
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
+  border-color: rgba(133, 77, 14, 0.24);
+  background: #fefce8;
+  color: #854d0e;
 }
 
 .status_skipped,
 .status_rolled-back {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
+  border-color: rgba(51, 65, 85, 0.22);
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .pourBadge {
-  padding: 2px 9px;
-  border: 1px solid var(--color-border-strong);
+  padding: 3px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
+  background: #ffffff;
   color: var(--color-heading);
   font-size: 12px;
   font-weight: 700;
 }
 
 .ruleCode {
-  padding: 2px 8px;
+  padding: 3px 9px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 6px;
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
   color: var(--color-primary-dark);
   font-size: 12px;
   font-weight: 700;
 }
 
 .scChip {
-  padding: 2px 8px;
+  padding: 3px 9px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 6px;
   background: var(--color-primary-soft);
   color: var(--color-primary-dark);
@@ -265,10 +308,10 @@
 }
 
 .regChip {
-  padding: 2px 8px;
-  border: 1px solid var(--color-border-strong);
+  padding: 3px 9px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 6px;
-  background: var(--color-surface);
+  background: #ffffff;
   color: var(--color-text);
   font-size: 11.5px;
   font-weight: 700;
@@ -277,74 +320,78 @@
 .issueDesc {
   color: var(--color-text);
   font-size: 14.5px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .issueHelp {
   color: var(--color-text);
   font-size: 14px;
-  padding: 10px 12px;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
+  line-height: 1.55;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: #f6f8fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .diffGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .codeBlock {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
 }
 
 .codeLabelBefore,
 .codeLabelAfter {
-  padding: 6px 10px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 800;
 }
 
 .codeLabelBefore {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  background: #fff1f2;
+  border-bottom: 1px solid rgba(159, 18, 57, 0.16);
+  color: #9f1239;
 }
 
 .codeLabelAfter {
-  background: var(--color-success-soft);
-  color: var(--color-success);
+  background: #f0fdfa;
+  border-bottom: 1px solid rgba(15, 118, 110, 0.16);
+  color: #0f766e;
 }
 
 .codeBlock pre {
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   overflow-x: auto;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--color-heading);
 }
 
 .cardFooter {
   display: flex;
   justify-content: flex-end;
+  padding-top: 2px;
 }
 
 .cardFooter :global(.btn) {
   min-height: 44px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 13.5px;
 }
 
 .showAllRow {
   display: flex;
   justify-content: center;
-  padding-top: 6px;
+  padding-top: 8px;
 }
 
 @media (max-width: 960px) {
@@ -366,6 +413,10 @@
 }
 
 @media (max-width: 560px) {
+  .filterBox {
+    padding: 16px;
+  }
+
   .filterGrid {
     grid-template-columns: 1fr;
   }
@@ -373,6 +424,11 @@
   .accordionTrigger {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .accordionBody {
+    padding: 14px;
   }
 
   .statusBadge {
@@ -381,6 +437,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .resetButton,
+  .accordionItem,
   .accordionTrigger,
   .chevron {
     transition: none;

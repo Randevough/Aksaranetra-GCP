@@ -1,6 +1,6 @@
 /*
   Halaman proses dan hasil pemeriksaan AksaraNetra.
-  Menggunakan token desain dari globals.css secara konsisten.
+  Menggunakan token desain dari globals.css dengan permukaan berlapis halus.
 */
 
 /* --- Kerangka untuk keadaan sementara --- */
@@ -13,32 +13,36 @@
   min-height: 100%;
   flex: 1;
   margin: 0 auto;
-  padding: clamp(36px, 6vw, 64px) 24px clamp(80px, 12vw, 140px);
+  padding: clamp(40px, 6vw, 72px) 24px clamp(80px, 12vw, 140px);
 }
 
 .centerCard {
   display: flex;
   align-items: center;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
   max-width: 560px;
-  padding: clamp(32px, 4vw, 48px);
-  border: 1px solid var(--color-border);
+  padding: clamp(32px, 4.5vw, 48px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-md);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow:
+    var(--shadow-md),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
   text-align: center;
 }
 
 .centerCard h1 {
   font-size: clamp(23px, 3vw, 30px);
+  letter-spacing: -0.018em;
 }
 
 .centerCard p {
   max-width: 48ch;
   color: var(--color-text-muted);
   font-size: 16px;
+  line-height: 1.6;
 }
 
 .centerCard :global(.btn) {
@@ -46,18 +50,25 @@
 }
 
 .errorCard {
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-soft);
+  border-color: rgba(159, 18, 57, 0.24);
+  background: linear-gradient(180deg, #fff5f6 0%, #fff1f2 100%);
+  box-shadow:
+    var(--shadow-sm),
+    0 1px 0 rgba(255, 255, 255, 0.75) inset;
 }
 
 .errorCard h1 {
-  color: var(--color-danger);
+  color: #9f1239;
+}
+
+.errorCard p {
+  color: #3f4451;
 }
 
 .spinner {
   width: 44px;
   height: 44px;
-  border: 4px solid rgba(37, 99, 235, 0.16);
+  border: 4px solid rgba(37, 99, 235, 0.14);
   border-top-color: var(--color-primary);
   border-right-color: var(--color-primary);
   border-radius: 50%;
@@ -98,11 +109,11 @@
 .resultContainer {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: clamp(20px, 3.5vw, 36px) 24px clamp(64px, 10vw, 110px);
+  padding: clamp(24px, 3.8vw, 40px) 24px clamp(64px, 10vw, 110px);
 }
 
 .demoSwitcher {
@@ -111,10 +122,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-  padding: 10px 16px;
-  border: 1px solid var(--color-border);
+  padding: 12px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow: var(--shadow-sm);
   font-size: 13.5px;
   font-weight: 700;
   color: var(--color-heading);
@@ -130,21 +142,28 @@
   display: inline-flex;
   align-items: center;
   min-height: 38px;
-  padding: 6px 14px;
-  border: 1px solid var(--color-border-strong);
+  padding: 6px 15px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
   color: var(--color-primary-dark);
   font-size: 13px;
   font-weight: 700;
   transition:
     border-color var(--transition-cepat),
-    background var(--transition-cepat);
+    background-color var(--transition-cepat),
+    box-shadow var(--transition-cepat);
 }
 
 .demoPillLink:hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+
+.demoPillLink:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 /* --- Compact Header + Action Bar --- */
@@ -152,18 +171,20 @@
 .compactHeader {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 24px;
-  border: 1px solid var(--color-border);
+  gap: 18px;
+  padding: 24px 26px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow:
+    var(--shadow-sm),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .headerMain {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .headerMetaRow {
@@ -176,13 +197,14 @@
 .statusPill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border: 1px solid var(--color-success-border);
+  padding: 4px 11px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
   border-radius: var(--radius-pill);
-  background: var(--color-success-soft);
-  color: var(--color-success);
+  background: #f0fdfa;
+  color: #0f766e;
   font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .timestamp {
@@ -193,6 +215,7 @@
 .compactHeader h1 {
   font-size: clamp(22px, 3vw, 30px);
   line-height: 1.2;
+  letter-spacing: -0.018em;
 }
 
 .source {
@@ -202,10 +225,20 @@
 }
 
 .source a {
-  color: var(--color-primary-bright);
+  color: var(--color-primary-mid);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.source a:hover {
+  color: var(--color-primary-dark);
+}
+
+.source a:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .disclaimerFootnote {
@@ -218,9 +251,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border);
+  gap: 12px 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .actionPrimaryGroup {
@@ -240,7 +273,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 10px 14px;
 }
 
 .exportGroup,
@@ -248,7 +281,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .exportLabel {
@@ -263,10 +296,10 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 6px 14px;
-  border: 1px solid var(--color-border-strong);
+  padding: 8px 15px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
   color: var(--color-heading);
   font: inherit;
   font-size: 13px;
@@ -275,13 +308,24 @@
   transition:
     background var(--transition-cepat),
     border-color var(--transition-cepat),
-    color var(--transition-cepat);
+    color var(--transition-cepat),
+    box-shadow var(--transition-cepat);
 }
 
 .compactActionBtn:hover {
-  background: var(--color-surface-sunken);
+  background: #eaf0fe;
   border-color: var(--color-primary);
   color: var(--color-primary-dark);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+
+.compactActionBtn:active {
+  transform: translateY(1px);
+}
+
+.compactActionBtn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 /* --- 3-Tab Main Workspace --- */
@@ -289,7 +333,7 @@
 .workspaceSection {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .workspaceTabList {
@@ -297,7 +341,10 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   gap: 6px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 4px 4px 0;
+  margin: -4px -4px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  scroll-snap-type: inline proximity;
   scrollbar-width: thin;
 }
 
@@ -314,19 +361,21 @@
   font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
+  scroll-snap-align: start;
   cursor: pointer;
   transition:
     color var(--transition-cepat),
-    background var(--transition-cepat);
+    background-color var(--transition-cepat);
 }
 
 .workspaceTabBtn:hover {
   color: var(--color-heading);
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
 }
 
 .workspaceTabBtn[aria-selected="true"] {
   color: var(--color-primary-dark);
+  background: linear-gradient(180deg, rgba(234, 240, 254, 0.45) 0%, rgba(255, 255, 255, 0.9) 100%);
 }
 
 .workspaceTabBtn[aria-selected="true"]::after {
@@ -334,6 +383,12 @@
   position: absolute;
   inset: auto 0 0;
   border-block-end: 3px solid var(--color-primary);
+}
+
+.workspaceTabBtn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: -3px;
+  border-radius: var(--radius-xs);
 }
 
 .workspacePanel {
@@ -345,11 +400,11 @@
 @media (max-width: 720px) {
   .shell {
     min-height: auto;
-    padding: 24px 16px 8px;
+    padding: 28px 16px 32px;
   }
 
   .centerCard {
-    padding: 22px;
+    padding: 24px 20px;
   }
 
   .choiceActions {
@@ -362,12 +417,12 @@
   }
 
   .resultContainer {
-    padding: 16px 16px 48px;
-    gap: 16px;
+    padding: 18px 16px 48px;
+    gap: 18px;
   }
 
   .compactHeader {
-    padding: 18px 16px;
+    padding: 20px 18px;
   }
 
   .actionBar {
@@ -417,5 +472,9 @@
   .compactActionBtn,
   .workspaceTabBtn {
     transition: none;
+  }
+
+  .compactActionBtn:active {
+    transform: none;
   }
 }

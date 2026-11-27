@@ -1,24 +1,26 @@
 .bento {
   display: grid;
   grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.55fr);
-  gap: 16px;
+  gap: 18px;
 }
 
 .leftCard,
 .rightCard {
   display: flex;
   flex-direction: column;
-  padding: 20px 22px;
-  border: 1px solid var(--color-border);
+  padding: 22px 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow:
+    var(--shadow-sm),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .leftCard {
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   text-align: center;
 }
 
@@ -45,34 +47,34 @@
 }
 
 .gradeGood {
-  background: var(--color-success-soft);
-  border-color: var(--color-success-border);
-  color: var(--color-success);
+  background: #f0fdfa;
+  border-color: rgba(15, 118, 110, 0.24);
+  color: #0f766e;
 }
 
 .gradeWarn {
-  background: var(--color-warning-soft);
-  border-color: var(--color-warning-border);
-  color: var(--color-warning);
+  background: #fefce8;
+  border-color: rgba(133, 77, 14, 0.24);
+  color: #854d0e;
 }
 
 .gradeDanger {
-  background: var(--color-danger-soft);
-  border-color: var(--color-danger-border);
-  color: var(--color-danger);
+  background: #fff1f2;
+  border-color: rgba(159, 18, 57, 0.24);
+  color: #9f1239;
 }
 
 .ringWrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ringSvgBox {
   position: relative;
-  width: 124px;
-  height: 124px;
+  width: 128px;
+  height: 128px;
   display: grid;
   place-items: center;
 }
@@ -85,7 +87,7 @@
 
 .ringTrack {
   fill: none;
-  stroke: var(--color-surface-sunken);
+  stroke: #edf1f7;
   stroke-width: 10;
 }
 
@@ -115,7 +117,7 @@
 }
 
 .ringScale {
-  margin-top: 2px;
+  margin-top: 3px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-muted);
@@ -125,10 +127,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  border: 1px solid var(--color-border);
+  padding: 5px 13px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
+  background: #f6f8fc;
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 700;
@@ -136,7 +138,7 @@
 }
 
 .deltaPill strong {
-  color: var(--color-success);
+  color: #0f766e;
   font-weight: 800;
 }
 
@@ -160,13 +162,13 @@
 
 .honestyNote {
   font-size: 12.5px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--color-text-muted);
   max-width: 30ch;
 }
 
 .rightCard {
-  gap: 16px;
+  gap: 18px;
   justify-content: space-between;
 }
 
@@ -176,20 +178,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .statItems {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 24px;
+  gap: 14px 28px;
 }
 
 .statItem {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .statLabel {
@@ -207,14 +209,14 @@
 }
 
 .statGood {
-  color: var(--color-success);
+  color: #0f766e;
 }
 
 .regressionClean,
 .regressionWarn {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
+  padding: 5px 13px;
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
   font-size: 12.5px;
@@ -222,22 +224,22 @@
 }
 
 .regressionClean {
-  background: var(--color-success-soft);
-  border-color: var(--color-success-border);
-  color: var(--color-success);
+  background: #f0fdfa;
+  border-color: rgba(15, 118, 110, 0.24);
+  color: #0f766e;
 }
 
 .regressionWarn {
-  background: var(--color-warning-soft);
-  border-color: var(--color-warning-border);
-  color: var(--color-warning);
+  background: #fefce8;
+  border-color: rgba(133, 77, 14, 0.24);
+  color: #854d0e;
 }
 
 .severityBlock,
 .pourBlock {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .blockHeader {
@@ -261,68 +263,78 @@
 
 .severityBar {
   display: flex;
+  gap: 2px;
   width: 100%;
   height: 10px;
   border-radius: var(--radius-pill);
   overflow: hidden;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
+  background: #f6f8fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .severitySegment {
   display: block;
+  min-width: 4px;
   height: 100%;
 }
 
 .sevCritical {
-  background: #b0284b;
+  background: #9f1239;
 }
 
 .sevSerious {
-  background: #c2410c;
+  background: #9a3412;
 }
 
 .sevModerate {
-  background: #8a5c0b;
+  background: #854d0e;
 }
 
 .sevMinor {
-  background: #2563eb;
+  background: #334155;
 }
 
 .severityChips {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .severityChip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 44px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border-strong);
+  padding: 7px 11px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: #f6f8fc;
   color: var(--color-heading);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
   transition:
-    background var(--transition-cepat),
-    border-color var(--transition-cepat);
+    background-color var(--transition-cepat),
+    border-color var(--transition-cepat),
+    box-shadow var(--transition-cepat);
 }
 
 .severityChip:hover {
-  background: var(--color-surface-sunken);
+  background: #ffffff;
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.severityChip:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .severityChipActive {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
   color: var(--color-primary-dark);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
 }
 
 .chipDot {
@@ -344,22 +356,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+.severityChipActive .chipCount {
+  color: var(--color-primary-dark);
+}
+
 .pourGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 16px;
+  gap: 10px 18px;
 }
 
 .pourItem {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .pourTop {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--color-text);
 }
 
@@ -370,17 +386,17 @@
 
 .pourTrack {
   width: 100%;
-  height: 7px;
+  height: 8px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
+  background: #f6f8fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   overflow: hidden;
 }
 
 .pourFill {
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-primary);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 .regRow {
@@ -388,8 +404,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  padding-top: 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .regRowLabel {
@@ -401,7 +417,7 @@
 .regPills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -411,11 +427,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border);
+  padding: 4px 11px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
-  color: var(--color-heading);
+  background: #f6f8fc;
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 700;
 }
@@ -436,13 +452,19 @@
 }
 
 @media (max-width: 560px) {
+  .leftCard,
+  .rightCard {
+    padding: 18px;
+  }
+
   .pourGrid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ringProgress {
+  .ringProgress,
+  .severityChip {
     transition: none;
   }
 }
