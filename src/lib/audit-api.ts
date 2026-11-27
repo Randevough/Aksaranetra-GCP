@@ -228,6 +228,7 @@ export type PublicErrorCode =
   | "RESULT_EXPIRED"
   | "AUDIT_NOT_FOUND"
   | "AUDIT_CANCELLED"
+  | "AUDIT_FAILED"
   | "NETWORK_ERROR"
   | "INTERNAL_ERROR";
 
@@ -313,6 +314,13 @@ const ERROR_COPY: Record<PublicErrorCode, PublicErrorCopy> = {
     actionLabel: "Mulai audit baru",
     actionHref: "/periksa",
   },
+  AUDIT_FAILED: {
+    title: "Halaman gagal dimuat",
+    message:
+      "Situs tujuan kehabisan waktu, menolak koneksi, atau gagal dimuat di tengah proses audit.",
+    actionLabel: "Coba lagi",
+    actionHref: "/periksa",
+  },
   NETWORK_ERROR: {
     title: "Tidak dapat terhubung ke layanan audit",
     message: "Periksa koneksi dan pastikan layanan backend sedang berjalan.",
@@ -335,6 +343,9 @@ const LEGACY_CODES: Record<string, PublicErrorCode> = {
   "internal-error": "INTERNAL_ERROR",
   "browser-failed": "AUDIT_RUNTIME_UNAVAILABLE",
   "audit-timeout": "TARGET_TIMEOUT",
+  "audit-failed": "AUDIT_FAILED",
+  "status-not-ok": "AUDIT_FAILED",
+  "bridge-failed": "AUDIT_FAILED",
   "robots-disallowed": "TARGET_BLOCKED_BY_ROBOTS",
   "robots-unavailable": "TARGET_BLOCKED_BY_ROBOTS",
   "robots-fetch-failed": "TARGET_UNREACHABLE",
@@ -366,8 +377,10 @@ export function presentAuditError(error: unknown): PublicErrorCopy & {
         ? (error as { code?: unknown }).code
         : undefined;
   const code =
-    typeof candidate === "string" && candidate in ERROR_COPY
-      ? (candidate as PublicErrorCode)
+    typeof candidate === "string"
+      ? candidate in ERROR_COPY
+        ? (candidate as PublicErrorCode)
+        : LEGACY_CODES[candidate] ?? "INTERNAL_ERROR"
       : "INTERNAL_ERROR";
   return { code, ...ERROR_COPY[code] };
 }

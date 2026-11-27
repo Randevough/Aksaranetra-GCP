@@ -6,6 +6,7 @@
  * ke disk. Penulisan hasil adalah urusan modul snapshot.
  */
 
+import { isIPv4, isIPv6 } from "node:net";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "playwright";
 
@@ -97,8 +98,19 @@ export function buildHostResolverRules({ hostname, addresses = [] } = {}) {
   if (!hostname || !Array.isArray(addresses) || addresses.length === 0) {
     return [];
   }
-  const primaryIp = addresses[0];
-  return [`--host-resolver-rules=MAP ${hostname} ${primaryIp}`];
+  const normalized = addresses
+    .filter((ip) => ip !== null && ip !== undefined)
+    .map((ip) => String(ip).trim())
+    .filter(Boolean);
+  const ipv4 = normalized.find((ip) => isIPv4(ip));
+  if (ipv4) {
+    return [`--host-resolver-rules=MAP ${hostname} ${ipv4}`];
+  }
+  const ipv6 = normalized.find((ip) => isIPv6(ip));
+  if (ipv6) {
+    return [`--host-resolver-rules=MAP ${hostname} [${ipv6}]`];
+  }
+  return [];
 }
 
 export async function withBrowser(

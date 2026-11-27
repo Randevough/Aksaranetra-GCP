@@ -909,7 +909,32 @@ test("builds host resolver rules for DNS rebinding protection", () => {
     "--host-resolver-rules=MAP contoh-instansi.go.id 103.10.0.1",
   );
 
+  // Dual-stack: prefer IPv4 over IPv6 when IPv6 appears first
+  assert.deepEqual(
+    buildHostResolverRules({
+      hostname: "ukmcoding.site",
+      addresses: ["2606:4700:3034::6815:1001", "104.21.16.1"],
+    }),
+    ["--host-resolver-rules=MAP ukmcoding.site 104.21.16.1"],
+  );
+
+  // IPv6-only: wrap in square brackets for Chromium host resolver rules
+  assert.deepEqual(
+    buildHostResolverRules({
+      hostname: "ipv6-only.example.test",
+      addresses: ["2606:4700:3034::6815:1001"],
+    }),
+    ["--host-resolver-rules=MAP ipv6-only.example.test [2606:4700:3034::6815:1001]"],
+  );
+
   assert.deepEqual(buildHostResolverRules({ hostname: "", addresses: [] }), []);
+  assert.deepEqual(
+    buildHostResolverRules({
+      hostname: "contoh-instansi.go.id",
+      addresses: ["not-an-ip", ""],
+    }),
+    [],
+  );
   assert.deepEqual(buildHostResolverRules(), []);
 });
 
