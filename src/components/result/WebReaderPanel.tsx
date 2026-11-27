@@ -1,8 +1,11 @@
 "use client";
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -22,9 +25,16 @@ function getTtsSupportedServerSnapshot() {
 type ThemeMode = "light" | "sepia" | "dark";
 type SpacingMode = "normal" | "relaxed";
 type WidthMode = "comfortable" | "wide";
+type SpeechLang = "id" | "en";
+type TtsState = "idle" | "playing" | "paused";
 
 const FONT_SIZES = [100, 115, 130, 145, 160] as const;
 const SPEEDS = [0.85, 1.0, 1.25, 1.5] as const;
+
+const SPEECH_LANG_TAGS: Record<SpeechLang, string> = {
+  id: "id-ID",
+  en: "en-US",
+};
 
 interface OutlineItem {
   id: string;
@@ -45,6 +55,196 @@ interface ParsedReaderDocument {
   speechBlocks: SpeechBlock[];
 }
 
+interface ReaderPlaybackContextValue {
+  ttsSupported: boolean;
+  ttsState: TtsState;
+  activeSpeechIdx: number | null;
+  onActivateBlock: (speechIdx: number) => void;
+}
+
+const ReaderPlaybackContext = createContext<ReaderPlaybackContextValue>({
+  ttsSupported: false,
+  ttsState: "idle",
+  activeSpeechIdx: null,
+  onActivateBlock: () => {},
+});
+
+function PlayIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M8 5.5v13l10-6.5-10-6.5Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <rect x="6" y="6" width="12" height="12" rx="1.5" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h10" />
+      <path d="M18 7h2" />
+      <circle cx="16" cy="7" r="2" />
+      <path d="M4 17h4" />
+      <path d="M12 17h8" />
+      <circle cx="10" cy="17" r="2" />
+    </svg>
+  );
+}
+
+function FullscreenIcon({ expanded }: { expanded: boolean }) {
+  return expanded ? (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 4v5H4" />
+      <path d="M15 4v5h5" />
+      <path d="M9 20v-5H4" />
+      <path d="M15 20v-5h5" />
+    </svg>
+  ) : (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 9V4h5" />
+      <path d="M20 9V4h-5" />
+      <path d="M4 15v5h5" />
+      <path d="M20 15v5h-5" />
+    </svg>
+  );
+}
+
+function BlockListenButton({
+  speechIdx,
+  previewText,
+}: {
+  speechIdx: number;
+  previewText: string;
+}) {
+  const { ttsSupported, ttsState, activeSpeechIdx, onActivateBlock } =
+    useContext(ReaderPlaybackContext);
+
+  if (!ttsSupported) return null;
+
+  const isCurrent = activeSpeechIdx === speechIdx;
+  const isPlayingCurrent = isCurrent && ttsState === "playing";
+  const isPausedCurrent = isCurrent && ttsState === "paused";
+  const shortSnippet =
+    previewText.length > 48
+      ? `${previewText.slice(0, 48).trim()}...`
+      : previewText;
+
+  const label = isPlayingCurrent
+    ? `Jeda pembacaan bagian: ${shortSnippet}`
+    : isPausedCurrent
+      ? `Lanjutkan pembacaan bagian: ${shortSnippet}`
+      : `Dengarkan mulai dari bagian ini: ${shortSnippet}`;
+
+  return (
+    <button
+      type="button"
+      className={`${styles.blockListenBtn} ${
+        isCurrent ? styles.blockListenBtnActive : ""
+      }`}
+      aria-label={label}
+      aria-pressed={isCurrent && ttsState !== "idle"}
+      onClick={() => onActivateBlock(speechIdx)}
+    >
+      {isPlayingCurrent ? <PauseIcon /> : <PlayIcon />}
+    </button>
+  );
+}
+
+function SpeechBlockNode({
+  speechIdx,
+  nodeId,
+  previewText,
+  children,
+}: {
+  speechIdx: number | null;
+  nodeId: string;
+  previewText: string;
+  children: ReactNode;
+}) {
+  const { ttsSupported, ttsState, activeSpeechIdx } =
+    useContext(ReaderPlaybackContext);
+  const isActive =
+    speechIdx !== null && activeSpeechIdx === speechIdx && ttsState !== "idle";
+
+  return (
+    <div
+      id={nodeId}
+      className={`${styles.speechBlock} ${
+        !ttsSupported || speechIdx === null ? styles.speechBlockNoTrigger : ""
+      } ${isActive ? styles.speakingActive : ""}`}
+    >
+      {speechIdx !== null && (
+        <BlockListenButton speechIdx={speechIdx} previewText={previewText} />
+      )}
+      <div className={styles.speechBlockContent}>{children}</div>
+    </div>
+  );
+}
+
 function isSafeUrl(raw: string | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
@@ -62,14 +262,37 @@ function isSafeUrl(raw: string | null): string | null {
   return null;
 }
 
+function matchesSpeechLang(
+  voice: SpeechSynthesisVoice,
+  lang: SpeechLang,
+): boolean {
+  const normalized = voice.lang.trim().toLowerCase().replace("_", "-");
+  return normalized === lang || normalized.startsWith(`${lang}-`);
+}
+
+function pickPreferredVoice(
+  langVoices: SpeechSynthesisVoice[],
+  lang: SpeechLang,
+  preferredUri: string,
+): SpeechSynthesisVoice | null {
+  if (langVoices.length === 0) return null;
+  if (preferredUri) {
+    const chosen = langVoices.find((v) => v.voiceURI === preferredUri);
+    if (chosen) return chosen;
+  }
+  const exactTag = lang === "id" ? "id-id" : "en-us";
+  return (
+    langVoices.find(
+      (v) => v.lang.trim().toLowerCase().replace("_", "-") === exactTag,
+    ) ??
+    langVoices.find((v) => v.default) ??
+    langVoices[0]
+  );
+}
+
 function parseReaderHtml(
   html: string,
   fallbackTitle: string,
-  renderNodeWrapper: (
-    speechIdx: number | null,
-    nodeId: string | undefined,
-    element: ReactNode,
-  ) => ReactNode,
 ): ParsedReaderDocument {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -180,9 +403,14 @@ function parseReaderHtml(
         }
       })();
       return (
-        <div key={nextKey()}>
-          {renderNodeWrapper(speechIdx, id, headingEl)}
-        </div>
+        <SpeechBlockNode
+          key={nextKey()}
+          speechIdx={speechIdx}
+          nodeId={id}
+          previewText={text}
+        >
+          {headingEl}
+        </SpeechBlockNode>
       );
     }
 
@@ -197,9 +425,14 @@ function parseReaderHtml(
           const blockId = `reader-b-${speechIdx}`;
           speechBlocks.push({ index: speechIdx, id: blockId, text });
           return (
-            <div key={nextKey()}>
-              {renderNodeWrapper(speechIdx, blockId, <p>{children}</p>)}
-            </div>
+            <SpeechBlockNode
+              key={nextKey()}
+              speechIdx={speechIdx}
+              nodeId={blockId}
+              previewText={text}
+            >
+              <p>{children}</p>
+            </SpeechBlockNode>
           );
         }
         return <p key={nextKey()}>{children}</p>;
@@ -213,13 +446,14 @@ function parseReaderHtml(
         speechBlocks.push({ index: speechIdx, id: blockId, text });
         const children = Array.from(el.childNodes).map(renderInline);
         return (
-          <div key={nextKey()}>
-            {renderNodeWrapper(
-              speechIdx,
-              blockId,
-              <blockquote>{children}</blockquote>,
-            )}
-          </div>
+          <SpeechBlockNode
+            key={nextKey()}
+            speechIdx={speechIdx}
+            nodeId={blockId}
+            previewText={text}
+          >
+            <blockquote>{children}</blockquote>
+          </SpeechBlockNode>
         );
       }
 
@@ -236,7 +470,13 @@ function parseReaderHtml(
             const children = Array.from(li.childNodes).map(renderInline);
             return (
               <li key={nextKey()}>
-                {renderNodeWrapper(speechIdx, blockId, <span>{children}</span>)}
+                <SpeechBlockNode
+                  speechIdx={speechIdx}
+                  nodeId={blockId}
+                  previewText={liText}
+                >
+                  <span>{children}</span>
+                </SpeechBlockNode>
               </li>
             );
           })
@@ -351,6 +591,11 @@ export default function WebReaderPanel({
   title?: string;
   active?: boolean;
 }) {
+  const settingsTrayId = useId();
+  const voiceSelectId = useId();
+  const dialogTitleId = useId();
+  const tocPanelId = useId();
+
   const [rawHtml, setRawHtml] = useState<string | null>(null);
   const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -361,6 +606,7 @@ export default function WebReaderPanel({
   const [spacing, setSpacing] = useState<SpacingMode>("normal");
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [widthMode, setWidthMode] = useState<WidthMode>("comfortable");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -370,9 +616,17 @@ export default function WebReaderPanel({
     getTtsSupportedServerSnapshot,
   );
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [ttsState, setTtsState] = useState<"idle" | "playing" | "paused">("idle");
+  const [speechLang, setSpeechLang] = useState<SpeechLang>("id");
+  const [selectedVoiceUris, setSelectedVoiceUris] = useState<
+    Record<SpeechLang, string>
+  >({
+    id: "",
+    en: "",
+  });
+  const [ttsState, setTtsState] = useState<TtsState>("idle");
   const [activeSpeechIdx, setActiveSpeechIdx] = useState<number | null>(null);
   const [speechRate, setSpeechRate] = useState<number>(1.0);
+  const [pausedNeedsRestart, setPausedNeedsRestart] = useState(false);
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const speechSessionRef = useRef(0);
@@ -436,6 +690,7 @@ export default function WebReaderPanel({
 
   const stopSpeech = useCallback(() => {
     speechSessionRef.current += 1;
+    setPausedNeedsRestart(false);
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -464,32 +719,37 @@ export default function WebReaderPanel({
 
   const parsedDoc = useMemo(() => {
     if (!rawHtml) return null;
-    return parseReaderHtml(rawHtml, title, (speechIdx, nodeId, element) => (
-      <div
-        id={nodeId}
-        className={`${styles.speechBlock} ${
-          speechIdx !== null && activeSpeechIdx === speechIdx
-            ? styles.speakingActive
-            : ""
-        }`}
-      >
-        {element}
-      </div>
-    ));
-  }, [activeSpeechIdx, rawHtml, title]);
+    return parseReaderHtml(rawHtml, title);
+  }, [rawHtml, title]);
 
-  const selectedVoice = useMemo(() => {
-    if (voices.length === 0) return null;
-    return (
-      voices.find((v) => v.lang.toLowerCase() === "id-id") ??
-      voices.find((v) => v.lang.toLowerCase().startsWith("id")) ??
-      voices.find((v) => v.default) ??
-      voices[0]
-    );
-  }, [voices]);
+  const groupedVoices = useMemo(
+    () => ({
+      id: voices.filter((v) => matchesSpeechLang(v, "id")),
+      en: voices.filter((v) => matchesSpeechLang(v, "en")),
+    }),
+    [voices],
+  );
+
+  const filteredVoices = groupedVoices[speechLang];
+  const activeVoice = useMemo(
+    () =>
+      pickPreferredVoice(
+        filteredVoices,
+        speechLang,
+        selectedVoiceUris[speechLang],
+      ),
+    [filteredVoices, speechLang, selectedVoiceUris],
+  );
 
   const speakFrom = useCallback(
-    (startIndex: number, rateOverride?: number) => {
+    (
+      startIndex: number,
+      overrides?: {
+        lang?: SpeechLang;
+        voice?: SpeechSynthesisVoice | null;
+        rate?: number;
+      },
+    ) => {
       if (
         !ttsSupported ||
         !parsedDoc ||
@@ -500,10 +760,16 @@ export default function WebReaderPanel({
       }
 
       const synth = window.speechSynthesis;
-      synth.cancel();
       const sessionId = ++speechSessionRef.current;
-      const rateToUse = rateOverride ?? speechRate;
+      setPausedNeedsRestart(false);
+      synth.cancel();
+
+      const langToUse = overrides?.lang ?? speechLang;
+      const voiceToUse =
+        overrides && "voice" in overrides ? overrides.voice : activeVoice;
+      const rateToUse = overrides?.rate ?? speechRate;
       const queue = parsedDoc.speechBlocks;
+      const safeStart = Math.max(0, Math.min(startIndex, queue.length - 1));
 
       const speakIndex = (idx: number) => {
         if (speechSessionRef.current !== sessionId) return;
@@ -515,8 +781,10 @@ export default function WebReaderPanel({
 
         const item = queue[idx];
         const utterance = new SpeechSynthesisUtterance(item.text);
-        utterance.lang = selectedVoice?.lang || "id-ID";
-        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.lang = voiceToUse?.lang || SPEECH_LANG_TAGS[langToUse];
+        if (voiceToUse) {
+          utterance.voice = voiceToUse;
+        }
         utterance.rate = rateToUse;
 
         utterance.onstart = () => {
@@ -540,8 +808,11 @@ export default function WebReaderPanel({
           speakIndex(idx + 1);
         };
 
-        utterance.onerror = () => {
+        utterance.onerror = (event) => {
           if (speechSessionRef.current !== sessionId) return;
+          if (event.error === "canceled" || event.error === "interrupted") {
+            return;
+          }
           setTtsState("idle");
           setActiveSpeechIdx(null);
         };
@@ -549,12 +820,20 @@ export default function WebReaderPanel({
         synth.speak(utterance);
       };
 
-      speakIndex(startIndex);
+      speakIndex(safeStart);
     },
-    [parsedDoc, selectedVoice, speechRate, ttsSupported],
+    [activeVoice, parsedDoc, speechLang, speechRate, ttsSupported],
   );
 
-  const handleTogglePlayPause = () => {
+  const getActiveQueueIndex = useCallback(() => {
+    if (!parsedDoc || activeSpeechIdx === null) return 0;
+    const idx = parsedDoc.speechBlocks.findIndex(
+      (b) => b.index === activeSpeechIdx,
+    );
+    return idx >= 0 ? idx : 0;
+  }, [activeSpeechIdx, parsedDoc]);
+
+  const handleTogglePlayPause = useCallback(() => {
     if (!ttsSupported || !parsedDoc || parsedDoc.speechBlocks.length === 0) return;
     const synth = window.speechSynthesis;
 
@@ -565,23 +844,115 @@ export default function WebReaderPanel({
     }
 
     if (ttsState === "paused") {
+      if (pausedNeedsRestart) {
+        speakFrom(getActiveQueueIndex());
+        return;
+      }
       synth.resume();
       setTtsState("playing");
       return;
     }
 
     speakFrom(0);
-  };
+  }, [getActiveQueueIndex, parsedDoc, pausedNeedsRestart, speakFrom, ttsState, ttsSupported]);
 
-  const handleSpeedChange = (nextRate: number) => {
-    setSpeechRate(nextRate);
-    if (ttsState === "playing" && activeSpeechIdx !== null && parsedDoc) {
+  const handleActivateBlock = useCallback(
+    (speechIdx: number) => {
+      if (!ttsSupported || !parsedDoc || parsedDoc.speechBlocks.length === 0) {
+        return;
+      }
+      const synth = window.speechSynthesis;
       const queueIdx = parsedDoc.speechBlocks.findIndex(
-        (b) => b.index === activeSpeechIdx,
+        (b) => b.index === speechIdx,
       );
-      speakFrom(queueIdx >= 0 ? queueIdx : 0, nextRate);
-    }
-  };
+      const targetIdx = queueIdx >= 0 ? queueIdx : 0;
+
+      if (activeSpeechIdx === speechIdx && ttsState === "playing") {
+        synth.pause();
+        setTtsState("paused");
+        return;
+      }
+
+      if (activeSpeechIdx === speechIdx && ttsState === "paused") {
+        if (pausedNeedsRestart) {
+          speakFrom(targetIdx);
+          return;
+        }
+        synth.resume();
+        setTtsState("playing");
+        return;
+      }
+
+      speakFrom(targetIdx);
+    },
+    [
+      activeSpeechIdx,
+      parsedDoc,
+      pausedNeedsRestart,
+      speakFrom,
+      ttsState,
+      ttsSupported,
+    ],
+  );
+
+  const handleSpeechLangChange = useCallback(
+    (nextLang: SpeechLang) => {
+      if (nextLang === speechLang) return;
+      setSpeechLang(nextLang);
+      const nextVoices = groupedVoices[nextLang];
+      const nextVoice = pickPreferredVoice(
+        nextVoices,
+        nextLang,
+        selectedVoiceUris[nextLang],
+      );
+
+      if (ttsState === "playing") {
+        speakFrom(getActiveQueueIndex(), { lang: nextLang, voice: nextVoice });
+      } else if (ttsState === "paused") {
+        speechSessionRef.current += 1;
+        setPausedNeedsRestart(true);
+        window.speechSynthesis.cancel();
+      }
+    },
+    [
+      getActiveQueueIndex,
+      groupedVoices,
+      selectedVoiceUris,
+      speakFrom,
+      speechLang,
+      ttsState,
+    ],
+  );
+
+  const handleVoiceSelectChange = useCallback(
+    (nextUri: string) => {
+      setSelectedVoiceUris((prev) => ({ ...prev, [speechLang]: nextUri }));
+      const nextVoice = pickPreferredVoice(filteredVoices, speechLang, nextUri);
+
+      if (ttsState === "playing") {
+        speakFrom(getActiveQueueIndex(), { lang: speechLang, voice: nextVoice });
+      } else if (ttsState === "paused") {
+        speechSessionRef.current += 1;
+        setPausedNeedsRestart(true);
+        window.speechSynthesis.cancel();
+      }
+    },
+    [filteredVoices, getActiveQueueIndex, speakFrom, speechLang, ttsState],
+  );
+
+  const handleSpeedChange = useCallback(
+    (nextRate: number) => {
+      setSpeechRate(nextRate);
+      if (ttsState === "playing") {
+        speakFrom(getActiveQueueIndex(), { rate: nextRate });
+      } else if (ttsState === "paused") {
+        speechSessionRef.current += 1;
+        setPausedNeedsRestart(true);
+        window.speechSynthesis.cancel();
+      }
+    },
+    [getActiveQueueIndex, speakFrom, ttsState],
+  );
 
   const jumpToHeading = (id: string) => {
     const el = document.getElementById(id);
@@ -591,6 +962,23 @@ export default function WebReaderPanel({
   };
 
   const fontSizePct = FONT_SIZES[fontIdx];
+  const hasContent = Boolean(
+    !loading && !error && parsedDoc && parsedDoc.blocks.length > 0,
+  );
+  const canSpeak = Boolean(
+    ttsSupported && parsedDoc && parsedDoc.speechBlocks.length > 0,
+  );
+  const activeQueuePos = getActiveQueueIndex();
+
+  const playbackContextValue = useMemo<ReaderPlaybackContextValue>(
+    () => ({
+      ttsSupported,
+      ttsState,
+      activeSpeechIdx,
+      onActivateBlock: handleActivateBlock,
+    }),
+    [activeSpeechIdx, handleActivateBlock, ttsState, ttsSupported],
+  );
 
   const renderReaderBody = (inDialog: boolean) => (
     <div
@@ -598,201 +986,366 @@ export default function WebReaderPanel({
         inDialog ? styles.readerShellFullscreen : ""
       }`}
     >
-      <div className={styles.controlsBar} role="region" aria-label="Pengaturan tampilan dan suara Web Reader">
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Ukuran teks</span>
-          <div className={styles.segmented}>
-            <button
-              type="button"
-              className={styles.ctrlBtn}
-              disabled={fontIdx <= 0}
-              aria-label="Perkecil ukuran teks"
-              onClick={() => setFontIdx((i) => Math.max(0, i - 1))}
-            >
-              A-
-            </button>
-            <span className={styles.ctrlValue} aria-live="polite">
-              {fontSizePct}%
-            </span>
-            <button
-              type="button"
-              className={styles.ctrlBtn}
-              disabled={fontIdx >= FONT_SIZES.length - 1}
-              aria-label="Perbesar ukuran teks"
-              onClick={() =>
-                setFontIdx((i) => Math.min(FONT_SIZES.length - 1, i + 1))
-              }
-            >
-              A+
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Spasi WCAG 1.4.12</span>
-          <div className={styles.segmented}>
-            <button
-              type="button"
-              className={`${styles.ctrlBtn} ${
-                spacing === "normal" ? styles.ctrlBtnActive : ""
-              }`}
-              aria-pressed={spacing === "normal"}
-              onClick={() => setSpacing("normal")}
-            >
-              Normal
-            </button>
-            <button
-              type="button"
-              className={`${styles.ctrlBtn} ${
-                spacing === "relaxed" ? styles.ctrlBtnActive : ""
-              }`}
-              aria-pressed={spacing === "relaxed"}
-              onClick={() => setSpacing("relaxed")}
-            >
-              Lega WCAG 1.4.12
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Tema AAA</span>
-          <div className={styles.segmented}>
-            {(
-              [
-                ["light", "Terang"],
-                ["sepia", "Sepia"],
-                ["dark", "Gelap Kontras Tinggi"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={`${styles.ctrlBtn} ${
-                  theme === key ? styles.ctrlBtnActive : ""
-                }`}
-                aria-pressed={theme === key}
-                onClick={() => setTheme(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Kolom</span>
-          <div className={styles.segmented}>
-            <button
-              type="button"
-              className={`${styles.ctrlBtn} ${
-                widthMode === "comfortable" ? styles.ctrlBtnActive : ""
-              }`}
-              aria-pressed={widthMode === "comfortable"}
-              onClick={() => setWidthMode("comfortable")}
-            >
-              Nyaman
-            </button>
-            <button
-              type="button"
-              className={`${styles.ctrlBtn} ${
-                widthMode === "wide" ? styles.ctrlBtnActive : ""
-              }`}
-              aria-pressed={widthMode === "wide"}
-              onClick={() => setWidthMode("wide")}
-            >
-              Lebar
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.controlActions}>
-          {parsedDoc && parsedDoc.outline.length > 0 && (
-            <button
-              type="button"
-              className={`${styles.ctrlBtn} ${tocOpen ? styles.ctrlBtnActive : ""}`}
-              aria-expanded={tocOpen}
-              onClick={() => setTocOpen((v) => !v)}
-            >
-              Daftar Isi ({parsedDoc.outline.length})
-            </button>
-          )}
-          <button
-            type="button"
-            className={`${styles.ctrlBtn} ${styles.fullscreenBtn}`}
-            onClick={() => setIsFullscreen((v) => !v)}
-          >
-            {inDialog ? "Tutup Layar Penuh" : "Mode Layar Penuh"}
-          </button>
-        </div>
-      </div>
-
-      {/* Audio Reader / TTS Bahasa Indonesia */}
-      <div className={styles.ttsBar} aria-label="Pembaca suara Bahasa Indonesia">
-        {ttsSupported ? (
-          <>
-            <div className={styles.ttsControls}>
+      <div
+        className={styles.toolbarSticky}
+        role="region"
+        aria-label="Kontrol baca dan suara Web Reader"
+      >
+        <div className={styles.toolbarPrimary}>
+          {/* Audio controls */}
+          {ttsSupported ? (
+            <div className={styles.toolbarCluster}>
               <button
                 type="button"
                 className={`${styles.ctrlBtn} ${styles.ttsPlayBtn}`}
-                disabled={!parsedDoc || parsedDoc.speechBlocks.length === 0}
+                disabled={!canSpeak}
                 onClick={handleTogglePlayPause}
               >
-                {ttsState === "playing"
-                  ? "Jeda Suara"
-                  : ttsState === "paused"
-                    ? "Lanjutkan Suara"
-                    : "Putar Suara (TTS)"}
+                {ttsState === "playing" ? <PauseIcon /> : <PlayIcon />}
+                <span>
+                  {ttsState === "playing"
+                    ? "Jeda"
+                    : ttsState === "paused"
+                      ? "Lanjutkan"
+                      : "Dengarkan"}
+                </span>
               </button>
+
+              {ttsState !== "idle" && (
+                <button
+                  type="button"
+                  className={styles.ctrlBtn}
+                  aria-label="Stop pembacaan suara"
+                  onClick={stopSpeech}
+                >
+                  <StopIcon />
+                  <span>Stop</span>
+                </button>
+              )}
+
+              <div
+                className={styles.segmented}
+                role="group"
+                aria-label="Bahasa suara"
+              >
+                {(
+                  [
+                    ["id", "ID", "Bahasa suara Indonesia"],
+                    ["en", "EN", "Bahasa suara Inggris"],
+                  ] as const
+                ).map(([code, label, ariaLabel]) => (
+                  <button
+                    key={code}
+                    type="button"
+                    className={`${styles.ctrlBtn} ${
+                      speechLang === code ? styles.ctrlBtnActive : ""
+                    }`}
+                    aria-label={ariaLabel}
+                    aria-pressed={speechLang === code}
+                    onClick={() => handleSpeechLangChange(code)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <span className={styles.ttsUnavailable}>
+              Suara browser tidak tersedia
+            </span>
+          )}
+
+          {/* Text size & 3 themes */}
+          <div className={styles.toolbarCluster}>
+            <div
+              className={styles.segmented}
+              role="group"
+              aria-label="Ukuran teks"
+            >
               <button
                 type="button"
                 className={styles.ctrlBtn}
-                disabled={ttsState === "idle"}
-                onClick={stopSpeech}
+                disabled={fontIdx <= 0}
+                aria-label="Perkecil ukuran teks"
+                onClick={() => setFontIdx((i) => Math.max(0, i - 1))}
               >
-                Hentikan
+                A-
+              </button>
+              <span className={styles.ctrlValue} aria-live="polite">
+                {fontSizePct}%
+              </span>
+              <button
+                type="button"
+                className={styles.ctrlBtn}
+                disabled={fontIdx >= FONT_SIZES.length - 1}
+                aria-label="Perbesar ukuran teks"
+                onClick={() =>
+                  setFontIdx((i) => Math.min(FONT_SIZES.length - 1, i + 1))
+                }
+              >
+                A+
               </button>
             </div>
 
-            <div className={styles.segmented} role="group" aria-label="Kecepatan suara">
-              {SPEEDS.map((rate) => (
+            <div
+              className={styles.segmented}
+              role="group"
+              aria-label="Tema baca"
+            >
+              {(
+                [
+                  ["light", "Terang"],
+                  ["sepia", "Sepia"],
+                  ["dark", "Gelap"],
+                ] as const
+              ).map(([key, label]) => (
                 <button
-                  key={rate}
+                  key={key}
                   type="button"
                   className={`${styles.ctrlBtn} ${
-                    speechRate === rate ? styles.ctrlBtnActive : ""
+                    theme === key ? styles.ctrlBtnActive : ""
                   }`}
-                  aria-pressed={speechRate === rate}
-                  onClick={() => handleSpeedChange(rate)}
+                  aria-pressed={theme === key}
+                  onClick={() => setTheme(key)}
                 >
-                  {rate.toFixed(rate === 1 || rate === 1.5 ? 1 : 2)}x
+                  {label}
                 </button>
               ))}
             </div>
+          </div>
 
-            <p className={styles.ttsStatus} aria-live="polite">
-              {ttsState !== "idle" && activeSpeechIdx !== null && parsedDoc
-                ? `Membacakan bagian ${activeSpeechIdx + 1} dari ${parsedDoc.speechBlocks.length}`
-                : selectedVoice
-                  ? `Suara: ${selectedVoice.name} (${selectedVoice.lang})`
-                  : "Suara browser bawaan siap"}
-            </p>
-          </>
-        ) : (
-          <p className={styles.ttsStatus}>
-            Pemutar suara bawaan tidak tersedia di peramban ini.
-          </p>
+          {/* Secondary disclosure, fullscreen, external tab */}
+          <div className={styles.toolbarActions}>
+            <button
+              type="button"
+              className={`${styles.ctrlBtn} ${
+                settingsOpen ? styles.ctrlBtnActive : ""
+              }`}
+              aria-expanded={settingsOpen}
+              aria-controls={settingsTrayId}
+              onClick={() => setSettingsOpen((v) => !v)}
+            >
+              <SettingsIcon />
+              <span>Pengaturan</span>
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.ctrlBtn} ${styles.fullscreenBtn}`}
+              aria-label={
+                inDialog ? "Tutup layar penuh" : "Buka mode layar penuh"
+              }
+              onClick={() => setIsFullscreen((v) => !v)}
+            >
+              <FullscreenIcon expanded={inDialog} />
+              <span>{inDialog ? "Tutup" : "Layar Penuh"}</span>
+            </button>
+
+            <a
+              href={readerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.newTabLink}
+            >
+              Buka di tab baru
+              <span className="sr-only"> (buka di tab baru)</span>
+            </a>
+          </div>
+        </div>
+
+        {ttsState !== "idle" && parsedDoc && activeSpeechIdx !== null && (
+          <div className={styles.ttsLiveStrip} aria-live="polite">
+            <span>
+              {ttsState === "paused" ? "Dijeda pada" : "Membacakan"} bagian{" "}
+              {activeQueuePos + 1} dari {parsedDoc.speechBlocks.length} (
+              {SPEECH_LANG_TAGS[speechLang]}, {speechRate.toFixed(speechRate === 1 || speechRate === 1.5 ? 1 : 2)}x)
+            </span>
+          </div>
         )}
       </div>
 
+      {/* Secondary settings tray */}
+      {settingsOpen && (
+        <div
+          id={settingsTrayId}
+          className={styles.settingsTray}
+          role="region"
+          aria-label="Pengaturan lanjutan Web Reader"
+        >
+          <div className={styles.settingsGrid}>
+            <div className={styles.settingBlock}>
+              <label htmlFor={voiceSelectId} className={styles.settingLabel}>
+                Pilihan Suara ({speechLang === "id" ? "Indonesia" : "English"})
+              </label>
+              {ttsSupported ? (
+                <>
+                  <select
+                    id={voiceSelectId}
+                    className={styles.voiceSelect}
+                    value={selectedVoiceUris[speechLang]}
+                    disabled={filteredVoices.length === 0}
+                    onChange={(e) => handleVoiceSelectChange(e.target.value)}
+                  >
+                    <option value="">
+                      {filteredVoices.length > 0
+                        ? `Otomatis (${activeVoice?.name ?? SPEECH_LANG_TAGS[speechLang]})`
+                        : `Gunakan tag bahasa ${SPEECH_LANG_TAGS[speechLang]}`}
+                    </option>
+                    {filteredVoices.map((voice) => (
+                      <option key={voice.voiceURI} value={voice.voiceURI}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                  </select>
+                  {filteredVoices.length === 0 && (
+                    <p className={styles.settingNote}>
+                      {speechLang === "id"
+                        ? "OS/browser ini belum memiliki suara lokal Bahasa Indonesia. Pemutar tetap mengirim lang=\"id-ID\" agar mesin suara browser memakainya jika tersedia."
+                        : "OS/browser ini belum memiliki suara lokal Bahasa Inggris. Pemutar tetap mengirim lang=\"en-US\"."}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className={styles.settingNote}>
+                  Web Speech API tidak didukung di browser ini.
+                </p>
+              )}
+            </div>
+
+            <div className={styles.settingBlock}>
+              <span className={styles.settingLabel}>Kecepatan Suara</span>
+              <div
+                className={styles.segmented}
+                role="group"
+                aria-label="Kecepatan suara"
+              >
+                {SPEEDS.map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    className={`${styles.ctrlBtn} ${
+                      speechRate === rate ? styles.ctrlBtnActive : ""
+                    }`}
+                    aria-pressed={speechRate === rate}
+                    onClick={() => handleSpeedChange(rate)}
+                  >
+                    {rate.toFixed(rate === 1 || rate === 1.5 ? 1 : 2)}x
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.settingBlock}>
+              <span className={styles.settingLabel}>Spasi Lega (WCAG 1.4.12)</span>
+              <div
+                className={styles.segmented}
+                role="group"
+                aria-label="Spasi teks WCAG 1.4.12"
+              >
+                <button
+                  type="button"
+                  className={`${styles.ctrlBtn} ${
+                    spacing === "normal" ? styles.ctrlBtnActive : ""
+                  }`}
+                  aria-pressed={spacing === "normal"}
+                  onClick={() => setSpacing("normal")}
+                >
+                  Normal
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.ctrlBtn} ${
+                    spacing === "relaxed" ? styles.ctrlBtnActive : ""
+                  }`}
+                  aria-pressed={spacing === "relaxed"}
+                  onClick={() => setSpacing("relaxed")}
+                >
+                  Lega
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.settingBlock}>
+              <span className={styles.settingLabel}>Lebar Kolom</span>
+              <div
+                className={styles.segmented}
+                role="group"
+                aria-label="Lebar kolom baca"
+              >
+                <button
+                  type="button"
+                  className={`${styles.ctrlBtn} ${
+                    widthMode === "comfortable" ? styles.ctrlBtnActive : ""
+                  }`}
+                  aria-pressed={widthMode === "comfortable"}
+                  onClick={() => setWidthMode("comfortable")}
+                >
+                  Nyaman
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.ctrlBtn} ${
+                    widthMode === "wide" ? styles.ctrlBtnActive : ""
+                  }`}
+                  aria-pressed={widthMode === "wide"}
+                  onClick={() => setWidthMode("wide")}
+                >
+                  Lebar
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.settingBlock}>
+              <span className={styles.settingLabel}>Daftar Isi</span>
+              {parsedDoc && parsedDoc.outline.length > 0 ? (
+                <button
+                  type="button"
+                  className={`${styles.ctrlBtn} ${
+                    tocOpen ? styles.ctrlBtnActive : ""
+                  }`}
+                  aria-expanded={tocOpen}
+                  aria-controls={tocPanelId}
+                  onClick={() => setTocOpen((v) => !v)}
+                >
+                  {tocOpen
+                    ? `Sembunyikan Daftar Isi (${parsedDoc.outline.length})`
+                    : `Tampilkan Daftar Isi (${parsedDoc.outline.length})`}
+                </button>
+              ) : (
+                <p className={styles.settingNote}>
+                  Tidak ada subjudul pada halaman ini.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.readerBodyLayout}>
         {tocOpen && parsedDoc && parsedDoc.outline.length > 0 && (
-          <nav className={styles.tocPanel} aria-label="Daftar isi halaman">
-            <p className={styles.tocTitle}>Daftar Isi</p>
+          <nav
+            id={tocPanelId}
+            className={styles.tocPanel}
+            aria-label="Daftar isi halaman"
+          >
+            <div className={styles.tocHeader}>
+              <p className={styles.tocTitle}>Daftar Isi</p>
+              <button
+                type="button"
+                className={styles.tocCloseBtn}
+                aria-label="Tutup daftar isi"
+                onClick={() => setTocOpen(false)}
+              >
+                Tutup
+              </button>
+            </div>
             <ol className={styles.tocList}>
               {parsedDoc.outline.map((item) => (
                 <li
                   key={item.id}
-                  style={{ paddingLeft: `${Math.max(0, item.level - 2) * 12}px` }}
+                  style={{
+                    paddingLeft: `${Math.max(0, item.level - 2) * 12}px`,
+                  }}
                 >
                   <button
                     type="button"
@@ -853,16 +1406,18 @@ export default function WebReaderPanel({
             </div>
           )}
 
-          {!loading && !error && parsedDoc && parsedDoc.blocks.length > 0 && (
+          {hasContent && parsedDoc && (
             <article
               className={`${styles.article} ${
-                spacing === "relaxed" ? styles.spacingRelaxed : styles.spacingNormal
+                spacing === "relaxed"
+                  ? styles.spacingRelaxed
+                  : styles.spacingNormal
               } ${widthMode === "wide" ? styles.widthWide : styles.widthComfortable}`}
               style={{ fontSize: `${fontSizePct}%` }}
             >
               <header className={styles.articleHeader}>
                 {inDialog ? (
-                  <h1 id="web-reader-dialog-title">{parsedDoc.title}</h1>
+                  <h1 id={dialogTitleId}>{parsedDoc.title}</h1>
                 ) : (
                   <h2>{parsedDoc.title}</h2>
                 )}
@@ -881,7 +1436,9 @@ export default function WebReaderPanel({
                 )}
               </header>
 
-              <div className={styles.articleContent}>{parsedDoc.blocks}</div>
+              <ReaderPlaybackContext.Provider value={playbackContextValue}>
+                <div className={styles.articleContent}>{parsedDoc.blocks}</div>
+              </ReaderPlaybackContext.Provider>
             </article>
           )}
         </div>
@@ -896,7 +1453,8 @@ export default function WebReaderPanel({
       <dialog
         ref={dialogRef}
         className={styles.fullscreenDialog}
-        aria-labelledby="web-reader-dialog-title"
+        aria-labelledby={hasContent && isFullscreen ? dialogTitleId : undefined}
+        aria-label={hasContent && isFullscreen ? undefined : title}
         onCancel={() => {
           setIsFullscreen(false);
         }}
