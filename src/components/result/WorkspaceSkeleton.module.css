@@ -1,0 +1,32 @@
+.skeletonPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 28px 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-lg);
+  background: #fbfcfe;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.skeletonVisual {
+  min-height: 520px;
+}
+
+.skeletonIssues {
+  min-height: 460px;
+}
+
+.skeletonReader {
+  min-height: 520px;
+}
+
+.skeletonManual {
+  min-height: 460px;
+}

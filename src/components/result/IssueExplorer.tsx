@@ -338,6 +338,11 @@ export default function IssueExplorer({
                             {reg}
                           </span>
                         ))}
+                        {issue.engines?.map((eng) => (
+                          <span key={eng} className={styles.engineChip}>
+                            {eng === "ibm-ace" ? "IBM ACE" : eng}
+                          </span>
+                        ))}
                       </div>
 
                       <p className={styles.issueDesc}>{issue.descriptionId}</p>

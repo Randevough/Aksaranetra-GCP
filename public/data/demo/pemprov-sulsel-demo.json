@@ -20,7 +20,8 @@
       "formatVersion": "2.0.0",
       "id": "demo_pemprov_sulsel",
       "origin": "demo",
-      "engineVersion": "2.0.0-wave1",
+      "engineVersion": "2.0.0-wave2",
+      "enginesUsed": ["axe-core", "ibm-ace"],
       "capturedAt": "2026-11-20T08:14:24.000Z",
       "disclaimer": "Pemeriksaan otomatis mencakup ~30–57% kriteria WCAG 2.1 Level AA. Lengkapi dengan pengujian pengguna dan pembaca layar sebelum menyatakan kepatuhan penuh.",
       "source": {
@@ -159,7 +160,8 @@
           "htmlAfter": "<button class=\"btn-search\" type=\"button\" aria-label=\"Cari layanan atau berita\"><svg class=\"icon-search\" aria-hidden=\"true\"></svg></button>",
           "boundingBox": { "x": 1116, "y": 18, "width": 40, "height": 40 },
           "confidence": 0.96,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-2",
@@ -177,7 +179,8 @@
           "htmlAfter": "<button class=\"btn-menu\" type=\"button\" aria-label=\"Buka menu navigasi\" aria-expanded=\"false\"><span class=\"bar\" aria-hidden=\"true\"></span></button>",
           "boundingBox": { "x": 1172, "y": 18, "width": 40, "height": 40 },
           "confidence": 0.95,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-3",
@@ -195,7 +198,8 @@
           "htmlAfter": null,
           "boundingBox": { "x": 860, "y": 122, "width": 320, "height": 186 },
           "confidence": null,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-4",
@@ -213,7 +217,8 @@
           "htmlAfter": "<h1 style=\"color:#ffffff;background:#0f172a\">Layanan Publik Terpadu Sulawesi Selatan</h1>",
           "boundingBox": { "x": 92, "y": 168, "width": 680, "height": 44 },
           "confidence": 0.98,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-5",
@@ -231,7 +236,8 @@
           "htmlAfter": "<a href=\"/layanan\" class=\"cta-primary\">Buka Portal Layanan</a>",
           "boundingBox": { "x": 92, "y": 258, "width": 180, "height": 44 },
           "confidence": 0.92,
-          "source": "aksaranetra-heuristic"
+          "source": "aksaranetra-heuristic",
+          "engines": ["aksaranetra-heuristic"]
         },
         {
           "id": "iss-sulsel-6",
@@ -249,7 +255,8 @@
           "htmlAfter": "<p class=\"meta-date\" style=\"color:#475569\">12 November 2026 · Diskominfo</p>",
           "boundingBox": { "x": 68, "y": 582, "width": 230, "height": 22 },
           "confidence": 0.99,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-7",
@@ -267,7 +274,8 @@
           "htmlAfter": "<a href=\"/berita/spbe-2026\" class=\"read-more\">Baca Rapat Koordinasi SPBE 2026</a>",
           "boundingBox": { "x": 68, "y": 620, "width": 120, "height": 24 },
           "confidence": 0.91,
-          "source": "aksaranetra-heuristic"
+          "source": "aksaranetra-heuristic",
+          "engines": ["aksaranetra-heuristic", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-8",
@@ -285,7 +293,8 @@
           "htmlAfter": null,
           "boundingBox": { "x": 48, "y": 738, "width": 380, "height": 42 },
           "confidence": 0.9,
-          "source": "tab-walk"
+          "source": "tab-walk",
+          "engines": ["tab-walk"]
         },
         {
           "id": "iss-sulsel-9",
@@ -303,7 +312,8 @@
           "htmlAfter": null,
           "boundingBox": { "x": 68, "y": 426, "width": 334, "height": 120 },
           "confidence": null,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-sulsel-10",
@@ -321,7 +331,8 @@
           "htmlAfter": "<html lang=\"id\">",
           "boundingBox": null,
           "confidence": 0.99,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         }
       ],
       "tabStops": [
@@ -404,6 +415,142 @@
           "rect": { "x": 48, "y": 738, "width": 140, "height": 34 },
           "obscured": true,
           "hasVisibleFocus": true
+        }
+      ],
+      "mobileAudit": {
+        "viewport": { "width": 320, "height": 568 },
+        "reflowOk": false,
+        "horizontalOverflowPx": 48,
+        "textSpacingOk": true,
+        "clippedElementsCount": 0,
+        "smallTargetsCount": 5,
+        "pinchZoomBlocked": false,
+        "osPreferences": {
+          "reducedMotionChecked": true,
+          "reducedMotionUnboundedAnimations": 2,
+          "forcedColorsChecked": true
+        }
+      },
+      "pdfAudit": {
+        "discoveredCount": 3,
+        "auditedCount": 3,
+        "scannedImageCount": 1,
+        "untaggedCount": 1,
+        "items": [
+          {
+            "url": "https://sulselprov.go.id/dokumen/sk-gubernur-spbe-2026.pdf",
+            "filename": "sk-gubernur-spbe-2026.pdf",
+            "sizeBytes": 2480120,
+            "pageCount": 14,
+            "isTagged": false,
+            "hasTextLayer": false,
+            "hasTitle": false,
+            "hasLang": false,
+            "status": "scanned-image-only",
+            "error": null
+          },
+          {
+            "url": "https://sulselprov.go.id/dokumen/laporan-ppid-2026.pdf",
+            "filename": "laporan-ppid-2026.pdf",
+            "sizeBytes": 842310,
+            "pageCount": 22,
+            "isTagged": false,
+            "hasTextLayer": true,
+            "hasTitle": true,
+            "hasLang": false,
+            "status": "untagged",
+            "error": null
+          },
+          {
+            "url": "https://sulselprov.go.id/dokumen/panduan-layanan-publik.pdf",
+            "filename": "panduan-layanan-publik.pdf",
+            "sizeBytes": 512040,
+            "pageCount": 8,
+            "isTagged": true,
+            "hasTextLayer": true,
+            "hasTitle": true,
+            "hasLang": true,
+            "status": "accessible-basics",
+            "error": null
+          }
+        ]
+      },
+      "detectors": {
+        "overlay": {
+          "detected": true,
+          "vendors": ["UserWay Accessibility Widget"],
+          "summaryId": "Terdeteksi skrip overlay aksesibilitas mengambang di sudut kanan bawah. Widget overlay tidak memperbaiki cacat DOM atau urutan fokus asli."
+        },
+        "captcha": {
+          "detected": false,
+          "types": [],
+          "inaccessibleCount": 0,
+          "summaryId": null
+        }
+      },
+      "multiPage": {
+        "mode": "multi",
+        "requestedMaxPages": 3,
+        "crawledCount": 3,
+        "averageAfterScore": 84,
+        "pages": [
+          {
+            "url": "https://sulselprov.go.id/",
+            "title": "Beranda Portal Pemprov Sulsel",
+            "beforeScore": 52,
+            "afterScore": 86,
+            "issuesCount": 10,
+            "status": "completed",
+            "error": null
+          },
+          {
+            "url": "https://sulselprov.go.id/layanan",
+            "title": "Direktori Layanan Publik",
+            "beforeScore": 56,
+            "afterScore": 85,
+            "issuesCount": 7,
+            "status": "completed",
+            "error": null
+          },
+          {
+            "url": "https://sulselprov.go.id/ppid",
+            "title": "Portal PPID Sulawesi Selatan",
+            "beforeScore": 49,
+            "afterScore": 81,
+            "issuesCount": 9,
+            "status": "completed",
+            "error": null
+          }
+        ]
+      },
+      "clusters": [
+        {
+          "id": "cluster-header-icon-buttons",
+          "ruleId": "button-name",
+          "impact": "critical",
+          "selectorPattern": "header button.btn-search, header button.btn-menu",
+          "titleId": "Tombol ikon pencarian dan menu di header global tanpa label",
+          "affectedPages": [
+            "https://sulselprov.go.id/",
+            "https://sulselprov.go.id/layanan",
+            "https://sulselprov.go.id/ppid"
+          ],
+          "occurrences": 6,
+          "blastRadiusPercent": 100
+        },
+        {
+          "id": "cluster-footer-sticky-obscured",
+          "ruleId": "focus-obscured",
+          "impact": "serious",
+          "selectorPattern": "footer a.ppid-link",
+          "titleId": "Bilah pengumuman lengket bawah menutupi fokus tautan footer",
+          "affectedPages": [
+            "https://sulselprov.go.id/",
+            "https://sulselprov.go.id/layanan",
+            "https://sulselprov.go.id/ppid"
+          ],
+          "occurrences": 3,
+          "blastRadiusPercent": 100
         }
       ]
     },

@@ -6,17 +6,80 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { AuditResult, ImpactLevel, Snapshot } from "@/lib/audit-api";
 import { artifactUrl } from "@/lib/audit-api";
 import { DEMO_AUDITS } from "@/lib/demo-audits";
 import ScoreOverview from "./ScoreOverview";
-import VisualInspector from "./VisualInspector";
-import IssueExplorer from "./IssueExplorer";
-import WebReaderPanel from "./WebReaderPanel";
+import Wave2Diagnostics from "./Wave2Diagnostics";
+import {
+  FASTPASS_TOTAL_ITEMS,
+  readFastPassSummary,
+  type FastPassSummary,
+} from "./wave2-types";
 import styles from "@/app/result/page.module.css";
+import skeletonStyles from "./WorkspaceSkeleton.module.css";
 
-type WorkspaceTab = "visual" | "issues" | "reader";
+function PanelSkeleton({
+  label,
+  heightClass,
+}: {
+  label: string;
+  heightClass: string;
+}) {
+  return (
+    <div
+      className={`${skeletonStyles.skeletonPanel} ${heightClass}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span>{label}</span>
+    </div>
+  );
+}
+
+const VisualInspector = dynamic(() => import("./VisualInspector"), {
+  loading: () => (
+    <PanelSkeleton
+      label="Memuat inspeksi visual..."
+      heightClass={skeletonStyles.skeletonVisual}
+    />
+  ),
+});
+
+const IssueExplorer = dynamic(() => import("./IssueExplorer"), {
+  loading: () => (
+    <PanelSkeleton
+      label="Memuat daftar temuan..."
+      heightClass={skeletonStyles.skeletonIssues}
+    />
+  ),
+});
+
+const WebReaderPanel = dynamic(() => import("./WebReaderPanel"), {
+  loading: () => (
+    <PanelSkeleton
+      label="Memuat Web Reader..."
+      heightClass={skeletonStyles.skeletonReader}
+    />
+  ),
+});
+
+const GuidedFastPass = dynamic(() => import("./GuidedFastPass"), {
+  loading: () => (
+    <PanelSkeleton
+      label="Memuat daftar cek manual..."
+      heightClass={skeletonStyles.skeletonManual}
+    />
+  ),
+});
+
+const StatementModal = dynamic(() => import("./StatementModal"), {
+  ssr: false,
+});
+
+type WorkspaceTab = "visual" | "issues" | "reader" | "manual";
 
 const BULAN = [
   "Januari",
@@ -108,10 +171,24 @@ export default function ResultWorkspace({
   const issuesCount = snapshot.issues?.length ?? count(snapshot.summary.beforeTotal);
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("visual");
+  const [visitedTabs, setVisitedTabs] = useState<Record<WorkspaceTab, boolean>>({
+    visual: true,
+    issues: false,
+    reader: false,
+    manual: false,
+  });
   const [severityFilter, setSeverityFilter] = useState<ImpactLevel | "all">("all");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(
     snapshot.issues?.[0]?.id ?? null,
   );
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [statementMounted, setStatementMounted] = useState(false);
+  const [fastPassSummary, setFastPassSummary] = useState<FastPassSummary>({
+    total: FASTPASS_TOTAL_ITEMS,
+    checked: 0,
+    passed: 0,
+    failed: 0,
+  });
 
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const resolvedHeadingRef = headingRef ?? localHeadingRef;
@@ -120,6 +197,7 @@ export default function ResultWorkspace({
     visual: null,
     issues: null,
     reader: null,
+    manual: null,
   });
 
   const readerHref = artifactUrl(data.links.reader);
@@ -140,6 +218,7 @@ export default function ResultWorkspace({
 
   const switchToTab = useCallback((tab: WorkspaceTab, focusTab = false) => {
     setActiveTab(tab);
+    setVisitedTabs((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }));
     if (focusTab) {
       requestAnimationFrame(() => {
         const el = tabRefs.current[tab];
@@ -165,7 +244,7 @@ export default function ResultWorkspace({
       setSeverityFilter((curr) =>
         curr === severity && activeTab === "issues" ? "all" : severity,
       );
-      setActiveTab("issues");
+      switchToTab("issues");
       requestAnimationFrame(() => {
         const el = document.getElementById("workspace-tabs");
         if (el) {
@@ -174,26 +253,29 @@ export default function ResultWorkspace({
         }
       });
     },
-    [activeTab],
+    [activeTab, switchToTab],
   );
 
-  const handleJumpToIssue = useCallback((issueId: string) => {
-    setSeverityFilter("all");
-    setSelectedIssueId(issueId);
-    setActiveTab("issues");
-    setTimeout(() => {
-      const card = document.getElementById(`issue-card-${issueId}`);
-      if (card) {
-        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        card.scrollIntoView({
-          behavior: reduced ? "auto" : "smooth",
-          block: "center",
-        });
-      }
-    }, 60);
-  }, []);
+  const handleJumpToIssue = useCallback(
+    (issueId: string) => {
+      setSeverityFilter("all");
+      setSelectedIssueId(issueId);
+      switchToTab("issues");
+      setTimeout(() => {
+        const card = document.getElementById(`issue-card-${issueId}`);
+        if (card) {
+          const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          card.scrollIntoView({
+            behavior: reduced ? "auto" : "smooth",
+            block: "center",
+          });
+        }
+      }, 60);
+    },
+    [switchToTab],
+  );
 
-  const tabOrder: WorkspaceTab[] = ["visual", "issues", "reader"];
+  const tabOrder: WorkspaceTab[] = ["visual", "issues", "reader", "manual"];
   const handleWorkspaceTabKeyDown = (
     e: KeyboardEvent<HTMLButtonElement>,
     current: WorkspaceTab,
@@ -210,6 +292,12 @@ export default function ResultWorkspace({
       e.preventDefault();
       switchToTab(tabOrder[nextIdx], true);
     }
+  };
+
+  const openStatementModal = () => {
+    setFastPassSummary(readFastPassSummary(data.job.jobId));
+    setStatementMounted(true);
+    setStatementOpen(true);
   };
 
   const recheckHref = `/result?url=${encodeURIComponent(snapshot.source.finalUrl || snapshot.source.requestedUrl)}`;
@@ -351,6 +439,14 @@ export default function ResultWorkspace({
                   CSV
                 </button>
               )}
+
+              <button
+                type="button"
+                className={styles.compactActionBtn}
+                onClick={openStatementModal}
+              >
+                Pernyataan &amp; Badge
+              </button>
             </div>
 
             <div className={styles.navActions}>
@@ -370,6 +466,8 @@ export default function ResultWorkspace({
         activeSeverity={activeTab === "issues" ? severityFilter : "all"}
         onSelectSeverity={handleSelectSeverity}
       />
+
+      <Wave2Diagnostics snapshot={snapshot} />
 
       <section
         id="workspace-tabs"
@@ -428,6 +526,22 @@ export default function ResultWorkspace({
           >
             Web Reader
           </button>
+
+          <button
+            ref={(el) => {
+              tabRefs.current.manual = el;
+            }}
+            id="workspace-tab-manual"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "manual"}
+            tabIndex={activeTab === "manual" ? 0 : -1}
+            className={styles.workspaceTabBtn}
+            onClick={() => switchToTab("manual")}
+            onKeyDown={(e) => handleWorkspaceTabKeyDown(e, "manual")}
+          >
+            Cek Manual
+          </button>
         </div>
 
         <div
@@ -455,13 +569,15 @@ export default function ResultWorkspace({
           hidden={activeTab !== "issues"}
         >
           <div className={styles.workspacePanel}>
-            <IssueExplorer
-              issues={snapshot.issues}
-              regulations={snapshot.regulations}
-              severityFilter={severityFilter}
-              onSeverityFilterChange={setSeverityFilter}
-              selectedIssueId={selectedIssueId}
-            />
+            {(activeTab === "issues" || visitedTabs.issues) && (
+              <IssueExplorer
+                issues={snapshot.issues}
+                regulations={snapshot.regulations}
+                severityFilter={severityFilter}
+                onSeverityFilterChange={setSeverityFilter}
+                selectedIssueId={selectedIssueId}
+              />
+            )}
           </div>
         </div>
 
@@ -471,16 +587,40 @@ export default function ResultWorkspace({
           hidden={activeTab !== "reader"}
         >
           <div className={styles.workspacePanel}>
-            <WebReaderPanel
-              key={readerHref}
-              readerHref={readerHref}
-              sourceUrl={snapshot.source.finalUrl}
-              title={snapshot.source.title || "Tampilan Web Reader"}
-              active={activeTab === "reader"}
-            />
+            {(activeTab === "reader" || visitedTabs.reader) && (
+              <WebReaderPanel
+                key={readerHref}
+                readerHref={readerHref}
+                sourceUrl={snapshot.source.finalUrl}
+                title={snapshot.source.title || "Tampilan Web Reader"}
+                active={activeTab === "reader"}
+              />
+            )}
+          </div>
+        </div>
+
+        <div
+          role="tabpanel"
+          aria-labelledby="workspace-tab-manual"
+          hidden={activeTab !== "manual"}
+        >
+          <div className={styles.workspacePanel}>
+            {(activeTab === "manual" || visitedTabs.manual) && (
+              <GuidedFastPass key={data.job.jobId} jobId={data.job.jobId} />
+            )}
           </div>
         </div>
       </section>
+
+      {statementMounted && (
+        <StatementModal
+          open={statementOpen}
+          onClose={() => setStatementOpen(false)}
+          snapshot={snapshot}
+          fastPass={fastPassSummary}
+          isDemo={isDemo}
+        />
+      )}
     </main>
   );
 }

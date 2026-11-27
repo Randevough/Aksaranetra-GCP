@@ -1,0 +1,258 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.introCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-lg);
+  background: #f6f8fc;
+}
+
+.introCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 68ch;
+}
+
+.introTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-heading);
+}
+
+.introDesc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.progressPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.progressCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.countPass {
+  color: #0f766e;
+}
+
+.countFail {
+  color: #9f1239;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: #e5e7ec;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  transition: width var(--transition-cepat);
+}
+
+.resetBtn {
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.resetBtn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 16px 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.checkCardPass {
+  border-color: rgba(15, 118, 110, 0.3);
+  background: #fcfffe;
+}
+
+.checkCardFail {
+  border-color: rgba(159, 18, 57, 0.28);
+  background: #fffafb;
+}
+
+.checkBody {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 360px;
+}
+
+.checkTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  flex: none;
+}
+
+.checkTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-heading);
+}
+
+.wcagBadge {
+  padding: 2px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 6px;
+  background: #f6f8fc;
+  color: var(--color-text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.checkHint {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.stateGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stateBtn {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: var(--radius-pill);
+  background: #f6f8fc;
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-cepat),
+    border-color var(--transition-cepat),
+    color var(--transition-cepat);
+}
+
+.stateBtn:hover {
+  border-color: var(--color-primary);
+  background: #ffffff;
+}
+
+.stateBtn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.stateBtnActiveUntested {
+  background: #ffffff;
+  border-color: var(--color-border-strong);
+  color: var(--color-heading);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+}
+
+.stateBtnActivePass {
+  background: #f0fdfa;
+  border-color: #0f766e;
+  color: #0f766e;
+  box-shadow: inset 0 0 0 1px #0f766e;
+}
+
+.stateBtnActiveFail {
+  background: #fff1f2;
+  border-color: #9f1239;
+  color: #9f1239;
+  box-shadow: inset 0 0 0 1px #9f1239;
+}
+
+@media (max-width: 720px) {
+  .progressPanel {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .stateGroup {
+    width: 100%;
+  }
+
+  .stateBtn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill,
+  .stateBtn {
+    transition: none;
+  }
+}

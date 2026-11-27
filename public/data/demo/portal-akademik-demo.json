@@ -20,7 +20,8 @@
       "formatVersion": "2.0.0",
       "id": "demo_portal_akademik",
       "origin": "demo",
-      "engineVersion": "2.0.0-wave1",
+      "engineVersion": "2.0.0-wave2",
+      "enginesUsed": ["axe-core", "ibm-ace"],
       "capturedAt": "2026-11-21T10:05:14.000Z",
       "disclaimer": "Pemeriksaan otomatis mencakup ~30–57% kriteria WCAG 2.1 Level AA. Lengkapi dengan uji manual bersama mahasiswa pengguna pembaca layar.",
       "source": {
@@ -156,7 +157,8 @@
           "htmlAfter": "<label for=\"search-mk\" class=\"sr-only\">Cari kode mata kuliah</label><input id=\"search-mk\" type=\"search\" placeholder=\"Cari kode mata kuliah...\">",
           "boundingBox": { "x": 860, "y": 44, "width": 260, "height": 40 },
           "confidence": 0.97,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-akad-2",
@@ -174,7 +176,8 @@
           "htmlAfter": "<button type=\"button\" class=\"btn-add\" aria-label=\"Tambah IF301 Interaksi Manusia dan Komputer\">+ Tambah</button>",
           "boundingBox": { "x": 1120, "y": 270, "width": 32, "height": 32 },
           "confidence": 0.94,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-akad-3",
@@ -192,7 +195,8 @@
           "htmlAfter": "<div class=\"alert-krs-deadline\" role=\"status\" style=\"color:#991b1b\"><strong>Peringatan:</strong> Batas pengisian KRS berakhir 2 hari lagi.</div>",
           "boundingBox": { "x": 272, "y": 124, "width": 968, "height": 54 },
           "confidence": 0.99,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-akad-4",
@@ -210,7 +214,8 @@
           "htmlAfter": "<button type=\"submit\" class=\"btn-save-krs\" style=\"background:#1d4ed8;color:#ffffff\">Simpan KRS</button>",
           "boundingBox": { "x": 1080, "y": 670, "width": 136, "height": 36 },
           "confidence": 0.99,
-          "source": "axe-core"
+          "source": "axe-core",
+          "engines": ["axe-core", "ibm-ace"]
         },
         {
           "id": "iss-akad-5",
@@ -228,7 +233,8 @@
           "htmlAfter": null,
           "boundingBox": { "x": 272, "y": 202, "width": 968, "height": 420 },
           "confidence": null,
-          "source": "aksaranetra-heuristic"
+          "source": "aksaranetra-heuristic",
+          "engines": ["aksaranetra-heuristic", "ibm-ace"]
         },
         {
           "id": "iss-akad-6",
@@ -246,7 +252,8 @@
           "htmlAfter": null,
           "boundingBox": { "x": 16, "y": 126, "width": 208, "height": 36 },
           "confidence": 0.91,
-          "source": "tab-walk"
+          "source": "tab-walk",
+          "engines": ["tab-walk"]
         }
       ],
       "tabStops": [
@@ -319,6 +326,127 @@
           "rect": { "x": 1080, "y": 670, "width": 136, "height": 36 },
           "obscured": false,
           "hasVisibleFocus": true
+        }
+      ],
+      "mobileAudit": {
+        "viewport": { "width": 320, "height": 568 },
+        "reflowOk": false,
+        "horizontalOverflowPx": 140,
+        "textSpacingOk": false,
+        "clippedElementsCount": 3,
+        "smallTargetsCount": 8,
+        "pinchZoomBlocked": true,
+        "osPreferences": {
+          "reducedMotionChecked": true,
+          "reducedMotionUnboundedAnimations": 0,
+          "forcedColorsChecked": true
+        }
+      },
+      "pdfAudit": {
+        "discoveredCount": 2,
+        "auditedCount": 2,
+        "scannedImageCount": 1,
+        "untaggedCount": 0,
+        "items": [
+          {
+            "url": "https://siakad.contoh-kampus.ac.id/dokumen/sk-kalender-akademik-2026.pdf",
+            "filename": "sk-kalender-akademik-2026.pdf",
+            "sizeBytes": 1640500,
+            "pageCount": 6,
+            "isTagged": false,
+            "hasTextLayer": false,
+            "hasTitle": false,
+            "hasLang": false,
+            "status": "scanned-image-only",
+            "error": null
+          },
+          {
+            "url": "https://siakad.contoh-kampus.ac.id/dokumen/panduan-krs-mahasiswa.pdf",
+            "filename": "panduan-krs-mahasiswa.pdf",
+            "sizeBytes": 420800,
+            "pageCount": 12,
+            "isTagged": true,
+            "hasTextLayer": true,
+            "hasTitle": true,
+            "hasLang": true,
+            "status": "accessible-basics",
+            "error": null
+          }
+        ]
+      },
+      "detectors": {
+        "overlay": {
+          "detected": false,
+          "vendors": [],
+          "summaryId": null
+        },
+        "captcha": {
+          "detected": true,
+          "types": ["image-captcha"],
+          "inaccessibleCount": 1,
+          "summaryId": "Terdeteksi CAPTCHA gambar pada halaman masuk portal akademik tanpa alternatif audio atau metode non-visual."
+        }
+      },
+      "multiPage": {
+        "mode": "multi",
+        "requestedMaxPages": 3,
+        "crawledCount": 3,
+        "averageAfterScore": 86,
+        "pages": [
+          {
+            "url": "https://siakad.contoh-kampus.ac.id/krs",
+            "title": "Pengisian Kartu Rencana Studi",
+            "beforeScore": 58,
+            "afterScore": 89,
+            "issuesCount": 6,
+            "status": "completed",
+            "error": null
+          },
+          {
+            "url": "https://siakad.contoh-kampus.ac.id/login",
+            "title": "Masuk Portal Akademik",
+            "beforeScore": 54,
+            "afterScore": 82,
+            "issuesCount": 5,
+            "status": "completed",
+            "error": null
+          },
+          {
+            "url": "https://siakad.contoh-kampus.ac.id/jadwal",
+            "title": "Jadwal Kuliah Semester Ganjil",
+            "beforeScore": 61,
+            "afterScore": 87,
+            "issuesCount": 4,
+            "status": "completed",
+            "error": null
+          }
+        ]
+      },
+      "clusters": [
+        {
+          "id": "cluster-sidebar-focus",
+          "ruleId": "focus-visible",
+          "impact": "moderate",
+          "selectorPattern": "aside.sidebar a",
+          "titleId": "Tautan menu samping menghapus indikator fokus keyboard (outline: none)",
+          "affectedPages": [
+            "https://siakad.contoh-kampus.ac.id/krs",
+            "https://siakad.contoh-kampus.ac.id/jadwal"
+          ],
+          "occurrences": 14,
+          "blastRadiusPercent": 67
+        },
+        {
+          "id": "cluster-krs-table-buttons",
+          "ruleId": "button-name",
+          "impact": "critical",
+          "selectorPattern": "table.krs-table button.btn-add",
+          "titleId": "Tombol simbol \"+\" berulang tanpa konteks mata kuliah",
+          "affectedPages": [
+            "https://siakad.contoh-kampus.ac.id/krs"
+          ],
+          "occurrences": 8,
+          "blastRadiusPercent": 33
         }
       ]
     },
