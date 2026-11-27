@@ -24,15 +24,15 @@ import {
   closeSharedBrowser,
   getPoolStats,
 } from "./browser-pool.mjs";
+import {
+  WCAG_22_TAGS,
+  analyzeWcagWithAxe,
+  runWave2Analyzers,
+} from "../analyzers/index.mjs";
 
 export { closeSharedBrowser, getPoolStats };
 
-export const WCAG_TAGS = Object.freeze([
-  "wcag2a",
-  "wcag2aa",
-  "wcag21a",
-  "wcag21aa",
-]);
+export const WCAG_TAGS = WCAG_22_TAGS;
 
 export const USER_AGENT = "ProjectA-Accessibility-Research/0.2";
 
@@ -651,7 +651,7 @@ export async function auditPage({
   // pembanding regression, bukan sebagai baseline metrik engine.
   tracker.setStep("audit_wcag", "running");
   await progress(53, "Mengaudit aksesibilitas awal");
-  const wcagBefore = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  const wcagBefore = await analyzeWcagWithAxe(page, AxeBuilder, WCAG_TAGS);
   const beforeIssueCount = (wcagBefore?.violations ?? []).reduce(
     (sum, item) => sum + (item.nodes?.length ?? 0),
     0,
@@ -667,6 +667,13 @@ export async function auditPage({
   await resetFocusAndScroll(page);
   tracker.updateStats({ tabStopsCount: tabStops.length });
   tracker.setStep("tab_walk", "done", `${tabStops.length} tab stop terdeteksi`);
+
+  const rawPageUrl = typeof page.url === "function" ? page.url() : "";
+  const effectiveUrl = rawPageUrl && rawPageUrl !== "about:blank" ? rawPageUrl : url;
+  const wave2 = await runWave2Analyzers(page, {
+    baseUrl: effectiveUrl,
+    desktopViewport: CONTEXT_OPTIONS.viewport,
+  });
 
   tracker.setStep("remediate", "running");
   await progress(63, "Menerapkan dan memverifikasi patch");
@@ -720,6 +727,12 @@ export async function auditPage({
     readiness,
     tabStops,
     issueBoundingBoxes,
+    enginesUsed: wave2.enginesUsed,
+    mobileAudit: wave2.mobileAudit,
+    detectors: wave2.detectors,
+    discoveredPdfUrls: wave2.discoveredPdfUrls,
+    discoveredInternalUrls: wave2.discoveredInternalUrls,
+    aceViolations: wave2.aceViolations,
     warnings: {
       ...(partialRecovery
         ? {

@@ -507,6 +507,13 @@ function selectorOfNode(node) {
     : node.target.map(String).join(" >>> ");
 }
 
+function normalizeSelectorForDedupe(selector) {
+  return String(selector || "")
+    .trim()
+    .replace(/\s*>\s*/g, " > ")
+    .replace(/\s+/g, " ");
+}
+
 function buildRecordLookup(records = []) {
   const map = new Map();
   for (const record of Array.isArray(records) ? records : []) {
@@ -532,10 +539,16 @@ export function normalizeIssues({
   wcagBefore = null,
   wcagAfter = null,
   issueBoundingBoxes = null,
+  aceViolations = null,
 } = {}) {
   const beforeSource = wcagBefore || report?.beforeAxe || null;
   const afterSource = wcagAfter || report?.wideAfterAxe || report?.afterAxe || null;
   const bboxes = issueBoundingBoxes || report?.issueBoundingBoxes || {};
+  const aceList = Array.isArray(aceViolations)
+    ? aceViolations
+    : Array.isArray(report?.aceViolations)
+      ? report.aceViolations
+      : [];
 
   const fixedMap = buildRecordLookup(report?.fixed);
   const rolledBackMap = buildRecordLookup(report?.rolledBackRecords);
@@ -544,6 +557,7 @@ export function normalizeIssues({
   const afterSet = buildAfterSet(afterSource);
 
   const collected = [];
+  const dedupeIndex = new Map();
   let seq = 0;
 
   for (const violation of beforeSource?.violations ?? []) {
@@ -579,7 +593,7 @@ export function normalizeIssues({
       const htmlBefore = snippet?.before || sanitizeHtmlSnippet(node?.html) || null;
       const htmlAfter = fixedRec ? snippet?.after || null : null;
 
-      collected.push({
+      const issue = {
         id: `${ruleId}-${seq}`,
         ruleId,
         impact,
@@ -596,7 +610,75 @@ export function normalizeIssues({
         boundingBox: (selector && bboxes[selector]) || null,
         confidence: typeof matchedRec?.confidence === "number" ? matchedRec.confidence : null,
         source: matchedRec?.source ? String(matchedRec.source) : null,
-      });
+        engines: ["axe-core"],
+      };
+
+      collected.push(issue);
+
+      const primarySc = meta.wcagSc?.[0] || "";
+      const normSel = normalizeSelectorForDedupe(selector);
+      if (primarySc && normSel) {
+        const dedupeKey = `${primarySc}::${normSel}`;
+        if (!dedupeIndex.has(dedupeKey)) {
+          dedupeIndex.set(dedupeKey, issue);
+        }
+      }
+    }
+  }
+
+  for (const ace of aceList) {
+    if (!ace || typeof ace !== "object") continue;
+    const ruleId = String(ace.ruleId || "unknown-ace-rule");
+    const wcagSc = Array.isArray(ace.wcagSc)
+      ? ace.wcagSc.map(String).filter(Boolean)
+      : [];
+    const selector = String(ace.selector || "");
+    const primarySc = wcagSc[0] || "";
+    const normSel = normalizeSelectorForDedupe(selector);
+    const dedupeKey = primarySc && normSel ? `${primarySc}::${normSel}` : null;
+
+    if (dedupeKey && dedupeIndex.has(dedupeKey)) {
+      const existing = dedupeIndex.get(dedupeKey);
+      if (!existing.engines.includes("ibm-ace")) {
+        existing.engines.push("ibm-ace");
+      }
+      continue;
+    }
+
+    seq += 1;
+    const impact = normalizeImpact(ace.impact);
+    const pour = inferPourFromSc(wcagSc);
+    const regulations = DEFAULT_REGS_BY_POUR[pour];
+    const scText = wcagSc.length ? ` (WCAG ${wcagSc.join(", ")})` : "";
+    const helpText = String(ace.help || "").trim();
+
+    const aceIssue = {
+      id: `ace-${ruleId}-${seq}`,
+      ruleId,
+      impact,
+      status: "open",
+      pour,
+      wcagSc,
+      regulations,
+      titleId: `Temuan IBM Equal Access: ${ruleId}${scText}`,
+      descriptionId: helpText
+        ? `Mesin IBM Equal Access mendeteksi pelanggaran aturan ${ruleId}${scText}: ${helpText}`
+        : `Aturan ${ruleId} terdeteksi oleh IBM Equal Access belum memenuhi standar WCAG${scText}.`,
+      helpId: helpText
+        ? `Perbaiki elemen sesuai panduan IBM Equal Access (${ruleId}): ${helpText}`
+        : `Tinjau elemen terdampak pada aturan ${ruleId} dan pastikan sesuai standar WCAG 2.2 AA.`,
+      selector,
+      htmlBefore: sanitizeHtmlSnippet(ace.html) || null,
+      htmlAfter: null,
+      boundingBox: (selector && bboxes[selector]) || null,
+      confidence: null,
+      source: "ibm-ace",
+      engines: ["ibm-ace"],
+    };
+
+    collected.push(aceIssue);
+    if (dedupeKey && !dedupeIndex.has(dedupeKey)) {
+      dedupeIndex.set(dedupeKey, aceIssue);
     }
   }
 
@@ -628,6 +710,7 @@ export function buildComplianceReport({
   wcagBefore = null,
   wcagAfter = null,
   issueBoundingBoxes = null,
+  aceViolations = null,
 } = {}) {
   const beforeSource = wcagBefore || report?.beforeAxe || null;
   const afterSource = wcagAfter || report?.wideAfterAxe || report?.afterAxe || null;
@@ -648,6 +731,7 @@ export function buildComplianceReport({
     wcagBefore: beforeSource,
     wcagAfter: afterSource,
     issueBoundingBoxes,
+    aceViolations,
   });
 
   const regulations = buildRegulationsSummary(issues);
