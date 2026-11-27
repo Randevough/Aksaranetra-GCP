@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { AuditMode } from "@/lib/audit-api";
 import { DEMO_AUDITS } from "@/lib/demo-audits";
 import styles from "./page.module.css";
 
@@ -39,13 +40,17 @@ function normalizePublicUrl(raw: string): string | null {
 
 export default function PeriksaPage() {
   const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<AuditMode>("single");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const prefill = new URLSearchParams(window.location.search).get("url");
+    const search = new URLSearchParams(window.location.search);
+    const prefill = search.get("url");
+    const prefillMode = search.get("mode");
     if (prefill) queueMicrotask(() => setUrl(prefill));
+    if (prefillMode === "multi") queueMicrotask(() => setMode("multi"));
   }, []);
 
   const handleSubmit = (event: FormEvent) => {
@@ -65,7 +70,11 @@ export default function PeriksaPage() {
       return;
     }
     setError("");
-    router.push(`/result?url=${encodeURIComponent(normalized)}`);
+    const query =
+      mode === "multi"
+        ? `url=${encodeURIComponent(normalized)}&mode=multi&pages=3`
+        : `url=${encodeURIComponent(normalized)}`;
+    router.push(`/result?${query}`);
   };
 
   return (
@@ -115,6 +124,44 @@ export default function PeriksaPage() {
                 </p>
               )}
             </div>
+
+            <fieldset className={styles.modeFieldset}>
+              <legend className="label">Cakupan pemeriksaan</legend>
+              <div className={styles.modeSegmented}>
+                <input
+                  type="radio"
+                  id="mode-single"
+                  name="audit-mode"
+                  value="single"
+                  checked={mode === "single"}
+                  onChange={() => setMode("single")}
+                  className={styles.modeRadio}
+                  aria-describedby="mode-helper"
+                />
+                <label htmlFor="mode-single" className={styles.modeOption}>
+                  1 Halaman (Cepat)
+                </label>
+
+                <input
+                  type="radio"
+                  id="mode-multi"
+                  name="audit-mode"
+                  value="multi"
+                  checked={mode === "multi"}
+                  onChange={() => setMode("multi")}
+                  className={styles.modeRadio}
+                  aria-describedby="mode-helper"
+                />
+                <label htmlFor="mode-multi" className={styles.modeOption}>
+                  Multi-Halaman (3 Halaman)
+                </label>
+              </div>
+              <p id="mode-helper" className="hint">
+                Pilih 1 halaman untuk pemeriksaan cepat, atau Multi-Halaman
+                untuk menelusuri hingga 3 halaman pada domain yang sama.
+              </p>
+            </fieldset>
+
             <button
               type="submit"
               className={`btn btn-primary ${styles.submitBtn}`}

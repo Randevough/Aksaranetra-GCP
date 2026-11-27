@@ -279,11 +279,35 @@ function HeroCarousel() {
   );
 }
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://aksaranetra.rafifernanda.site"
+).replace(/\/$/, "");
+
+const WEB_APP_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "AksaraNetra",
+  url: SITE_URL,
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "Any",
+  inLanguage: "id",
+  description:
+    "Periksa hambatan aksesibilitas pada halaman publik, uji perbaikan yang aman, dan siapkan tampilan reader tanpa mengubah situs asli.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "IDR",
+  },
+};
+
 export default function Home() {
   useUngkap();
 
   return (
     <main className={styles.main}>
+      <script type="application/ld+json">
+        {JSON.stringify(WEB_APP_JSONLD)}
+      </script>
       {/* ============ HERO ============ */}
       <div id="hero-utama" className={styles.heroWrap}>
         <div className={`container ${styles.heroInner}`}>

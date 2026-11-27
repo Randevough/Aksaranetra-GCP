@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AuditJob,
+  AuditMode,
   AuditResult,
+  CreateAuditOptions,
   cancelAudit,
   checkAuditCache,
   createAudit,
@@ -113,6 +115,16 @@ export function useAuditJob() {
   const jobParam = params.get("job");
   const demoParam = params.get("demo");
   const directOpen = params.get("open") === "1";
+  const modeParam = params.get("mode");
+  const pagesParam = params.get("pages");
+  const parsedMode: AuditMode = modeParam === "multi" ? "multi" : "single";
+  const parsedPagesNum = pagesParam ? Number.parseInt(pagesParam, 10) : NaN;
+  const parsedMaxPages =
+    parsedMode === "multi"
+      ? Number.isFinite(parsedPagesNum)
+        ? Math.min(5, Math.max(1, parsedPagesNum))
+        : 3
+      : 1;
 
   const [phase, setPhase] = useState<AuditPhase>("initial");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -146,6 +158,15 @@ export function useAuditJob() {
   const lastStage = useRef("");
   const consecutiveErrors = useRef(0);
   const notifyOptInRef = useRef(false);
+  const activeModeRef = useRef<AuditMode>(parsedMode);
+  const activeMaxPagesRef = useRef<number>(parsedMaxPages);
+
+  useEffect(() => {
+    if (modeParam === "multi" || urlParam) {
+      activeModeRef.current = parsedMode;
+      activeMaxPagesRef.current = parsedMaxPages;
+    }
+  }, [modeParam, parsedMaxPages, parsedMode, urlParam]);
 
   useEffect(() => {
     notifyOptInRef.current = notifyOptIn;
@@ -200,12 +221,25 @@ export function useAuditJob() {
   );
 
   const beginAuditForUrl = useCallback(
-    async (urlToAudit: string, reuseExisting: boolean) => {
+    async (
+      urlToAudit: string,
+      reuseExisting: boolean,
+      options?: CreateAuditOptions,
+    ) => {
       if (!urlToAudit || creatingAudit.current) return;
       creatingAudit.current = true;
       setPhase("creating");
+      const mode = options?.mode ?? activeModeRef.current;
+      const maxPages =
+        options?.maxPages ??
+        (mode === "multi" ? activeMaxPagesRef.current : 1);
+      activeModeRef.current = mode;
+      activeMaxPagesRef.current = maxPages;
       try {
-        const created = await createAudit(urlToAudit, reuseExisting);
+        const created = await createAudit(urlToAudit, reuseExisting, {
+          mode,
+          maxPages,
+        });
         const now = new Date().toISOString();
         saveJobToken(created.jobId, created.accessToken);
         saveRecentAudit({
@@ -235,10 +269,10 @@ export function useAuditJob() {
   );
 
   const beginAudit = useCallback(
-    async (reuseExisting: boolean) => {
+    async (reuseExisting: boolean, options?: CreateAuditOptions) => {
       const activeUrl = targetUrl || urlParam;
       if (activeUrl) {
-        await beginAuditForUrl(activeUrl, reuseExisting);
+        await beginAuditForUrl(activeUrl, reuseExisting, options);
       }
     },
     [beginAuditForUrl, targetUrl, urlParam],
@@ -256,6 +290,10 @@ export function useAuditJob() {
       consecutiveErrors.current = 0;
       setIsReconnecting(false);
       setTargetUrl(candidateUrl);
+      const retryOptions: CreateAuditOptions = {
+        mode: job?.mode ?? activeModeRef.current,
+        maxPages: job?.maxPages ?? activeMaxPagesRef.current,
+      };
       setPhase("checking-cache");
       checkAuditCache(candidateUrl)
         .then((cache) => {
@@ -263,11 +301,11 @@ export function useAuditJob() {
             setCacheInfo(cache);
             setPhase("cache-choice");
           } else {
-            void beginAuditForUrl(candidateUrl, false);
+            void beginAuditForUrl(candidateUrl, false, retryOptions);
           }
         })
         .catch(() => {
-          void beginAuditForUrl(candidateUrl, false);
+          void beginAuditForUrl(candidateUrl, false, retryOptions);
         });
     } else if (jobId && token) {
       consecutiveErrors.current = 0;
@@ -276,7 +314,17 @@ export function useAuditJob() {
     } else {
       router.push("/periksa");
     }
-  }, [beginAuditForUrl, job?.url, jobId, router, targetUrl, token, urlParam]);
+  }, [
+    beginAuditForUrl,
+    job?.maxPages,
+    job?.mode,
+    job?.url,
+    jobId,
+    router,
+    targetUrl,
+    token,
+    urlParam,
+  ]);
 
   useEffect(() => {
     if (demoParam) {
@@ -388,6 +436,12 @@ export function useAuditJob() {
         setIsReconnecting(false);
         setJob(response.job);
         if (response.job.url) setTargetUrl(response.job.url);
+        if (response.job.mode) {
+          activeModeRef.current = response.job.mode;
+          if (typeof response.job.maxPages === "number") {
+            activeMaxPagesRef.current = response.job.maxPages;
+          }
+        }
         saveRecentAudit(
           recentAuditFromJob(response.job, findRecentAudit(jobId)),
         );

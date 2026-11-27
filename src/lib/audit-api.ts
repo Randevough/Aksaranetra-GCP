@@ -1,3 +1,5 @@
+export type AuditMode = "single" | "multi";
+
 export type JobStatus =
   | "queued"
   | "running"
@@ -93,6 +95,7 @@ export interface AuditIssue {
   boundingBox: BoundingBox | null;
   confidence: number | null;
   source: string | null;
+  engines?: string[];
 }
 
 export interface TabStop {
@@ -118,6 +121,85 @@ export interface PageReadiness {
   pageHeight: number;
 }
 
+export interface MobileAudit {
+  viewport: { width: number; height: number };
+  reflowOk: boolean;
+  horizontalOverflowPx: number;
+  textSpacingOk: boolean;
+  clippedElementsCount: number;
+  smallTargetsCount: number;
+  pinchZoomBlocked: boolean;
+  osPreferences: {
+    reducedMotionChecked: boolean;
+    reducedMotionUnboundedAnimations: number;
+    forcedColorsChecked: boolean;
+  };
+}
+
+export interface PdfAuditItem {
+  url: string;
+  filename: string;
+  sizeBytes: number;
+  pageCount: number;
+  isTagged: boolean;
+  hasTextLayer: boolean;
+  hasTitle: boolean;
+  hasLang: boolean;
+  status: "accessible-basics" | "untagged" | "scanned-image-only" | "error";
+  error?: string | null;
+}
+
+export interface PdfAuditReport {
+  discoveredCount: number;
+  auditedCount: number;
+  scannedImageCount: number;
+  untaggedCount: number;
+  items: PdfAuditItem[];
+}
+
+export interface DetectorFlags {
+  overlay: {
+    detected: boolean;
+    vendors: string[];
+    summaryId: string | null;
+  };
+  captcha: {
+    detected: boolean;
+    types: string[];
+    inaccessibleCount: number;
+    summaryId: string | null;
+  };
+}
+
+export interface IssueCluster {
+  id: string;
+  ruleId: string;
+  impact: ImpactLevel;
+  selectorPattern: string;
+  titleId: string;
+  affectedPages: string[];
+  occurrences: number;
+  blastRadiusPercent: number;
+}
+
+export interface MultiPagePageSummary {
+  url: string;
+  title: string;
+  beforeScore: number;
+  afterScore: number;
+  issuesCount: number;
+  status: "completed" | "failed" | "skipped";
+  error?: string | null;
+}
+
+export interface MultiPageSummary {
+  mode: AuditMode;
+  requestedMaxPages: number;
+  crawledCount: number;
+  averageAfterScore: number;
+  pages: MultiPagePageSummary[];
+}
+
 export interface AuditJob {
   jobId: string;
   url: string;
@@ -134,6 +216,8 @@ export interface AuditJob {
   error: { code: string; message: string } | null;
   telemetry?: AuditTelemetry | null;
   previewUrl?: string | null;
+  mode?: AuditMode;
+  maxPages?: number;
 }
 
 export interface Snapshot {
@@ -200,6 +284,12 @@ export interface Snapshot {
   issues?: AuditIssue[];
   tabStops?: TabStop[];
   readiness?: PageReadiness;
+  enginesUsed?: string[];
+  mobileAudit?: MobileAudit;
+  pdfAudit?: PdfAuditReport;
+  detectors?: DetectorFlags;
+  multiPage?: MultiPageSummary;
+  clusters?: IssueCluster[];
 }
 
 export interface AuditResult {
@@ -438,7 +528,25 @@ export async function checkAuditCache(url: string) {
   }>(`/audits/cache?url=${encodeURIComponent(url)}`);
 }
 
-export async function createAudit(url: string, reuseExisting = false) {
+export interface CreateAuditOptions {
+  mode?: AuditMode;
+  maxPages?: number;
+}
+
+export async function createAudit(
+  url: string,
+  reuseExisting = false,
+  options?: CreateAuditOptions,
+) {
+  const payload: {
+    url: string;
+    reuseExisting: boolean;
+    mode?: AuditMode;
+    maxPages?: number;
+  } = { url, reuseExisting };
+  if (options?.mode) payload.mode = options.mode;
+  if (typeof options?.maxPages === "number") payload.maxPages = options.maxPages;
+
   return json<{
     jobId: string;
     accessToken: string;
@@ -447,7 +555,7 @@ export async function createAudit(url: string, reuseExisting = false) {
   }>("/audits", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url, reuseExisting }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -479,4 +587,13 @@ export function removeJobToken(jobId: string) {
 export function artifactUrl(path: string) {
   if (path.startsWith("http") || path.startsWith("/data/")) return path;
   return `${AUDIT_API_BASE}${path}`;
+}
+
+export function badgeUrl(domain: string): string {
+  const normalized = domain
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/.*$/, "")
+    .replace(/\.svg$/i, "");
+  return `${AUDIT_API_BASE}/badges/${encodeURIComponent(normalized)}.svg`;
 }

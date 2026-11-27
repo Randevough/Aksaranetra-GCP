@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Riwayat pemeriksaan",
   description:
     "Lanjutkan pemeriksaan aktif atau buka hasil AksaraNetra yang masih tersedia di perangkat ini.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RiwayatLayout({ children }: { children: ReactNode }) {
