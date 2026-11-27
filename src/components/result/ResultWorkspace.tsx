@@ -218,7 +218,7 @@ export default function ResultWorkspace({
     <main className={styles.resultContainer}>
       {isDemo && (
         <div className={styles.demoSwitcher} aria-label="Pilihan data demo">
-          <span>Mode Demo:</span>
+          <span>Demo:</span>
           <div className={styles.demoPills}>
             {DEMO_AUDITS.map((preset) => (
               <Link
@@ -236,14 +236,14 @@ export default function ResultWorkspace({
       <header className={styles.compactHeader}>
         <div className={styles.headerMain}>
           <div className={styles.headerMetaRow}>
-            <span className={styles.statusPill}>Pemeriksaan selesai</span>
+            <span className={styles.statusPill}>Selesai</span>
             <span className={styles.timestamp}>
               {waktu(snapshot.capturedAt)} · v{snapshot.engineVersion}
             </span>
           </div>
 
           <h1 ref={resolvedHeadingRef} tabIndex={-1}>
-            {snapshot.source.title || "Hasil pemeriksaan halaman"}
+            {snapshot.source.title || "Hasil Pemeriksaan"}
           </h1>
 
           <p className={styles.source}>
@@ -259,8 +259,8 @@ export default function ResultWorkspace({
 
           <p className={styles.disclaimerFootnote}>
             {isDemo
-              ? "Simulasi statis AksaraNetra. Situs asli tidak diubah."
-              : "Tampilan pemeriksaan AksaraNetra. Situs asli tidak diubah."}
+              ? "Simulasi demo. Situs asli tidak diubah."
+              : "Pratinjau pemeriksaan. Situs asli tidak diubah."}
           </p>
         </div>
 
@@ -272,7 +272,7 @@ export default function ResultWorkspace({
               onClick={handleOpenWebReader}
             >
               Buka Web Reader
-              <span className="sr-only"> (Buka versi ramah akses)</span>
+              <span className="sr-only"> (versi ramah akses)</span>
             </button>
 
             <a
@@ -282,7 +282,7 @@ export default function ResultWorkspace({
               rel="noopener noreferrer"
             >
               Lihat Halaman Diperbaiki
-              <span className="sr-only"> (Lihat halaman setelah perbaikan, buka di tab baru)</span>
+              <span className="sr-only"> (buka di tab baru)</span>
             </a>
           </div>
 
@@ -305,7 +305,7 @@ export default function ResultWorkspace({
                   className={styles.compactActionBtn}
                   href={reportJsonHref}
                   download={`aksaranetra-${data.job.jobId}.json`}
-                  aria-label="Export JSON"
+                  aria-label="Unduh JSON"
                 >
                   JSON
                 </a>
@@ -313,7 +313,7 @@ export default function ResultWorkspace({
                 <button
                   type="button"
                   className={styles.compactActionBtn}
-                  aria-label="Export JSON"
+                  aria-label="Unduh JSON"
                   onClick={() =>
                     triggerClientDownload(
                       `aksaranetra-${data.job.jobId}.json`,
@@ -331,7 +331,7 @@ export default function ResultWorkspace({
                   className={styles.compactActionBtn}
                   href={reportCsvHref}
                   download={`aksaranetra-${data.job.jobId}.csv`}
-                  aria-label="Export CSV"
+                  aria-label="Unduh CSV"
                 >
                   CSV
                 </a>
@@ -339,7 +339,7 @@ export default function ResultWorkspace({
                 <button
                   type="button"
                   className={styles.compactActionBtn}
-                  aria-label="Export CSV"
+                  aria-label="Unduh CSV"
                   onClick={() =>
                     triggerClientDownload(
                       `aksaranetra-${data.job.jobId}.csv`,

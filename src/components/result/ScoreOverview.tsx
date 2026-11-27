@@ -8,10 +8,10 @@ import type {
 import styles from "./ScoreOverview.module.css";
 
 const POUR_LABELS: Record<PourPrinciple, string> = {
-  perceivable: "Perceivable",
-  operable: "Operable",
-  understandable: "Understandable",
-  robust: "Robust",
+  perceivable: "Mudah Dilihat",
+  operable: "Mudah Dinavigasi",
+  understandable: "Mudah Dipahami",
+  robust: "Kompatibel Alat Bantu",
 };
 
 const SEVERITY_META: Array<{
@@ -130,7 +130,7 @@ export default function ScoreOverview({
         )}
 
         <p className={styles.honestyNote}>
-          Skor otomatis mencakup ~30–57% kriteria WCAG. Lengkapi dengan uji manual.
+          Cek otomatis mencakup ~30–57% standar aksesibilitas.
         </p>
       </div>
 
@@ -156,7 +156,7 @@ export default function ScoreOverview({
               regressionClean ? styles.regressionClean : styles.regressionWarn
             }
           >
-            {regressionClean ? "Bebas regresi" : "Perlu cek regresi"}
+            {regressionClean ? "Tanpa masalah baru" : "Perlu cek ulang"}
           </span>
         </div>
 
@@ -165,7 +165,7 @@ export default function ScoreOverview({
             <div className={styles.blockHeader}>
               <h3 className={styles.blockTitle}>Tingkat Keparahan</h3>
               <span className={styles.blockMeta}>
-                Klik untuk filter temuan
+                Pilih untuk filter
               </span>
             </div>
 
@@ -221,8 +221,8 @@ export default function ScoreOverview({
         )}
 
         {score && (
-          <div className={styles.pourBlock} aria-label="Skor prinsip POUR WCAG">
-            <h3 className={styles.blockTitle}>Prinsip POUR</h3>
+          <div className={styles.pourBlock} aria-label="Skor aspek aksesibilitas">
+            <h3 className={styles.blockTitle}>Aspek Aksesibilitas</h3>
             <div className={styles.pourGrid}>
               {(Object.keys(POUR_LABELS) as PourPrinciple[]).map((key) => {
                 const val = Math.max(0, Math.min(100, Math.round(score.pour[key] ?? 0)));

@@ -128,7 +128,7 @@ export default function VisualInspector({
             onClick={() => setActiveMode("focus")}
             onKeyDown={(e) => handleTabKeyDown(e, "focus")}
           >
-            Alur Fokus Keyboard ({tabStops.length})
+            Urutan Fokus ({tabStops.length})
           </button>
           <button
             ref={(el) => {
@@ -143,7 +143,7 @@ export default function VisualInspector({
             onClick={() => setActiveMode("compare")}
             onKeyDown={(e) => handleTabKeyDown(e, "compare")}
           >
-            Slider Sebelum &amp; Sesudah
+            Sebelum &amp; Sesudah
           </button>
         </div>
 
@@ -203,8 +203,7 @@ export default function VisualInspector({
           ) : (
             <div className={styles.emptyNotice}>
               <p>
-                Tangkapan layar awal belum tersedia untuk halaman ini. Gunakan
-                tab Daftar Temuan untuk meninjau setiap elemen.
+                Gambar halaman belum tersedia. Lihat detail di tab Daftar Temuan.
               </p>
             </div>
           )}
@@ -226,7 +225,7 @@ export default function VisualInspector({
                   className="btn btn-secondary"
                   onClick={() => onJumpToIssue(selectedIssue.id)}
                 >
-                  Lihat detail temuan
+                  Lihat Detail
                 </button>
               )}
             </div>
@@ -243,14 +242,14 @@ export default function VisualInspector({
         <div className={styles.panelBox}>
           <div className={styles.focusSummaryRow}>
             <span>
-              Total titik Tab: <strong>{tabStops.length}</strong>
+              Titik Tab: <strong>{tabStops.length}</strong>
             </span>
             <span className={focusFlags.obscuredCount > 0 ? styles.flagWarn : styles.flagOk}>
-              Tertutup elemen (WCAG 2.4.11):{" "}
+              Tertutup (WCAG 2.4.11):{" "}
               <strong>{focusFlags.obscuredCount}</strong>
             </span>
             <span className={focusFlags.noFocusCount > 0 ? styles.flagWarn : styles.flagOk}>
-              Tanpa indikator fokus (WCAG 2.4.7):{" "}
+              Tanpa fokus terlihat (WCAG 2.4.7):{" "}
               <strong>{focusFlags.noFocusCount}</strong>
             </span>
           </div>
@@ -306,7 +305,7 @@ export default function VisualInspector({
             </div>
           ) : (
             <div className={styles.emptyNotice}>
-              <p>Data jejak urutan Tab belum tersedia pada pemeriksaan ini.</p>
+              <p>Data urutan Tab belum tersedia.</p>
             </div>
           )}
 
@@ -321,7 +320,7 @@ export default function VisualInspector({
                 <thead>
                   <tr>
                     <th scope="col">Urutan</th>
-                    <th scope="col">Elemen &amp; Label</th>
+                    <th scope="col">Elemen</th>
                     <th scope="col">Fokus Terlihat (2.4.7)</th>
                     <th scope="col">Tidak Tertutup (2.4.11)</th>
                   </tr>
@@ -337,11 +336,11 @@ export default function VisualInspector({
                       <td>
                         {stop.hasVisibleFocus
                           ? "Terlihat"
-                          : "Tidak terlihat (perlu perbaikan)"}
+                          : "Tidak terlihat"}
                       </td>
                       <td>
                         {stop.obscured
-                          ? "Tertutup elemen lain (perlu perbaikan)"
+                          ? "Tertutup"
                           : "Aman"}
                       </td>
                     </tr>
@@ -364,7 +363,7 @@ export default function VisualInspector({
             <div className={styles.compareWrap}>
               <div className={styles.compareControls}>
                 <label htmlFor="compare-slider" className={styles.compareLabel}>
-                  Geser pembanding Sebelum ({sliderPos}%) vs Sesudah ({100 - sliderPos}%)
+                  Sebelum ({sliderPos}%) · Sesudah ({100 - sliderPos}%)
                 </label>
                 <input
                   id="compare-slider"
@@ -412,8 +411,7 @@ export default function VisualInspector({
           ) : (
             <div className={styles.emptyNotice}>
               <p>
-                Perbandingan visual membutuhkan gambar sebelum dan sesudah
-                perbaikan. Salah satu tangkapan layar tidak tersedia pada audit ini.
+                Gambar sebelum atau sesudah perbaikan belum tersedia.
               </p>
             </div>
           )}

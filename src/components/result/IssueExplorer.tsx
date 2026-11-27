@@ -27,10 +27,10 @@ const STATUS_LABEL: Record<AuditIssue["status"], string> = {
 };
 
 const POUR_LABEL: Record<PourPrinciple, string> = {
-  perceivable: "Perceivable",
-  operable: "Operable",
-  understandable: "Understandable",
-  robust: "Robust",
+  perceivable: "Mudah Dilihat",
+  operable: "Mudah Dinavigasi",
+  understandable: "Mudah Dipahami",
+  robust: "Kompatibel Alat Bantu",
 };
 
 export default function IssueExplorer({
@@ -122,13 +122,13 @@ export default function IssueExplorer({
     try {
       await navigator.clipboard.writeText(payload);
       setCopiedId(issue.id);
-      setCopyAnnouncement(`Kode perbaikan untuk ${issue.ruleId} disalin ke papan klip.`);
+      setCopyAnnouncement(`Kode perbaikan untuk ${issue.ruleId} disalin.`);
       setTimeout(() => {
         setCopiedId((curr) => (curr === issue.id ? null : curr));
       }, 2500);
     } catch {
       setCopyAnnouncement(
-        "Gagal menyalin otomatis. Pilih dan salin teks kode secara manual.",
+        "Gagal menyalin otomatis. Salin kode secara manual.",
       );
     }
   };
@@ -136,7 +136,7 @@ export default function IssueExplorer({
   if (issues.length === 0) {
     return (
       <div className={styles.emptyFilter}>
-        <p>Tidak ada temuan tercatat pada pemeriksaan ini.</p>
+        <p>Tidak ada temuan pada pemeriksaan ini.</p>
       </div>
     );
   }
@@ -158,12 +158,12 @@ export default function IssueExplorer({
       <search className={styles.filterBox}>
         <div className={styles.filterGrid}>
           <div className={styles.filterField}>
-            <label htmlFor="issue-search">Cari temuan atau selektor</label>
+            <label htmlFor="issue-search">Cari temuan</label>
             <input
               id="issue-search"
               type="search"
               className="input"
-              placeholder="Contoh: button-name, kontras, 1.4.3"
+              placeholder="Contoh: kontras, tombol, 1.4.3"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -207,7 +207,7 @@ export default function IssueExplorer({
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="filter-pour">Prinsip POUR</label>
+            <label htmlFor="filter-pour">Aspek</label>
             <select
               id="filter-pour"
               className="input"
@@ -216,11 +216,11 @@ export default function IssueExplorer({
                 setPourFilter(e.target.value as PourPrinciple | "all")
               }
             >
-              <option value="all">Semua prinsip</option>
-              <option value="perceivable">Perceivable</option>
-              <option value="operable">Operable</option>
-              <option value="understandable">Understandable</option>
-              <option value="robust">Robust</option>
+              <option value="all">Semua aspek</option>
+              <option value="perceivable">Mudah Dilihat</option>
+              <option value="operable">Mudah Dinavigasi</option>
+              <option value="understandable">Mudah Dipahami</option>
+              <option value="robust">Kompatibel Alat Bantu</option>
             </select>
           </div>
 
@@ -255,7 +255,7 @@ export default function IssueExplorer({
               className={styles.resetButton}
               onClick={resetFilters}
             >
-              Atur ulang filter
+              Atur ulang
             </button>
           )}
         </div>
@@ -263,13 +263,13 @@ export default function IssueExplorer({
 
       {filtered.length === 0 ? (
         <div className={styles.emptyFilter}>
-          <p>Tidak ada temuan yang cocok dengan kombinasi filter saat ini.</p>
+          <p>Tidak ada temuan yang cocok dengan filter.</p>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={resetFilters}
           >
-            Tampilkan semua temuan
+            Tampilkan semua
           </button>
         </div>
       ) : (
@@ -360,13 +360,13 @@ export default function IssueExplorer({
                           <div className={styles.codeBlock}>
                             <span className={styles.codeLabelAfter}>
                               {issue.htmlAfter
-                                ? "Sesudah (Perbaikan)"
-                                : "Perlu Tinjauan Manual"}
+                                ? "Sesudah"
+                                : "Perlu Tinjauan"}
                             </span>
                             <pre>
                               <code>
                                 {issue.htmlAfter ??
-                                  "Tidak diubah otomatis untuk mencegah deskripsi keliru."}
+                                  "Tidak diubah otomatis agar tidak keliru."}
                               </code>
                             </pre>
                           </div>
@@ -383,7 +383,7 @@ export default function IssueExplorer({
                             ? "Tersalin"
                             : issue.htmlAfter
                               ? "Salin Perbaikan"
-                              : "Salin Panduan & Selektor"}
+                              : "Salin Panduan"}
                         </button>
                       </div>
                     </div>

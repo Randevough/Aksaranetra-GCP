@@ -94,7 +94,7 @@ export function Feature2() {
 
       <motion.div
         className={styles.f2Item1}
-        animate={{ borderColor: ["transparent", "#3b82f6", "transparent"] }}
+        animate={{ borderColor: ["rgba(59, 130, 246, 0)", "#3b82f6", "rgba(59, 130, 246, 0)"] }}
         transition={{
           duration: 2,
           times: [0, 0.5, 1],
@@ -109,7 +109,7 @@ export function Feature2() {
       <motion.div
         className={styles.f2Item2}
         animate={{
-          borderColor: ["transparent", "transparent", "#3b82f6", "transparent"],
+          borderColor: ["rgba(59, 130, 246, 0)", "rgba(59, 130, 246, 0)", "#3b82f6", "rgba(59, 130, 246, 0)"],
         }}
         transition={{
           duration: 2,

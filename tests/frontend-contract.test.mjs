@@ -103,13 +103,13 @@ test("source HTML is never injected and Wave 1 exports + inspector/reader tabs a
   assert.match(resultWorkspace, /Buka Web Reader/);
   assert.match(resultWorkspace, /Lihat Halaman Diperbaiki/);
   assert.match(resultWorkspace, /Unduh laporan PDF/);
-  assert.match(resultWorkspace, /Export JSON/);
-  assert.match(resultWorkspace, /Export CSV/);
+  assert.match(resultWorkspace, /Unduh JSON/);
+  assert.match(resultWorkspace, /Unduh CSV/);
   assert.match(resultWorkspace, /\(buka di tab baru\)/);
   assert.match(resultWorkspace, /role="tablist"/);
 
   assert.match(scoreOverview, /Skor/);
-  assert.match(scoreOverview, /POUR/);
+  assert.match(scoreOverview, /Mudah Dilihat/);
   assert.match(visualInspector, /role="tablist"/);
   assert.match(visualInspector, /Pin Temuan/);
   assert.match(visualInspector, /Alur Fokus Keyboard/);
@@ -120,6 +120,8 @@ test("source HTML is never injected and Wave 1 exports + inspector/reader tabs a
   assert.match(issueExplorer, /aria-live="polite"/);
   assert.match(webReaderPanel, /DOMParser/);
   assert.match(webReaderPanel, /speechSynthesis/);
+  assert.match(webReaderPanel, /id-ID/);
+  assert.match(webReaderPanel, /en-US/);
   assert.match(webReaderPanel, /showModal/);
 });
 
