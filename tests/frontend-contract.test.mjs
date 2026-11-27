@@ -25,6 +25,11 @@ const periksaPage = read("src/app/periksa/page.tsx");
 const katalogPage = read("src/app/katalog/page.tsx");
 const resultPage = read("src/app/result/page.tsx");
 const layoutFile = read("src/app/layout.tsx");
+const globalsCss = read("src/app/globals.css");
+const robotsFile = read("src/app/robots.ts");
+const sitemapFile = read("src/app/sitemap.ts");
+const resultLayoutFile = read("src/app/result/layout.tsx");
+const katalogLayoutFile = read("src/app/katalog/layout.tsx");
 const motionProvider = read("src/components/MotionProvider.tsx");
 const viewportBlur = read("src/components/ViewportBlur.tsx");
 const apiClient = read("src/lib/audit-api.ts");
@@ -35,6 +40,9 @@ const scoreOverview = read("src/components/result/ScoreOverview.tsx");
 const visualInspector = read("src/components/result/VisualInspector.tsx");
 const issueExplorer = read("src/components/result/IssueExplorer.tsx");
 const webReaderPanel = read("src/components/result/WebReaderPanel.tsx");
+const wave2Diagnostics = read("src/components/result/Wave2Diagnostics.tsx");
+const guidedFastPass = read("src/components/result/GuidedFastPass.tsx");
+const statementModal = read("src/components/result/StatementModal.tsx");
 const resultWorkspace = read("src/components/result/ResultWorkspace.tsx");
 const packageJson = JSON.parse(read("package.json"));
 
@@ -145,6 +153,12 @@ test("instant demo route and static demo fixtures align with AuditResult contrac
     assert.ok(Array.isArray(parsed.result?.snapshot?.issues) && parsed.result.snapshot.issues.length > 0, `${slug} missing issues`);
     assert.ok(Array.isArray(parsed.result?.snapshot?.tabStops) && parsed.result.snapshot.tabStops.length > 0, `${slug} missing tabStops`);
     assert.ok(parsed.result?.snapshot?.readiness, `${slug} missing readiness`);
+    assert.ok(Array.isArray(parsed.result?.snapshot?.enginesUsed) && parsed.result.snapshot.enginesUsed.length > 0, `${slug} missing enginesUsed`);
+    assert.ok(parsed.result?.snapshot?.mobileAudit, `${slug} missing mobileAudit`);
+    assert.ok(parsed.result?.snapshot?.pdfAudit, `${slug} missing pdfAudit`);
+    assert.ok(parsed.result?.snapshot?.detectors, `${slug} missing detectors`);
+    assert.ok(parsed.result?.snapshot?.multiPage, `${slug} missing multiPage`);
+    assert.ok(Array.isArray(parsed.result?.snapshot?.clusters) && parsed.result.snapshot.clusters.length > 0, `${slug} missing clusters`);
 
     for (const key of ["reader", "patched", "reportPdf", "screenshot", "beforeScreenshot", "reportJson", "reportCsv"]) {
       const link = parsed.links?.[key];
@@ -196,4 +210,70 @@ test("dogfooding accessibility and legal compliance guardrails hold", () => {
     const text = fs.readFileSync(file, "utf8");
     assert.doesNotMatch(text, /permen\s*kominfo\s*no\.?\s*8|permenkominfo\s*no\.?\s*8/i, `Revoked regulation reference in ${file}`);
   }
+});
+
+test("Wave 2 performance, SEO, code splitting, and diagnostic UI contracts hold", () => {
+  // Self-hosted font via next/font/google; no blocking Google Fonts CSS @import
+  assert.match(layoutFile, /from\s+["']next\/font\/google["']/);
+  assert.match(layoutFile, /Plus_Jakarta_Sans/);
+  assert.doesNotMatch(globalsCss, /fonts\.googleapis\.com/i);
+
+  // SEO robots, sitemap, and noindex guards for private/ephemeral routes
+  assert.match(robotsFile, /allow:\s*\["\/",\s*"\/periksa"\]/);
+  assert.match(robotsFile, /disallow:\s*\["\/result",\s*"\/katalog"\]/);
+  assert.match(robotsFile, /sitemap:/);
+  assert.match(sitemapFile, /MetadataRoute\.Sitemap/);
+  assert.match(sitemapFile, /\/periksa/);
+  assert.match(resultLayoutFile, /index:\s*false/);
+  assert.match(katalogLayoutFile, /index:\s*false/);
+
+  // Code splitting via next/dynamic in ResultWorkspace
+  assert.match(resultWorkspace, /import\s+dynamic\s+from\s+["']next\/dynamic["']/);
+  assert.match(resultWorkspace, /VisualInspector\s*=\s*dynamic\(/);
+  assert.match(resultWorkspace, /IssueExplorer\s*=\s*dynamic\(/);
+  assert.match(resultWorkspace, /WebReaderPanel\s*=\s*dynamic\(/);
+  assert.match(resultWorkspace, /GuidedFastPass\s*=\s*dynamic\(/);
+  assert.match(resultWorkspace, /StatementModal\s*=\s*dynamic\(/);
+  assert.match(resultWorkspace, /ssr:\s*false/);
+
+  // Wave 2 contract symbols in audit-api.ts
+  for (const symbol of [
+    "AuditMode",
+    "MobileAudit",
+    "PdfAuditReport",
+    "DetectorFlags",
+    "IssueCluster",
+    "MultiPageSummary",
+    "enginesUsed",
+    "badgeUrl",
+  ]) {
+    assert.ok(apiClient.includes(symbol), `Missing Wave 2 contract symbol ${symbol} in audit-api.ts`);
+  }
+
+  // /periksa mode selector
+  assert.match(periksaPage, /id="mode-single"/);
+  assert.match(periksaPage, /id="mode-multi"/);
+  assert.match(periksaPage, /name="audit-mode"/);
+  assert.match(periksaPage, /mode=multi&pages=3/);
+
+  // Wave 2 components: Wave2Diagnostics, GuidedFastPass, StatementModal
+  assert.match(resultWorkspace, /<Wave2Diagnostics/);
+  assert.match(resultWorkspace, /<GuidedFastPass/);
+  assert.match(resultWorkspace, /<StatementModal/);
+
+  assert.match(wave2Diagnostics, /Tampilan HP \(320px\)/);
+  assert.match(wave2Diagnostics, /Dokumen PDF/);
+  assert.match(wave2Diagnostics, /Overlay &amp; CAPTCHA/);
+  assert.match(wave2Diagnostics, /Lintas Halaman/);
+  assert.match(wave2Diagnostics, /aria-expanded/);
+  assert.match(wave2Diagnostics, /aria-controls/);
+
+  assert.match(guidedFastPass, /role="progressbar"/);
+  assert.match(guidedFastPass, /aria-pressed/);
+  assert.match(guidedFastPass, /Cek Manual Cepat/);
+
+  assert.match(statementModal, /showModal/);
+  assert.match(statementModal, /badgeUrl/);
+  assert.match(statementModal, /AksaraNetra \(Skor Otomatis\)/);
+  assert.match(statementModal, /Pernyataan Aksesibilitas/);
 });
