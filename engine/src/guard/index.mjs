@@ -57,6 +57,44 @@ function pass(reason) {
 const HYDRATION_ALLOWED_TYPES = Object.freeze(["script", "xhr", "fetch"]);
 
 /**
+ * Common third-party analytics, ad-tech, and tracking hosts blocked even during
+ * the bounded hydration window.
+ */
+export const TRACKER_HOSTS = Object.freeze([
+  "googletagmanager.com",
+  "google-analytics.com",
+  "analytics.google.com",
+  "doubleclick.net",
+  "googlesyndication.com",
+  "googleadservices.com",
+  "connect.facebook.net",
+  "pixel.facebook.com",
+  "analytics.tiktok.com",
+  "hotjar.com",
+  "clarity.ms",
+  "mc.yandex.ru",
+  "segment.com",
+  "segment.io",
+  "amplitude.com",
+  "snap.licdn.com",
+  "bat.bing.com",
+]);
+
+/**
+ * Returns true when hostname matches a known tracker host or one of its subdomains.
+ */
+export function isBlockedTrackerHost(hostname = "") {
+  const host = String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, "");
+  if (!host) return false;
+  return TRACKER_HOSTS.some(
+    (tracker) => host === tracker || host.endsWith(`.${tracker}`),
+  );
+}
+
+/**
  * Strips only a leading "www." prefix so example.com <-> www.example.com
  * match without allowing arbitrary subdomains.
  */
@@ -108,14 +146,18 @@ export function decideRequest({
       return block(`asset-${asked.code || "invalid"}`, asked.message);
     }
 
+    if (isBlockedTrackerHost(asked.hostname)) {
+      return block(
+        "hydration-tracker-blocked",
+        "Permintaan pelacak atau analitik pihak ketiga diblokir selama jendela hidrasi.",
+      );
+    }
+
     if (isSameHostOrWww(asked.hostname, target.hostname)) {
       return pass(`hydration-first-party-${type}-allowed`);
     }
 
-    return block(
-      "hydration-third-party-blocked",
-      "Permintaan pihak ketiga tetap diblokir selama jendela hidrasi.",
-    );
+    return pass(`hydration-public-${type}-allowed`);
   }
 
   if (ALWAYS_BLOCKED.includes(type)) {
@@ -237,7 +279,7 @@ export async function attachGuard({
   page,
   allowedDocumentUrl,
   allowHydration = false,
-  hydrationTimeoutMs = 4000,
+  hydrationTimeoutMs = 15_000,
   resolveHost = defaultResolveHost,
 }) {
   const stats = createGuardStats();
@@ -249,12 +291,26 @@ export async function attachGuard({
   const mainHostname = targetParsed.ok ? targetParsed.hostname : "";
   const isPublicHost = createHostDnsVerifier({ mainHostname, resolveHost });
 
+  let timer = null;
   if (isHydrating && hydrationTimeoutMs > 0) {
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       isHydrating = false;
+      timer = null;
     }, hydrationTimeoutMs);
     timer.unref?.();
   }
+
+  Object.defineProperty(stats, "finishHydration", {
+    value: () => {
+      isHydrating = false;
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    },
+    enumerable: false,
+    configurable: true,
+  });
 
   await page.route("**/*", async (route) => {
     const request = route.request();

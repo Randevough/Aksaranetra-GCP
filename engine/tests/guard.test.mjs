@@ -4,10 +4,12 @@ import assert from "node:assert/strict";
 import {
   ALWAYS_BLOCKED,
   CHECKED_TYPES,
+  TRACKER_HOSTS,
   attachGuard,
   createGuardStats,
   createHostDnsVerifier,
   decideRequest,
+  isBlockedTrackerHost,
 } from "../src/guard/index.mjs";
 
 const TARGET = "https://sulselprov.go.id/";
@@ -211,7 +213,13 @@ test("allows same-registrable www <-> apex document redirects", () => {
   assert.equal(subDomain.reason, "document-redirect-cross-host-blocked");
 });
 
-test("allows first-party script, xhr, and fetch during hydration and blocks third-party", () => {
+test("allows first-party and public CDN/API script, xhr, and fetch during hydration while blocking trackers and SSRF", () => {
+  assert.equal(Object.isFrozen(TRACKER_HOSTS), true);
+  assert.equal(isBlockedTrackerHost("googletagmanager.com"), true);
+  assert.equal(isBlockedTrackerHost("WWW.GOOGLE-ANALYTICS.COM."), true);
+  assert.equal(isBlockedTrackerHost("cdn.jsdelivr.net"), false);
+  assert.equal(isBlockedTrackerHost("notgoogletagmanager.com"), false);
+
   for (const type of ["script", "xhr", "fetch"]) {
     const firstParty = decideRequest({
       resourceType: type,
@@ -222,22 +230,59 @@ test("allows first-party script, xhr, and fetch during hydration and blocks thir
     assert.equal(firstParty.allow, true);
     assert.equal(firstParty.reason, `hydration-first-party-${type}-allowed`);
 
-    const thirdParty = decideRequest({
+    const publicCdn = decideRequest({
       resourceType: type,
-      url: "https://analytics.example.com/track",
+      url: `https://cdn.jsdelivr.net/npm/pkg/${type}`,
       allowedDocumentUrl: TARGET,
       isHydrating: true,
     });
-    assert.equal(thirdParty.allow, false);
-    assert.equal(thirdParty.reason, "hydration-third-party-blocked");
+    assert.equal(publicCdn.allow, true);
+    assert.equal(publicCdn.reason, `hydration-public-${type}-allowed`);
 
-    const invalid = decideRequest({
+    const subdomainApi = decideRequest({
+      resourceType: type,
+      url: `https://api.sulselprov.go.id/v1/${type}`,
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(subdomainApi.allow, true);
+    assert.equal(subdomainApi.reason, `hydration-public-${type}-allowed`);
+
+    const trackerApex = decideRequest({
+      resourceType: type,
+      url: "https://googletagmanager.com/gtag/js",
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(trackerApex.allow, false);
+    assert.equal(trackerApex.reason, "hydration-tracker-blocked");
+
+    const trackerSubdomain = decideRequest({
+      resourceType: type,
+      url: "https://www.google-analytics.com/g/collect",
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(trackerSubdomain.allow, false);
+    assert.equal(trackerSubdomain.reason, "hydration-tracker-blocked");
+
+    const invalidIp = decideRequest({
       resourceType: type,
       url: "http://127.0.0.1/internal",
       allowedDocumentUrl: TARGET,
       isHydrating: true,
     });
-    assert.equal(invalid.allow, false);
+    assert.equal(invalidIp.allow, false);
+    assert.equal(invalidIp.reason, "asset-ip-literal-not-allowed");
+
+    const invalidLocal = decideRequest({
+      resourceType: type,
+      url: "http://localhost/internal",
+      allowedDocumentUrl: TARGET,
+      isHydrating: true,
+    });
+    assert.equal(invalidLocal.allow, false);
+    assert.equal(invalidLocal.reason, "asset-local-host-name");
   }
 });
 
@@ -288,4 +333,76 @@ test("verifies and caches non-main-host subresource DNS lookups to block SSRF", 
   assert.deepEqual(actions, ["abort"]);
   assert.equal(stats.blocked, 1);
   assert.deepEqual(stats.blockedHosts, ["rebind.evil.com"]);
+});
+
+test("finishHydration locks hydration immediately, clears safety timer, stays non-enumerable, and still blocks DNS rebind", async () => {
+  let handler;
+  const mockPage = {
+    route: async (_pattern, fn) => {
+      handler = fn;
+    },
+  };
+
+  let clearedCount = 0;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.clearTimeout = (id) => {
+    clearedCount += 1;
+    return originalClearTimeout(id);
+  };
+
+  try {
+    const stats = await attachGuard({
+      page: mockPage,
+      allowedDocumentUrl: TARGET,
+      allowHydration: true,
+      hydrationTimeoutMs: 60_000,
+      resolveHost: async (host) =>
+        host === "rebind.evil.com" ? ["127.0.0.1"] : ["93.184.216.34"],
+    });
+
+    const descriptor = Object.getOwnPropertyDescriptor(stats, "finishHydration");
+    assert.equal(descriptor?.enumerable, false);
+    assert.equal(typeof stats.finishHydration, "function");
+    assert.deepEqual(stats, {
+      allowed: 0,
+      blocked: 0,
+      byType: {},
+      blockedHosts: [],
+    });
+
+    const dispatch = async (resourceType, url) => {
+      let outcome = null;
+      await handler({
+        request: () => ({
+          resourceType: () => resourceType,
+          url: () => url,
+          redirectedFrom: () => null,
+        }),
+        continue: async () => {
+          outcome = "continue";
+        },
+        abort: async () => {
+          outcome = "abort";
+        },
+      });
+      return outcome;
+    };
+
+    assert.equal(await dispatch("script", "https://cdn.jsdelivr.net/npm/app.js"), "continue");
+    assert.equal(await dispatch("xhr", "https://www.google-analytics.com/g/collect"), "abort");
+    assert.equal(await dispatch("script", "https://rebind.evil.com/evil.js"), "abort");
+
+    stats.finishHydration();
+    assert.equal(clearedCount, 1);
+
+    // Calling finishHydration again is safe and does not double-clear.
+    stats.finishHydration();
+    assert.equal(clearedCount, 1);
+
+    assert.equal(await dispatch("script", "https://cdn.jsdelivr.net/npm/after.js"), "abort");
+    assert.equal(await dispatch("script", "https://sulselprov.go.id/after.js"), "abort");
+    assert.equal(await dispatch("fetch", "https://sulselprov.go.id/api/after"), "abort");
+  } finally {
+    globalThis.clearTimeout = originalClearTimeout;
+  }
 });

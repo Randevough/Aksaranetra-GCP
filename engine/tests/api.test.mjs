@@ -459,11 +459,27 @@ test("runs end-to-end audit lifecycle against mock server with fake public host 
 
 test("emits telemetry on progress, enables bounded hydration in guard, and attaches compliance", async () => {
   let guardCallArgs = null;
+  let auditCallArgs = null;
+  let hydrationFinished = 0;
   const updates = [];
   const { deps } = createFakeDeps({
     attachGuard: async (args) => {
       guardCallArgs = args;
-      return { allowed: 4, blocked: 1, byType: {}, blockedHosts: ["ads.test"] };
+      const stats = { allowed: 4, blocked: 1, byType: {}, blockedHosts: ["ads.test"] };
+      Object.defineProperty(stats, "finishHydration", {
+        value: () => {
+          hydrationFinished += 1;
+        },
+        enumerable: false,
+        configurable: true,
+      });
+      return stats;
+    },
+    auditPage: async (args) => {
+      auditCallArgs = args;
+      await args.onHydrationSettled?.();
+      const report = fakeReport();
+      return { report, siteConfig: report.siteConfig, artifacts: {} };
     },
   });
 
@@ -476,7 +492,9 @@ test("emits telemetry on progress, enables bounded hydration in guard, and attac
 
   assert.equal(result.ok, true, result.message);
   assert.equal(guardCallArgs.allowHydration, true);
-  assert.equal(guardCallArgs.hydrationTimeoutMs, 4000);
+  assert.equal(guardCallArgs.hydrationTimeoutMs, 15_000);
+  assert.equal(typeof auditCallArgs.onHydrationSettled, "function");
+  assert.ok(hydrationFinished >= 1);
   assert.ok(updates.every((u) => u.telemetry && Array.isArray(u.telemetry.steps)));
   assert.equal(updates.at(-1).telemetry.steps.length, 10);
   assert.ok(result.snapshot.score);
@@ -485,4 +503,34 @@ test("emits telemetry on progress, enables bounded hydration in guard, and attac
   assert.ok(Array.isArray(result.snapshot.issues));
   assert.ok(result.snapshot.readiness);
   assert.ok(Array.isArray(result.snapshot.tabStops));
+});
+
+test("always calls guard.finishHydration in finally even when auditPage throws", async () => {
+  let hydrationFinished = 0;
+  const { deps } = createFakeDeps({
+    attachGuard: async () => {
+      const stats = { allowed: 1, blocked: 0, byType: {}, blockedHosts: [] };
+      Object.defineProperty(stats, "finishHydration", {
+        value: () => {
+          hydrationFinished += 1;
+        },
+        enumerable: false,
+        configurable: true,
+      });
+      return stats;
+    },
+    auditPage: async () => {
+      throw new Error("boom during audit");
+    },
+  });
+
+  const result = await auditUrl({
+    url: "https://contoh.go.id/",
+    deps,
+    history: new Map(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "audit-failed");
+  assert.equal(hydrationFinished, 1);
 });

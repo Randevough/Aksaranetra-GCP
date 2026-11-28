@@ -427,7 +427,7 @@ export async function auditUrl({
           page,
           allowedDocumentUrl: target,
           allowHydration: true,
-          hydrationTimeoutMs: 4000,
+          hydrationTimeoutMs: 15_000,
         });
         telemetry.setGuardStats(guard);
       } catch (error) {
@@ -448,11 +448,14 @@ export async function auditUrl({
           telemetry,
           guardStats: guard,
           hydrationAllowed: true,
+          onHydrationSettled: () => guard?.finishHydration?.(),
         });
       } catch (error) {
         const detail = errorDetail(error);
         const code = /^HTTP /.test(detail) ? "status-not-ok" : "audit-failed";
         return failure(STAGES.audit, code, detail);
+      } finally {
+        guard?.finishHydration?.();
       }
 
       // Langkah 8. Dua tampilan hasil.

@@ -320,19 +320,25 @@ export async function crawlSecondaryPages({
         page,
         allowedDocumentUrl: check.url,
         allowHydration: true,
-        hydrationTimeoutMs: 4000,
+        hydrationTimeoutMs: 15_000,
       });
 
-      const audited = await use.auditPage({
-        page,
-        url: check.url,
-        captureScreenshot: false,
-        signal,
-        onProgress: null,
-        telemetry: null,
-        guardStats: pageGuard,
-        hydrationAllowed: true,
-      });
+      let audited;
+      try {
+        audited = await use.auditPage({
+          page,
+          url: check.url,
+          captureScreenshot: false,
+          signal,
+          onProgress: null,
+          telemetry: null,
+          guardStats: pageGuard,
+          hydrationAllowed: true,
+          onHydrationSettled: () => pageGuard?.finishHydration?.(),
+        });
+      } finally {
+        pageGuard?.finishHydration?.();
+      }
 
       const compliance = buildComplianceReport({
         report: audited.report,
