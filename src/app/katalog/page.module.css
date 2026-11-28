@@ -1,7 +1,6 @@
 /*
   Riwayat pemeriksaan.
-  Kartu dibuat rata dan tenang. Status ditandai lewat teks, latar, dan garis
-  kiri, jadi tidak bergantung pada warna saja.
+  Permukaan netral dengan status micro-chip bertitik presisi dan elevasi halus.
 */
 
 .main {
@@ -29,6 +28,7 @@
   margin: 14px 0 12px;
   max-width: 24ch;
   font-size: clamp(26px, 3.4vw, 38px);
+  letter-spacing: -0.02em;
 }
 
 .heroLead {
@@ -47,10 +47,12 @@
 .warning {
   margin-bottom: 24px;
   padding: 14px 18px;
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-warning-soft);
-  color: var(--color-text);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-left: 3px solid var(--dot-moderate, #d97706);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--color-heading, #16181d);
   font-size: 15px;
 }
 
@@ -61,15 +63,20 @@
   align-items: center;
   gap: 18px;
   padding: 32px 28px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(
+    --shadow-card,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08)
+  );
 }
 
 .loadingState h2 {
   margin-bottom: 2px;
   font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 .loadingState p {
@@ -82,8 +89,8 @@
   width: 26px;
   height: 26px;
   flex: none;
-  border: 3px solid rgba(22, 119, 255, 0.16);
-  border-top-color: var(--color-primary, #0958d9);
+  border: 3px solid rgba(37, 99, 235, 0.16);
+  border-top-color: var(--color-primary, #2563eb);
   border-radius: 50%;
   animation: spin 0.85s linear infinite;
 }
@@ -105,10 +112,14 @@
   flex-direction: column;
   gap: 12px;
   padding: clamp(48px, 6vw, 72px) 28px;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px dashed var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(
+    --shadow-card,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08)
+  );
   text-align: center;
 }
 
@@ -116,7 +127,7 @@
   width: 52px;
   height: 52px;
   border: 2px solid var(--color-card-highlight);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-panel, 16px);
   background:
     linear-gradient(var(--color-card-highlight), var(--color-card-highlight))
       center/22px 2px no-repeat,
@@ -126,6 +137,7 @@
 
 .emptyState h2 {
   font-size: 22px;
+  letter-spacing: -0.02em;
 }
 
 .emptyState p {
@@ -152,6 +164,7 @@
 
 .sectionHeading h2 {
   font-size: 22px;
+  letter-spacing: -0.02em;
 }
 
 .sectionHeading span {
@@ -160,10 +173,12 @@
   height: 26px;
   place-items: center;
   padding: 0 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-card-light);
-  color: var(--color-primary);
-  font-size: 14px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--color-heading, #16181d);
+  font-size: 13px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -183,10 +198,14 @@
   align-items: center;
   gap: clamp(16px, 2.5vw, 32px);
   padding: 18px 24px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(
+    --shadow-card,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08)
+  );
   transition:
     transform var(--transition-sedang),
     border-color var(--transition-cepat),
@@ -194,9 +213,13 @@
 }
 
 .auditCard:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
   transform: translateY(-2px);
-  box-shadow: var(--shadow-float);
+  box-shadow: var(
+    --shadow-card-hover,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 14px 32px -12px rgba(15, 23, 42, 0.12)
+  );
 }
 
 /* Kolom 1: Domain, Judul, & Status */
@@ -220,6 +243,7 @@
   font-size: 17px;
   font-weight: 700;
   line-height: 1.35;
+  letter-spacing: -0.015em;
   overflow-wrap: anywhere;
 }
 
@@ -234,43 +258,52 @@
   max-width: 100%;
 }
 
-/* --- Lencana status --- */
+/* --- Lencana status: Neutral-First Precision Micro-Chips --- */
 
 .status {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   flex: none;
-  padding: 3px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--color-heading, #16181d);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.queued,
-.running {
-  border-color: var(--color-card-highlight);
-  background: var(--color-card-light);
-  color: var(--color-primary);
+.status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--dot-minor, #64748b);
 }
 
-.completed {
-  border-color: var(--color-success-border);
-  background: var(--color-success-soft);
-  color: var(--color-success);
+.queued::before,
+.running::before {
+  background: var(--dot-accent, #2563eb);
 }
 
-.failed {
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+.completed::before {
+  background: var(--dot-success, #0d9488);
+}
+
+.failed::before {
+  background: var(--dot-critical, #e11d48);
 }
 
 .cancelled {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
+  color: var(--ink-neutral, #334155);
+}
+
+.cancelled::before {
+  background: var(--dot-minor, #64748b);
 }
 
 /* --- Kolom Metadata Terstruktur --- */
@@ -286,7 +319,7 @@
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -295,6 +328,7 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 
 .miniProgress {
@@ -304,18 +338,20 @@
   margin-top: 4px;
 }
 
-.miniProgress progress {
+.miniProgress progress,
+.progress {
   width: 90px;
   height: 6px;
   border-radius: var(--radius-pill);
   appearance: none;
-  background: var(--color-surface-sunken);
+  background: var(--surface-well, #f4f6fa);
 }
 
 .progressPct {
-  color: var(--color-primary);
+  color: var(--color-primary-mid, #1d4ed8);
   font-size: 12px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Kolom Tindakan --- */
@@ -328,9 +364,9 @@
 }
 
 .cardActions :global(.btn) {
-  min-height: 38px;
-  padding: 6px 16px;
-  border-radius: var(--radius-pill);
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-control, 10px);
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
@@ -338,27 +374,33 @@
 
 .removeButton {
   display: inline-flex;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   flex: none;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--ink-critical, #9f1239);
   cursor: pointer;
   transition:
     background var(--transition-cepat),
     border-color var(--transition-cepat),
-    transform var(--transition-cepat);
+    color var(--transition-cepat);
 }
 
 .removeButton:hover {
-  background: var(--color-danger);
+  background: var(--ink-critical, #9f1239);
+  border-color: var(--ink-critical, #9f1239);
   color: #ffffff;
-  transform: scale(1.05);
+}
+
+.removeButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 /* --- Dialog Konfirmasi Hapus --- */
@@ -382,14 +424,16 @@
   width: 100%;
   max-width: 440px;
   padding: 28px;
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
   box-shadow: var(--shadow-xl);
 }
 
 .dialog h2 {
   margin: 0;
   font-size: 20px;
+  letter-spacing: -0.02em;
   color: var(--color-heading);
 }
 
@@ -409,8 +453,9 @@
 }
 
 .dialogActions :global(.btn) {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 18px;
+  border-radius: var(--radius-control, 10px);
   font-size: 14px;
 }
 
@@ -427,7 +472,7 @@
   width: min(520px, calc(100vw - 32px));
   padding: 14px 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-panel, 16px);
   background: #16181d;
   color: #ffffff;
   box-shadow: var(--shadow-xl);
@@ -441,10 +486,10 @@
 
 .undoButton {
   flex: none;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 16px;
   border: 1px solid #93c5fd;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control, 10px);
   background: #ffffff;
   color: #1e3a8a;
   font: inherit;
@@ -455,6 +500,11 @@
 
 .undoButton:hover {
   background: #eff6ff;
+}
+
+.undoButton:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* --- Responsif --- */
@@ -475,7 +525,7 @@
   .cardActions {
     width: 100%;
     padding-top: 12px;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
     justify-content: flex-start;
   }
 }
@@ -495,5 +545,20 @@
 
   .dialogActions :global(.btn) {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+
+  .auditCard,
+  .removeButton {
+    transition: none;
+  }
+
+  .auditCard:hover {
+    transform: none;
   }
 }

@@ -1,7 +1,6 @@
 /*
   Halaman periksa: satu kartu formulir berdiri sendiri, terpusat secara
-  vertikal dan horizontal. Style kartu sama persis dengan yang sebelumnya
-  menempel di landing page, hanya dipindah keluar jadi halaman sendiri.
+  vertikal dan horizontal dengan permukaan presisi netral.
 */
 
 .main {
@@ -20,15 +19,20 @@
   max-width: 520px;
   margin: 0 auto;
   padding: clamp(24px, 3vw, 32px);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(
+    --shadow-card,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08)
+  );
 }
 
 .formIntro h1 {
   margin-bottom: 4px;
-  font-size: 19px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 .formIntro p {
@@ -52,6 +56,7 @@
 
 .submitBtn {
   width: 100%;
+  min-height: 48px;
   font-size: 16px;
 }
 
@@ -68,9 +73,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1.5px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-well, #f4f6fa);
 }
 
 .modeRadio {
@@ -89,11 +94,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: 44px;
   padding: 10px 12px;
-  border: 1.5px solid transparent;
-  border-radius: var(--radius-xs);
-  color: var(--color-text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-chip, 7px);
+  color: var(--ink-neutral, #334155);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.3;
@@ -107,15 +112,15 @@
 }
 
 .modeRadio:not(:checked) + .modeOption:hover {
-  background: var(--color-card-accent);
-  color: var(--color-heading);
+  background: var(--surface-chip-subtle, #f8fafc);
+  color: var(--color-heading, #16181d);
 }
 
 .modeRadio:checked + .modeOption {
-  background: var(--color-surface);
-  border-color: var(--color-primary);
-  color: var(--color-primary-dark);
-  box-shadow: var(--shadow-sm);
+  background: var(--surface-chip, #ffffff);
+  border-color: var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  color: var(--color-primary-dark, #1e3a8a);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
 }
 
 .modeRadio:focus-visible + .modeOption {
@@ -135,7 +140,7 @@
   align-items: center;
   gap: 8px 12px;
   padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
 }
 
 .examplesLabel {
@@ -151,30 +156,44 @@
 }
 
 .exampleButton {
-  min-height: 38px;
-  padding: 7px 13px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
-  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--color-heading, #16181d);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color var(--transition-cepat);
+  transition:
+    border-color var(--transition-cepat),
+    background-color var(--transition-cepat),
+    color var(--transition-cepat);
 }
 
 .exampleButton:hover {
-  border-color: var(--color-primary-bright);
+  border-color: var(--color-primary);
+  background: var(--surface-chip-subtle, #f8fafc);
+  color: var(--color-primary-dark, #1e3a8a);
+}
+
+.exampleButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .errorText {
   margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-xs);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
+  padding: 10px 12px;
+  border: 1px solid rgba(225, 29, 72, 0.24);
+  border-left: 3px solid var(--dot-critical, #e11d48);
+  border-radius: var(--radius-chip, 7px);
+  background: var(--tint-critical, rgba(225, 29, 72, 0.05));
+  color: var(--ink-critical, #9f1239);
   font-size: 14px;
   font-weight: 700;
 }
@@ -189,18 +208,45 @@
 .demoLink {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
-  padding: 7px 13px;
-  border: 1px solid var(--color-card-highlight);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--color-primary-dark, #1e3a8a);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+  transition:
+    border-color var(--transition-cepat),
+    background-color var(--transition-cepat);
+}
+
+.demoLink::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--dot-accent, #2563eb);
 }
 
 .demoLink:hover {
-  border-color: var(--color-primary-bright);
-  background: var(--color-card-highlight);
+  border-color: var(--color-primary);
+  background: var(--tint-accent, rgba(37, 99, 235, 0.06));
+}
+
+.demoLink:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modeOption,
+  .exampleButton,
+  .demoLink {
+    transition: none;
+  }
 }

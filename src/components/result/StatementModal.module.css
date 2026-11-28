@@ -4,9 +4,9 @@
   max-height: calc(100dvh - 32px);
   margin: auto;
   padding: 0;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: var(--radius-xl);
-  background: #ffffff;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-card, 20px);
+  background: var(--surface-card, #ffffff);
   color: var(--color-text);
   box-shadow: var(--shadow-xl);
 }
@@ -32,33 +32,40 @@
   justify-content: space-between;
   gap: 12px;
   padding: 18px 22px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: #fbfcfe;
+  border-bottom: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  background: var(--surface-card-subtle, #fbfcfe);
 }
 
-.header h1 {
+.header h1,
+.header h2 {
   font-size: 19px;
   font-weight: 800;
   line-height: 1.25;
+  letter-spacing: -0.02em;
   color: var(--color-heading);
 }
 
 .closeBtn {
   min-height: 44px;
-  padding: 8px 16px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: var(--radius-pill);
-  background: #ffffff;
+  padding: 8px 15px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
   color: var(--color-heading);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    border-color var(--transition-cepat),
+    background-color var(--transition-cepat),
+    color var(--transition-cepat);
 }
 
 .closeBtn:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-soft);
+  background: var(--surface-chip-subtle, #f8fafc);
   color: var(--color-primary-dark);
 }
 
@@ -73,17 +80,17 @@
   overflow-x: auto;
   gap: 6px;
   padding: 6px 22px 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: #fbfcfe;
+  border-bottom: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  background: var(--surface-card-subtle, #fbfcfe);
 }
 
 .tabBtn {
   position: relative;
   flex: none;
-  min-height: 46px;
+  min-height: 44px;
   padding: 10px 16px;
   border: none;
-  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  border-radius: var(--radius-control, 10px) var(--radius-control, 10px) 0 0;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
@@ -91,11 +98,14 @@
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    color var(--transition-cepat),
+    background-color var(--transition-cepat);
 }
 
 .tabBtn:hover {
   color: var(--color-heading);
-  background: #f6f8fc;
+  background: var(--surface-well, #f4f6fa);
 }
 
 .tabBtn[aria-selected="true"] {
@@ -129,10 +139,11 @@
 
 .honestyBanner {
   padding: 12px 14px;
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  border-radius: var(--radius-md);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-left: 3px solid var(--dot-accent, #2563eb);
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-well, #f4f6fa);
+  color: var(--color-heading, #16181d);
   font-size: 13.5px;
   line-height: 1.55;
 }
@@ -152,14 +163,15 @@
 .fieldRow :global(.input) {
   min-height: 44px;
   padding: 9px 12px;
+  border-radius: var(--radius-control, 10px);
   font-size: 14px;
 }
 
 .previewBox {
   padding: 14px 16px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: var(--radius-md);
-  background: #f6f8fc;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-panel, 16px);
+  background: var(--surface-well, #f4f6fa);
   color: var(--color-heading);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px;
@@ -186,7 +198,7 @@
 .copyFeedback {
   font-size: 13px;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--ink-success, #0f766e);
 }
 
 .badgeStage {
@@ -195,9 +207,9 @@
   align-items: flex-start;
   gap: 10px;
   padding: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: var(--radius-md);
-  background: #f6f8fc;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-panel, 16px);
+  background: var(--surface-well, #f4f6fa);
 }
 
 .badgeNote {
@@ -218,5 +230,12 @@
 
   .actionRow :global(.btn) {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closeBtn,
+  .tabBtn {
+    transition: none;
   }
 }

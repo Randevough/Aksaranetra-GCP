@@ -11,9 +11,9 @@
   justify-content: space-between;
   gap: 14px 20px;
   padding: 18px 20px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: var(--radius-lg);
-  background: #f6f8fc;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-panel, 16px);
+  background: var(--surface-well, #f4f6fa);
 }
 
 .introCopy {
@@ -26,6 +26,7 @@
 .introTitle {
   font-size: 16px;
   font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-heading);
 }
 
@@ -54,18 +55,18 @@
 }
 
 .countPass {
-  color: #0f766e;
+  color: var(--ink-success, #0f766e);
 }
 
 .countFail {
-  color: #9f1239;
+  color: var(--ink-critical, #9f1239);
 }
 
 .progressTrack {
   width: 100%;
   height: 8px;
   border-radius: var(--radius-pill);
-  background: #e5e7ec;
+  background: #e2e6ee;
   overflow: hidden;
 }
 
@@ -78,10 +79,11 @@
 
 .resetBtn {
   min-height: 44px;
-  padding: 6px 14px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: var(--radius-pill);
-  background: #ffffff;
+  padding: 8px 14px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
   color: var(--color-primary-dark);
   font: inherit;
   font-size: 12.5px;
@@ -91,7 +93,7 @@
 
 .resetBtn:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-soft);
+  background: var(--surface-chip-subtle, #f8fafc);
 }
 
 .resetBtn:focus-visible {
@@ -115,20 +117,24 @@
   justify-content: space-between;
   gap: 14px 20px;
   padding: 16px 20px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: var(--radius-md);
-  background: #ffffff;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-panel, 16px);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(
+    --shadow-card,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08)
+  );
 }
 
 .checkCardPass {
-  border-color: rgba(15, 118, 110, 0.3);
-  background: #fcfffe;
+  border-color: rgba(13, 148, 136, 0.3);
+  background: var(--surface-card, #ffffff);
 }
 
 .checkCardFail {
-  border-color: rgba(159, 18, 57, 0.28);
-  background: #fffafb;
+  border-color: rgba(225, 29, 72, 0.3);
+  background: var(--surface-card, #ffffff);
 }
 
 .checkBody {
@@ -151,26 +157,32 @@
   justify-content: center;
   width: 24px;
   height: 24px;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
   border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+  background: var(--surface-well, #f4f6fa);
+  color: var(--color-heading);
   font-size: 12px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   flex: none;
 }
 
 .checkTitle {
   font-size: 15px;
   font-weight: 800;
+  letter-spacing: -0.015em;
   color: var(--color-heading);
 }
 
 .wcagBadge {
+  display: inline-flex;
+  align-items: center;
   padding: 2px 8px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 6px;
-  background: #f6f8fc;
-  color: var(--color-text);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
+  color: var(--ink-neutral, #334155);
   font-size: 11.5px;
   font-weight: 700;
 }
@@ -188,11 +200,16 @@
 }
 
 .stateBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 44px;
-  padding: 8px 14px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: var(--radius-pill);
-  background: #f6f8fc;
+  padding: 8px 13px;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background: var(--surface-chip, #ffffff);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.03));
   color: var(--color-heading);
   font: inherit;
   font-size: 13px;
@@ -206,7 +223,7 @@
 
 .stateBtn:hover {
   border-color: var(--color-primary);
-  background: #ffffff;
+  background: var(--surface-chip-subtle, #f8fafc);
 }
 
 .stateBtn:focus-visible {
@@ -215,24 +232,44 @@
 }
 
 .stateBtnActiveUntested {
-  background: #ffffff;
-  border-color: var(--color-border-strong);
+  background: var(--surface-well, #f4f6fa);
+  border-color: var(--ink-neutral, #334155);
   color: var(--color-heading);
-  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-neutral, #334155);
+}
+
+.stateBtnActivePass,
+.stateBtnActiveFail {
+  background: var(--surface-chip, #ffffff);
+}
+
+.stateBtnActivePass::before,
+.stateBtnActiveFail::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .stateBtnActivePass {
-  background: #f0fdfa;
-  border-color: #0f766e;
-  color: #0f766e;
-  box-shadow: inset 0 0 0 1px #0f766e;
+  border-color: var(--ink-success, #0f766e);
+  color: var(--ink-success, #0f766e);
+  box-shadow: inset 0 0 0 1px var(--ink-success, #0f766e);
+}
+
+.stateBtnActivePass::before {
+  background: var(--dot-success, #0d9488);
 }
 
 .stateBtnActiveFail {
-  background: #fff1f2;
-  border-color: #9f1239;
-  color: #9f1239;
-  box-shadow: inset 0 0 0 1px #9f1239;
+  border-color: var(--ink-critical, #9f1239);
+  color: var(--ink-critical, #9f1239);
+  box-shadow: inset 0 0 0 1px var(--ink-critical, #9f1239);
+}
+
+.stateBtnActiveFail::before {
+  background: var(--dot-critical, #e11d48);
 }
 
 @media (max-width: 720px) {
