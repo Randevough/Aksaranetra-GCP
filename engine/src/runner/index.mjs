@@ -40,12 +40,13 @@ export const CONTEXT_OPTIONS = Object.freeze({
   ignoreHTTPSErrors: true,
   viewport: { width: 1440, height: 1000 },
   userAgent: USER_AGENT,
+  reducedMotion: "reduce",
 });
 
 export const DEFAULT_TIMEOUTS = Object.freeze({
   navigationTimeoutMs: 25_000,
   domTimeoutMs: 15_000,
-  settleTimeoutMs: 10_000,
+  settleTimeoutMs: 15_000,
 });
 
 /**
@@ -248,19 +249,19 @@ export async function settlePage(page, options = {}) {
       await page.waitForLoadState("domcontentloaded", { timeout: domTimeout }).catch(() => {});
     }
 
-    const loadTimeout = remaining(options.loadTimeoutMs ?? 6000);
+    const loadTimeout = remaining(options.loadTimeoutMs ?? 5000);
     if (loadTimeout > 0) {
       await page.waitForLoadState("load", { timeout: loadTimeout }).catch(() => {});
     }
 
-    const networkTimeout = remaining(options.networkSettleMs ?? 3500);
+    const networkTimeout = remaining(options.networkSettleMs ?? 3000);
     if (networkTimeout > 0) {
       await page.waitForLoadState("networkidle", { timeout: networkTimeout }).catch(() => {});
     }
   }
 
-  // DOM MutationObserver stability window (600ms quiet, capped at 3000ms)
-  const mutationCap = remaining(options.domQuietCapMs ?? 3000);
+  // DOM MutationObserver stability window (500ms quiet, capped at 2500ms)
+  const mutationCap = remaining(options.domQuietCapMs ?? 2500);
   if (typeof page?.evaluate === "function" && mutationCap > 0) {
     await page
       .evaluate(
@@ -292,7 +293,7 @@ export async function settlePage(page, options = {}) {
               attributes: true,
             });
           }),
-        { quietMs: options.domQuietMs ?? 600, capMs: mutationCap },
+        { quietMs: options.domQuietMs ?? 500, capMs: mutationCap },
       )
       .catch(() => {});
   }
@@ -301,15 +302,141 @@ export async function settlePage(page, options = {}) {
     await dismissOverlays(page);
   }
 
-  // Preloader / spinner disappearance wait (capped 3000ms)
-  const preloaderCap = remaining(options.preloaderCapMs ?? 3000);
+  // Promote lazy images to eager before scrolling so browsers start fetching immediately
+  if (typeof page?.evaluate === "function") {
+    await page
+      .evaluate(() => {
+        for (const img of document.querySelectorAll('img[loading]')) {
+          if ((img.getAttribute("loading") || "").trim().toLowerCase() === "lazy") {
+            img.loading = "eager";
+            img.setAttribute("loading", "eager");
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Full-page stepped scroll to trigger IntersectionObservers & lazy content, then reset to (0, 0)
+  if (typeof page?.evaluate === "function") {
+    const scrollCap = Math.max(500, remaining(options.scrollCapMs ?? 5500));
+    const maxScrollSteps = options.maxScrollSteps ?? 14;
+    await page
+      .evaluate(
+        ({ capMs, maxSteps }) =>
+          new Promise((resolve) => {
+            const getViewportHeight = () => window.innerHeight || 800;
+            const getMaxHeight = () =>
+              Math.max(
+                document.documentElement?.scrollHeight || 0,
+                document.body?.scrollHeight || 0,
+              );
+            const isAtBottom = () =>
+              window.scrollY + getViewportHeight() >= getMaxHeight() - 4;
+
+            if (isAtBottom()) {
+              window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+              resolve();
+              return;
+            }
+
+            let step = 0;
+            const started = Date.now();
+            let finished = false;
+            const root = document.body || document.documentElement;
+            const hiddenCandidates = new Set();
+            const revealed = new Map();
+
+            if (root) {
+              for (const el of root.querySelectorAll("*")) {
+                const cs = window.getComputedStyle(el);
+                if (
+                  cs.display !== "none" &&
+                  cs.visibility !== "hidden" &&
+                  cs.position !== "fixed" &&
+                  Number.parseFloat(cs.opacity || "1") < 0.05 &&
+                  el.getClientRects().length > 0
+                ) {
+                  hiddenCandidates.add(el);
+                }
+              }
+            }
+
+            const collectRevealed = () => {
+              for (const el of hiddenCandidates) {
+                const cs = window.getComputedStyle(el);
+                if (
+                  cs.display !== "none" &&
+                  cs.visibility !== "hidden" &&
+                  Number.parseFloat(cs.opacity || "1") >= 0.5
+                ) {
+                  revealed.set(el, {
+                    flatTransform: cs.transform === "none",
+                  });
+                  hiddenCandidates.delete(el);
+                }
+              }
+            };
+
+            const lockRevealed = () => {
+              if (revealed.size === 0) return;
+              const styleId = "aksaranetra-reveal-lock";
+              if (!document.getElementById(styleId)) {
+                const styleEl = document.createElement("style");
+                styleEl.id = styleId;
+                styleEl.textContent =
+                  '[data-aksaranetra-revealed="true"]{opacity:1 !important;}' +
+                  '[data-aksaranetra-revealed-flat="true"]{transform:none !important;}';
+                (document.head || document.documentElement)?.appendChild(styleEl);
+              }
+              for (const [el, info] of revealed) {
+                el.setAttribute("data-aksaranetra-revealed", "true");
+                if (info.flatTransform) {
+                  el.setAttribute("data-aksaranetra-revealed-flat", "true");
+                }
+              }
+            };
+
+            const finish = () => {
+              if (finished) return;
+              finished = true;
+              clearInterval(timer);
+              setTimeout(() => {
+                collectRevealed();
+                lockRevealed();
+                window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                resolve();
+              }, 250);
+            };
+
+            const timer = setInterval(() => {
+              collectRevealed();
+              const stepPx = Math.max(400, Math.round(getViewportHeight() * 0.85));
+              window.scrollBy({ top: stepPx, left: 0, behavior: "instant" });
+              step += 1;
+
+              if (
+                isAtBottom() ||
+                step >= maxSteps ||
+                Date.now() - started >= capMs
+              ) {
+                finish();
+              }
+            }, 250);
+          }),
+        { capMs: scrollCap, maxSteps: maxScrollSteps },
+      )
+      .catch(() => {});
+  }
+
+  // Post-scroll preloader / spinner disappearance wait (capped 2500ms)
+  const preloaderCap = remaining(options.preloaderCapMs ?? 2500);
   if (typeof page?.evaluate === "function" && preloaderCap > 0) {
     await page
       .evaluate(
         (capMs) =>
           new Promise((resolve) => {
             const SELECTORS =
-              ".preloader, #preloader, .page-loader, .loading-screen, .spinner-overlay, [data-preloader], [aria-busy='true'][class*='load' i]";
+              ".preloader, #preloader, .page-loader, .loading-screen, .spinner-overlay, [data-preloader], [aria-busy='true'][class*='load' i], .v-progress-circular, .el-loading-mask, .ant-spin-spinning, .spinner-border, [role='progressbar'][aria-busy='true']";
             const hasVisibleLoader = () => {
               for (const el of document.querySelectorAll(SELECTORS)) {
                 const cs = window.getComputedStyle(el);
@@ -343,8 +470,16 @@ export async function settlePage(page, options = {}) {
       .catch(() => {});
   }
 
-  // Web fonts readiness (capped 2000ms)
-  const fontsCap = remaining(options.fontsCapMs ?? 2000);
+  // Post-scroll bounded networkidle (capped 2000ms)
+  const postScrollNetworkTimeout = remaining(options.postScrollNetworkMs ?? 2000);
+  if (typeof page?.waitForLoadState === "function" && postScrollNetworkTimeout > 0) {
+    await page
+      .waitForLoadState("networkidle", { timeout: postScrollNetworkTimeout })
+      .catch(() => {});
+  }
+
+  // Web fonts readiness (capped 1500ms)
+  const fontsCap = remaining(options.fontsCapMs ?? 1500);
   if (typeof page?.evaluate === "function" && fontsCap > 0) {
     await page
       .evaluate(
@@ -358,97 +493,60 @@ export async function settlePage(page, options = {}) {
       .catch(() => {});
   }
 
-  // Visible <img> settle (capped 2000ms)
-  const imagesCap = remaining(options.imagesCapMs ?? 2000);
+  // Wait ALL non-hidden in-document <img> with src or currentSrc to settle (capped 2500ms)
+  const imagesCap = remaining(options.imagesCapMs ?? 2500);
   if (typeof page?.evaluate === "function" && imagesCap > 0) {
     await page
       .evaluate(
-        (capMs) =>
-          new Promise((resolve) => {
-            const vw = window.innerWidth || 1440;
-            const vh = window.innerHeight || 1000;
-            const pending = Array.from(document.querySelectorAll("img")).filter(
-              (img) => {
-                if (img.complete) return false;
-                const r = img.getBoundingClientRect();
-                return (
-                  r.width > 0 &&
-                  r.height > 0 &&
-                  r.bottom > 0 &&
-                  r.top < vh &&
-                  r.right > 0 &&
-                  r.left < vw
-                );
-              },
-            );
-            if (pending.length === 0) {
-              resolve();
-              return;
+        async (capMs) => {
+          const targets = Array.from(document.querySelectorAll("img")).filter(
+            (img) => {
+              const hasSource = Boolean(
+                img.currentSrc || img.getAttribute("src")?.trim(),
+              );
+              if (!hasSource) return false;
+              const cs = window.getComputedStyle(img);
+              return cs.display !== "none" && cs.visibility !== "hidden";
+            },
+          );
+          if (targets.length === 0) return;
+
+          const waitImage = (img) => {
+            const tryDecode = () =>
+              img.naturalWidth > 0 && typeof img.decode === "function"
+                ? img.decode().catch(() => {})
+                : Promise.resolve();
+
+            if (img.complete) {
+              return tryDecode();
             }
-            let left = pending.length;
-            const finish = () => {
-              clearTimeout(capTimer);
-              resolve();
-            };
-            const onDone = () => {
-              left -= 1;
-              if (left <= 0) finish();
-            };
-            const capTimer = setTimeout(finish, capMs);
-            for (const img of pending) {
-              img.addEventListener("load", onDone, { once: true });
-              img.addEventListener("error", onDone, { once: true });
-            }
-          }),
+
+            return new Promise((resolve) => {
+              const done = () => {
+                img.removeEventListener("load", done);
+                img.removeEventListener("error", done);
+                tryDecode().finally(resolve);
+              };
+              img.addEventListener("load", done, { once: true });
+              img.addEventListener("error", done, { once: true });
+            });
+          };
+
+          let capTimer;
+          await Promise.race([
+            Promise.all(targets.map(waitImage)),
+            new Promise((resolve) => {
+              capTimer = setTimeout(resolve, capMs);
+            }),
+          ]);
+          clearTimeout(capTimer);
+        },
         imagesCap,
       )
       .catch(() => {});
   }
 
-  // Adaptive scroll to trigger lazy content, then reset scroll back to (0, 0)
-  if (typeof page?.evaluate === "function") {
-    const scrollCap = Math.max(400, remaining(2000));
-    await page
-      .evaluate(
-        (capMs) =>
-          new Promise((resolve) => {
-            let step = 0;
-            const MAX_STEPS = 8;
-            const viewportHeight = window.innerHeight || 800;
-            let lastHeight = document.body?.scrollHeight || 0;
-            let unchangedCount = 0;
-            const started = Date.now();
-
-            const timer = setInterval(() => {
-              window.scrollBy(0, viewportHeight);
-              step++;
-
-              const currentHeight = document.body?.scrollHeight || 0;
-              if (currentHeight === lastHeight) {
-                unchangedCount++;
-              } else {
-                unchangedCount = 0;
-                lastHeight = currentHeight;
-              }
-
-              if (
-                unchangedCount >= 2 ||
-                step >= MAX_STEPS ||
-                window.scrollY + viewportHeight >= currentHeight ||
-                Date.now() - started >= capMs
-              ) {
-                clearInterval(timer);
-                window.scrollTo(0, 0);
-                resolve();
-              }
-            }, 100);
-          }),
-        scrollCap,
-      )
-      .catch(() => {});
-  }
-
-  await waitMs(remaining(options.settleDelayMs ?? 200));
+  await waitMs(remaining(options.settleDelayMs ?? 250));
 
   let domMetrics = {
     domElements: 0,
@@ -517,6 +615,7 @@ export async function auditPage({
   captureScreenshot = true,
   signal = null,
   onProgress = null,
+  onHydrationSettled = null,
   timeouts = {},
   telemetry = null,
   guardStats = null,
@@ -606,6 +705,7 @@ export async function auditPage({
     partialRecovery,
     loadTimeMs,
   });
+  await onHydrationSettled?.();
 
   tracker.updateStats({
     domElements: readiness.domElements,

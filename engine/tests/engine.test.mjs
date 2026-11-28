@@ -13,6 +13,8 @@ import {
 } from "../src/engine/apply-patch.mjs";
 import { createElementFingerprint } from "../src/shared/selector.mjs";
 import {
+  CONTEXT_OPTIONS,
+  DEFAULT_TIMEOUTS,
   auditPage,
   buildHostResolverRules,
   dismissOverlays,
@@ -712,15 +714,24 @@ test("enforces two-stage hydration window network policy", () => {
     "hydration-first-party-script-allowed",
   );
 
-  // 3. Pada jendela hidrasi, third-party script tetap diblokir
-  const hydrationThirdParty = decideRequest({
+  // 3. Pada jendela hidrasi, pelacak pihak ketiga diblokir dan CDN publik diizinkan
+  const hydrationTracker = decideRequest({
     resourceType: "script",
     url: "https://www.google-analytics.com/analytics.js",
     allowedDocumentUrl: target,
     isHydrating: true,
   });
-  assert.equal(hydrationThirdParty.allow, false);
-  assert.equal(hydrationThirdParty.reason, "hydration-third-party-blocked");
+  assert.equal(hydrationTracker.allow, false);
+  assert.equal(hydrationTracker.reason, "hydration-tracker-blocked");
+
+  const hydrationPublicCdn = decideRequest({
+    resourceType: "script",
+    url: "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js",
+    allowedDocumentUrl: target,
+    isHydrating: true,
+  });
+  assert.equal(hydrationPublicCdn.allow, true);
+  assert.equal(hydrationPublicCdn.reason, "hydration-public-script-allowed");
 });
 
 test("reuses browser instance across multiple tasks while isolating contexts", async () => {
@@ -1125,6 +1136,207 @@ test("auditPage captures early before.png, bounding boxes, tabStops with 2.4.7 &
     },
   );
 });
+
+test("configures reducedMotion and expanded settleTimeoutMs defaults for hydration readiness", () => {
+  assert.equal(CONTEXT_OPTIONS.reducedMotion, "reduce");
+  assert.ok(
+    DEFAULT_TIMEOUTS.settleTimeoutMs >= 15_000,
+    `Expected settleTimeoutMs >= 15000, got ${DEFAULT_TIMEOUTS.settleTimeoutMs}`,
+  );
+});
+
+test("settlePage scrolls full constant-height page beyond 3 viewports, promotes lazy images, and resets to (0, 0)", async () => {
+  const pixelPng =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  await withPage(
+    `<!doctype html><html lang="id"><head><title>Tall Page</title>
+      <style>
+        html { scroll-behavior: smooth; }
+        body { margin: 0; height: 3400px; position: relative; }
+        #bottom-sentinel { position: absolute; top: 3250px; left: 0; height: 50px; width: 100px; }
+        #lazy-below { position: absolute; top: 2900px; left: 0; width: 40px; height: 40px; }
+      </style>
+    </head><body>
+      <main>
+        <h1>Halaman Panjang</h1>
+        <img id="lazy-below" loading="lazy" src="${pixelPng}" alt="Lazy">
+        <div id="bottom-sentinel" data-observed="false">Bottom</div>
+      </main>
+      <script>
+        window.__maxScrollY = 0;
+        window.addEventListener("scroll", () => {
+          if (window.scrollY > window.__maxScrollY) {
+            window.__maxScrollY = window.scrollY;
+          }
+        });
+        const io = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.setAttribute("data-observed", "true");
+            }
+          }
+        });
+        io.observe(document.getElementById("bottom-sentinel"));
+      </script>
+    </body></html>`,
+    async (page) => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      const readiness = await settlePage(page, {
+        domQuietMs: 100,
+        settleDelayMs: 50,
+      });
+
+      const state = await page.evaluate(() => {
+        const img = document.getElementById("lazy-below");
+        const sentinel = document.getElementById("bottom-sentinel");
+        return {
+          scrollY: window.scrollY,
+          maxScrollY: window.__maxScrollY,
+          scrollHeight: document.documentElement.scrollHeight,
+          viewportHeight: window.innerHeight,
+          imgLoadingProp: img.loading,
+          imgLoadingAttr: img.getAttribute("loading"),
+          imgComplete: img.complete,
+          bottomObserved: sentinel.getAttribute("data-observed"),
+        };
+      });
+
+      assert.equal(state.imgLoadingProp, "eager");
+      assert.equal(state.imgLoadingAttr, "eager");
+      assert.equal(state.imgComplete, true);
+      assert.equal(state.bottomObserved, "true", "Full-page scroll must reach bottom sentinel");
+      assert.ok(
+        state.maxScrollY + state.viewportHeight >= state.scrollHeight - 4,
+        `Expected maxScrollY (${state.maxScrollY}) + vh (${state.viewportHeight}) >= scrollHeight - 4 (${state.scrollHeight - 4})`,
+      );
+      assert.equal(state.scrollY, 0, "Scroll must reset to (0, 0)");
+      assert.ok(readiness.pageHeight >= 3400);
+    },
+  );
+});
+
+test("auditPage invokes onHydrationSettled immediately after settlePage and before screenshot and axe-core", async () => {
+  await withPage(
+    `<!doctype html><html lang="id"><head><title>Hydration Hook</title></head><body>
+      <main><h1>Judul</h1><button>Aksi</button></main>
+    </body></html>`,
+    async (page) => {
+      const originalGoto = page.goto.bind(page);
+      const originalScreenshot = page.screenshot.bind(page);
+      const events = [];
+
+      page.goto = async () => ({
+        ok: () => true,
+        status: () => 200,
+        headers: () => ({ "content-type": "text/html" }),
+      });
+      page.url = () => "https://contoh.go.id/";
+      page.screenshot = async (opts) => {
+        events.push("screenshot");
+        return originalScreenshot(opts);
+      };
+
+      await auditPage({
+        page,
+        url: "https://contoh.go.id/",
+        siteConfig: { host: "contoh.go.id", configured: false, siteLabel: "" },
+        onProgress: (ev) => {
+          events.push(`progress:${ev.progress}`);
+        },
+        onHydrationSettled: async () => {
+          events.push("hydrationSettled");
+        },
+      });
+
+      page.goto = originalGoto;
+      page.screenshot = originalScreenshot;
+
+      const settledIdx = events.indexOf("hydrationSettled");
+      const progress43Idx = events.indexOf("progress:43");
+      const firstScreenshotIdx = events.indexOf("screenshot");
+      const progress46Idx = events.indexOf("progress:46");
+      const progress53Idx = events.indexOf("progress:53");
+
+      assert.ok(settledIdx > progress43Idx, "Must run after settlePage starts (progress 43)");
+      assert.ok(firstScreenshotIdx > settledIdx, "Must run before before.png screenshot");
+      assert.ok(progress46Idx > settledIdx, "Must run before progress 46");
+      assert.ok(progress53Idx > settledIdx, "Must run before axe-core audit (progress 53)");
+      assert.equal(
+        events.filter((e) => e === "hydrationSettled").length,
+        1,
+        "onHydrationSettled must be called once",
+      );
+    },
+  );
+});
+
+test("settlePage locks once:false scroll-reveal elements that become visible during scroll without exposing display:none or unrevealed elements", async () => {
+  await withPage(
+    `<!doctype html><html lang="id"><head><title>Reversible Scroll Reveal</title>
+      <style>
+        body { margin: 0; height: 3400px; position: relative; }
+        .reveal-card { position: absolute; top: 1900px; left: 20px; width: 300px; height: 150px; }
+        #hidden-modal { display: none; opacity: 0; }
+        #never-revealed { position: absolute; top: 200px; left: 20px; opacity: 0; }
+      </style>
+    </head><body>
+      <main>
+        <h1>Beranda</h1>
+        <div id="reveal-card" class="reveal-card" style="opacity: 0; transform: translateY(20px);">Kartu Visual</div>
+        <div id="hidden-modal">Modal Tersembunyi</div>
+        <div id="never-revealed">Tooltip Tertutup</div>
+      </main>
+      <script>
+        const card = document.getElementById("reveal-card");
+        const io = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              card.style.opacity = "1";
+              card.style.transform = "none";
+            } else {
+              // Simulate Framer Motion useInView(ref, { once: false }) reverting when scrolled out
+              card.style.opacity = "0";
+              card.style.transform = "translateY(20px)";
+            }
+          }
+        });
+        io.observe(card);
+      </script>
+    </body></html>`,
+    async (page) => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await settlePage(page, { domQuietMs: 100, settleDelayMs: 100 });
+
+      const result = await page.evaluate(() => {
+        const card = document.getElementById("reveal-card");
+        const modal = document.getElementById("hidden-modal");
+        const tooltip = document.getElementById("never-revealed");
+        const cardStyle = window.getComputedStyle(card);
+        const modalStyle = window.getComputedStyle(modal);
+        const tooltipStyle = window.getComputedStyle(tooltip);
+        return {
+          scrollY: window.scrollY,
+          cardOpacity: cardStyle.opacity,
+          cardTransform: cardStyle.transform,
+          modalDisplay: modalStyle.display,
+          modalRevealedAttr: modal.getAttribute("data-aksaranetra-revealed"),
+          tooltipOpacity: tooltipStyle.opacity,
+          tooltipRevealedAttr: tooltip.getAttribute("data-aksaranetra-revealed"),
+        };
+      });
+
+      assert.equal(result.scrollY, 0);
+      assert.equal(result.cardOpacity, "1");
+      assert.equal(result.cardTransform, "none");
+      assert.equal(result.modalDisplay, "none");
+      assert.equal(result.modalRevealedAttr, null);
+      assert.equal(result.tooltipOpacity, "0");
+      assert.equal(result.tooltipRevealedAttr, null);
+    },
+  );
+});
+
+
 
 
 
