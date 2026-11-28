@@ -315,6 +315,8 @@ test("custom Select primitive replaces native selects and preserves ARIA listbox
 test("result polish, score breakdown, 5-phase telemetry, and anti-slop craft contracts hold", () => {
   // Score breakdown disclosure in ScoreOverview
   assert.match(scoreOverview, /Cara hitung skor/);
+  assert.match(scoreOverview, /Berhasil Diperbaiki/);
+  assert.match(scoreOverview, /Lihat rumus matematis/);
   assert.match(scoreOverview, /aria-expanded=\{formulaOpen\}/);
   assert.match(scoreOverview, /aria-controls=\{formulaPanelId\}/);
   assert.match(scoreOverview, /100 × e\^\(-penalti \/ skala\)/);

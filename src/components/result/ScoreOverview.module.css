@@ -260,6 +260,13 @@
   outline-offset: 2px;
 }
 
+.formulaIntro {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-heading);
+}
+
 .formulaRules {
   display: flex;
   flex-direction: column;
@@ -271,13 +278,49 @@
   color: var(--color-text);
 }
 
-.formulaRules code {
+.formulaTechDetails {
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-well, #f4f6fa);
+  padding: 6px 10px;
+}
+
+.formulaTechSummary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+  user-select: none;
+}
+
+.formulaTechSummary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.formulaTechBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.formulaTechBody code {
+  display: inline-block;
+  max-width: 100%;
   padding: 1px 6px;
   border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
   border-radius: 5px;
-  background: var(--surface-well, #f4f6fa);
+  background: var(--surface-card, #ffffff);
   color: var(--color-heading);
-  font-size: 11.5px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .formulaSnapshot,

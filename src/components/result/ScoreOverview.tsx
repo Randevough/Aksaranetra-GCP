@@ -93,6 +93,21 @@ export default function ScoreOverview({
   const afterTotal = safeCount(snapshot.summary.afterTotal);
   const fixedTotal = safeCount(snapshot.counts.fixed);
   const reviewTotal = safeCount(snapshot.counts.review);
+  const rawReductionPct = safeCount(snapshot.summary.reductionPercent);
+  const fixedRateDisplay =
+    beforeTotal > 0
+      ? `${Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              rawReductionPct > 0
+                ? rawReductionPct
+                : (fixedTotal / beforeTotal) * 100,
+            ),
+          ),
+        )}%`
+      : "—";
   const regressionClean = Boolean(snapshot.warnings?.wcagRegressionClean);
 
   const afterScore = score ? Math.max(0, Math.min(100, Math.round(score.afterScore))) : 0;
@@ -180,7 +195,7 @@ export default function ScoreOverview({
                 >
                   <div className={styles.formulaHeader}>
                     <h3 id={formulaTitleId} className={styles.formulaTitle}>
-                      Rumus Skor Aksesibilitas
+                      Cara Skor Dihitung
                     </h3>
                     <button
                       type="button"
@@ -194,28 +209,42 @@ export default function ScoreOverview({
                     </button>
                   </div>
 
+                  <p className={styles.formulaIntro}>
+                    Dimulai dari <strong>100</strong>, lalu dikurangi bobot temuan
+                    dan diseimbangkan oleh jumlah aturan WCAG yang sudah lolos.
+                  </p>
+
                   <ul className={styles.formulaRules}>
                     <li>
-                      Skor dasar <strong>100</strong>, dinormalisasi dengan{" "}
-                      <code>100 × e^(-penalti / skala)</code> (
-                      <code>skala = maks(85, 65 + 2,5 × aturan lolos)</code> —
-                      memperhitungkan aturan WCAG yang sudah lolos agar selaras
-                      dengan Lighthouse)
+                      <strong>Tingkat dampak:</strong> Kritis (-10), Serius (-6),
+                      Sedang (-3), Rendah (-1).
                     </li>
                     <li>
-                      Bobot dampak:{" "}
-                      <strong>Kritis (-10)</strong>,{" "}
-                      <strong>Serius (-6)</strong>,{" "}
-                      <strong>Sedang (-3)</strong>,{" "}
-                      <strong>Rendah (-1)</strong>
+                      <strong>Temuan berulang diredam:</strong> masalah sama di
+                      banyak elemen (seperti daftar kartu) tidak dihukum
+                      berkali-kali lipat.
                     </li>
                     <li>
-                      Faktor temuan berulang logaritmik:{" "}
-                      <code>× (1 + 0,15 × log₂(jumlah))</code> pada aturan yang
-                      sama (tidak menghukum template berulang secara berlebihan,
-                      namun tetap naik saat perbaikan bertahap)
+                      <strong>Kepatuhan ikut dihitung:</strong> makin banyak aturan
+                      WCAG yang sudah lolos, makin seimbang penaltinya.
                     </li>
                   </ul>
+
+                  <details className={styles.formulaTechDetails}>
+                    <summary className={styles.formulaTechSummary}>
+                      Lihat rumus matematis
+                    </summary>
+                    <div className={styles.formulaTechBody}>
+                      <div>
+                        Normalisasi: <code>100 × e^(-penalti / skala)</code> dengan{" "}
+                        <code>skala = maks(85, 65 + 2,5 × aturan lolos)</code>
+                      </div>
+                      <div>
+                        Pengulangan per aturan:{" "}
+                        <code>× (1 + 0,15 × log₂(jumlah))</code>
+                      </div>
+                    </div>
+                  </details>
 
                   {severity && (
                     <div className={styles.formulaSnapshot}>
@@ -288,6 +317,12 @@ export default function ScoreOverview({
             <div className={styles.statItem}>
               <span className={styles.statLabel}>Diperbaiki</span>
               <strong className={`${styles.statValue} ${styles.statGood}`}>{fixedTotal}</strong>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Berhasil Diperbaiki</span>
+              <strong className={`${styles.statValue} ${styles.statGood}`}>
+                {fixedRateDisplay}
+              </strong>
             </div>
             <div className={styles.statItem}>
               <span className={styles.statLabel}>Perlu Tinjauan</span>
