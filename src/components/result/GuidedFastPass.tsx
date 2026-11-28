@@ -21,42 +21,42 @@ const FASTPASS_ITEMS: FastPassItem[] = [
     title: "Deskripsi gambar bermakna",
     wcag: "WCAG 1.1.1",
     question:
-      "Periksa apakah gambar informasi memiliki teks alt yang jelas, sedangkan gambar hiasan memakai alt kosong (alt=\"\").",
+      "Pastikan gambar informatif punya teks alt jelas, dan gambar hiasan memakai alt=\"\".",
   },
   {
     id: "tab-order",
     title: "Urutan Tab logis",
     wcag: "WCAG 2.4.3 · 2.4.7",
     question:
-      "Tekan tombol Tab dari atas ke bawah. Pastikan fokus berpindah sesuai alur baca visual dan kotak fokus selalu terlihat.",
+      "Tekan Tab dari atas ke bawah. Pastikan fokus mengikuti alur baca dan indikator fokus terlihat.",
   },
   {
     id: "form-errors",
     title: "Pesan error formulir jelas",
     wcag: "WCAG 3.3.1 · 3.3.3",
     question:
-      "Coba kirim formulir dengan data kosong atau salah. Pastikan pesan galat menyebut nama kolom dan saran perbaikannya, bukan warna merah saja.",
+      "Kirim formulir kosong atau salah. Pastikan pesan galat menyebut nama kolom dan saran perbaikan, bukan warna saja.",
   },
   {
     id: "media-captions",
     title: "Subtitle atau transkrip media",
     wcag: "WCAG 1.2.1 · 1.2.2",
     question:
-      "Jika ada video atau audio penting, pastikan tersedia takarir (subtitle) yang sinkron atau transkrip teks lengkap (tandai Lolos jika tidak ada media).",
+      "Pastikan video atau audio penting punya takarir sinkron atau transkrip (tandai Lolos jika tidak ada media).",
   },
   {
     id: "overlay-contrast",
     title: "Teks di atas foto atau gradasi terbaca",
     wcag: "WCAG 1.4.3",
     question:
-      "Periksa judul atau tombol yang menumpuk di atas foto spanduk maupun gradasi warna agar kontrasnya tetap terbaca di setiap sisi.",
+      "Pastikan judul atau tombol di atas foto dan gradasi tetap terbaca jelas di semua sisi.",
   },
   {
     id: "auth-captcha",
     title: "Autentikasi atau CAPTCHA tidak mengunci tunanetra",
     wcag: "WCAG 3.3.8",
     question:
-      "Pastikan proses masuk atau kirim formulir tidak hanya mengandalkan CAPTCHA gambar tanpa alternatif audio atau metode verifikasi non-visual.",
+      "Pastikan masuk atau kirim formulir tidak hanya mengandalkan CAPTCHA gambar tanpa alternatif non-visual.",
   },
 ];
 
@@ -131,10 +131,9 @@ export default function GuidedFastPass({ jobId }: { jobId: string }) {
             Cek Manual Cepat (5 Menit)
           </h2>
           <p className={styles.introDesc}>
-            Pemindai otomatis hanya mencakup sekitar 30 sampai 57 persen kriteria WCAG.
-            Pemeriksaan singkat ini membantu memastikan makna teks, urutan fokus, dan alur
-            formulir benar-benar nyaman bagi manusia serta pembaca layar. Hasil disimpan
-            otomatis di peramban Anda dan ikut tercatat pada Pernyataan Aksesibilitas.
+            Uji otomatis hanya mencakup ~30–57% kriteria WCAG. Cek 6 poin ini
+            untuk memastikan gambar, urutan Tab, dan formulir nyaman dipakai.
+            Hasil tersimpan di peramban dan masuk ke Pernyataan Aksesibilitas.
           </p>
         </div>
 

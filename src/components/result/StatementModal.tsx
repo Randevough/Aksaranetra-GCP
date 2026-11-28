@@ -264,7 +264,17 @@ export default function StatementModal({
       onClose={onClose}
     >
       <div className={styles.header}>
-        <h1 id={titleId}>Pernyataan Aksesibilitas &amp; Badge Skor</h1>
+        <h2
+          id={titleId}
+          style={{
+            fontSize: "19px",
+            fontWeight: 800,
+            lineHeight: 1.25,
+            color: "var(--color-heading)",
+          }}
+        >
+          Pernyataan Aksesibilitas &amp; Badge Skor
+        </h2>
         <button
           type="button"
           className={styles.closeBtn}
@@ -319,15 +329,14 @@ export default function StatementModal({
         >
           <div className={styles.panelInner}>
             <div className={styles.honestyBanner}>
-              Draf pernyataan ini memisahkan skor pemindaian otomatis ({afterScore}
-              /100) dari status cek manual FastPass ({fastPass.checked}/
-              {fastPass.total} diperiksa) dan merujuk pada UU No. 8/2016, PP No.
-              42/2020, PermenPANRB No. 11/2024, serta SNI ISO/IEC 40500.
+              Skor otomatis ({afterScore}/100) dipisah dari cek manual FastPass (
+              {fastPass.checked}/{fastPass.total} diperiksa), mengacu pada UU No.
+              8/2016, PP No. 42/2020, PermenPANRB No. 11/2024, dan SNI ISO/IEC 40500.
             </div>
 
             <div className={styles.fieldRow}>
               <label htmlFor={contactInputId}>
-                Kontak atau email pengelola (opsional, melengkapi draf)
+                Email atau kontak pengelola (opsional)
               </label>
               <input
                 id={contactInputId}
@@ -412,8 +421,8 @@ export default function StatementModal({
                 />
               )}
               <p className={styles.badgeNote}>
-                Badge menampilkan label &ldquo;Skor Otomatis&rdquo; agar jujur dan tidak
-                mengklaim kepatuhan WCAG 100% tanpa pengujian pengguna.
+                Label &ldquo;Skor Otomatis&rdquo; menandai hasil uji mesin, bukan
+                bukti kepatuhan WCAG 100% tanpa uji pengguna.
               </p>
             </div>
 

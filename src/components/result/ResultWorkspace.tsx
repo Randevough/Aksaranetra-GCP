@@ -8,6 +8,17 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import {
+  BookOpen,
+  ClipboardCheck,
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  ListChecks,
+  RotateCw,
+  ShieldCheck,
+} from "lucide-react";
 import type { AuditResult, ImpactLevel, Snapshot } from "@/lib/audit-api";
 import { artifactUrl } from "@/lib/audit-api";
 import { DEMO_AUDITS } from "@/lib/demo-audits";
@@ -359,7 +370,8 @@ export default function ResultWorkspace({
               className="btn btn-primary"
               onClick={handleOpenWebReader}
             >
-              Buka Web Reader
+              <BookOpen size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Buka Web Reader</span>
               <span className="sr-only"> (versi ramah akses)</span>
             </button>
 
@@ -369,7 +381,8 @@ export default function ResultWorkspace({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Lihat Halaman Diperbaiki
+              <ExternalLink size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Lihat Halaman Diperbaiki</span>
               <span className="sr-only"> (buka di tab baru)</span>
             </a>
           </div>
@@ -384,7 +397,10 @@ export default function ResultWorkspace({
                 rel="noopener noreferrer"
                 aria-label="Unduh laporan PDF (buka di tab baru)"
               >
-                PDF
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <FileText size={15} strokeWidth={1.75} aria-hidden="true" />
+                  <span>PDF</span>
+                </span>
                 <span className="sr-only"> (buka di tab baru)</span>
               </a>
 
@@ -395,7 +411,10 @@ export default function ResultWorkspace({
                   download={`aksaranetra-${data.job.jobId}.json`}
                   aria-label="Unduh JSON"
                 >
-                  JSON
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <span>JSON</span>
+                  </span>
                 </a>
               ) : (
                 <button
@@ -410,7 +429,10 @@ export default function ResultWorkspace({
                     )
                   }
                 >
-                  JSON
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <span>JSON</span>
+                  </span>
                 </button>
               )}
 
@@ -421,7 +443,10 @@ export default function ResultWorkspace({
                   download={`aksaranetra-${data.job.jobId}.csv`}
                   aria-label="Unduh CSV"
                 >
-                  CSV
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <span>CSV</span>
+                  </span>
                 </a>
               ) : (
                 <button
@@ -436,7 +461,10 @@ export default function ResultWorkspace({
                     )
                   }
                 >
-                  CSV
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <span>CSV</span>
+                  </span>
                 </button>
               )}
 
@@ -445,13 +473,19 @@ export default function ResultWorkspace({
                 className={styles.compactActionBtn}
                 onClick={openStatementModal}
               >
-                Pernyataan &amp; Badge
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <ShieldCheck size={15} strokeWidth={1.75} aria-hidden="true" />
+                  <span>Pernyataan &amp; Badge</span>
+                </span>
               </button>
             </div>
 
             <div className={styles.navActions}>
               <Link href={recheckHref} className={styles.compactActionBtn}>
-                Periksa ulang
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <RotateCw size={15} strokeWidth={1.75} aria-hidden="true" />
+                  <span>Periksa ulang</span>
+                </span>
               </Link>
               <Link href="/periksa" className={styles.compactActionBtn}>
                 Periksa halaman lain
@@ -492,7 +526,10 @@ export default function ResultWorkspace({
             onClick={() => switchToTab("visual")}
             onKeyDown={(e) => handleWorkspaceTabKeyDown(e, "visual")}
           >
-            Inspeksi Visual
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
+              <Eye size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Inspeksi Visual</span>
+            </span>
           </button>
 
           <button
@@ -508,7 +545,10 @@ export default function ResultWorkspace({
             onClick={() => switchToTab("issues")}
             onKeyDown={(e) => handleWorkspaceTabKeyDown(e, "issues")}
           >
-            Daftar Temuan ({issuesCount})
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
+              <ListChecks size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Daftar Temuan ({issuesCount})</span>
+            </span>
           </button>
 
           <button
@@ -524,7 +564,10 @@ export default function ResultWorkspace({
             onClick={() => switchToTab("reader")}
             onKeyDown={(e) => handleWorkspaceTabKeyDown(e, "reader")}
           >
-            Web Reader
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
+              <BookOpen size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Web Reader</span>
+            </span>
           </button>
 
           <button
@@ -540,7 +583,10 @@ export default function ResultWorkspace({
             onClick={() => switchToTab("manual")}
             onKeyDown={(e) => handleWorkspaceTabKeyDown(e, "manual")}
           >
-            Cek Manual
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
+              <ClipboardCheck size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span>Cek Manual</span>
+            </span>
           </button>
         </div>
 

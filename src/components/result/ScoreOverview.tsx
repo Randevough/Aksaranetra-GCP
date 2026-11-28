@@ -130,7 +130,7 @@ export default function ScoreOverview({
         )}
 
         <p className={styles.honestyNote}>
-          Cek otomatis mencakup ~30–57% standar aksesibilitas.
+          Uji otomatis mencakup ~30–57% standar WCAG.
         </p>
       </div>
 

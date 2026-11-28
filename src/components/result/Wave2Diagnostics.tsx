@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { FileText, Layers, ShieldAlert, Smartphone } from "lucide-react";
 import type { PdfAuditItem, Snapshot } from "@/lib/audit-api";
 import styles from "./Wave2Diagnostics.module.css";
 
@@ -128,9 +129,7 @@ export default function Wave2Diagnostics({
     >
       <div className={styles.stripCard}>
         <div className={styles.stripHeader}>
-          <h2 className={styles.stripTitle}>
-            Pemeriksaan Lanjutan (Seluler, PDF, Detektor &amp; Lintas Halaman)
-          </h2>
+          <h2 className={styles.stripTitle}>Pemeriksaan Lanjutan</h2>
           {enginesUsed && enginesUsed.length > 0 && (
             <div className={styles.enginesRow}>
               <span>Mesin uji:</span>
@@ -154,7 +153,13 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("mobile")}
           >
             <span className={styles.pillTop}>
-              <span className={styles.pillLabel}>Tampilan HP (320px)</span>
+              <span
+                className={styles.pillLabel}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <Smartphone size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span>Tampilan HP (320px)</span>
+              </span>
               <span
                 className={`${styles.pillChevron} ${
                   openDrawer === "mobile" ? styles.pillChevronOpen : ""
@@ -179,7 +184,13 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("pdf")}
           >
             <span className={styles.pillTop}>
-              <span className={styles.pillLabel}>Dokumen PDF</span>
+              <span
+                className={styles.pillLabel}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <FileText size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span>Dokumen PDF</span>
+              </span>
               <span
                 className={`${styles.pillChevron} ${
                   openDrawer === "pdf" ? styles.pillChevronOpen : ""
@@ -204,7 +215,13 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("detectors")}
           >
             <span className={styles.pillTop}>
-              <span className={styles.pillLabel}>Overlay &amp; CAPTCHA</span>
+              <span
+                className={styles.pillLabel}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <ShieldAlert size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span>Overlay &amp; CAPTCHA</span>
+              </span>
               <span
                 className={`${styles.pillChevron} ${
                   openDrawer === "detectors" ? styles.pillChevronOpen : ""
@@ -229,7 +246,13 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("multipage")}
           >
             <span className={styles.pillTop}>
-              <span className={styles.pillLabel}>Lintas Halaman</span>
+              <span
+                className={styles.pillLabel}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <Layers size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span>Lintas Halaman</span>
+              </span>
               <span
                 className={`${styles.pillChevron} ${
                   openDrawer === "multipage" ? styles.pillChevronOpen : ""
@@ -250,10 +273,10 @@ export default function Wave2Diagnostics({
         <div id={drawerId} className={styles.drawer}>
           <div className={styles.drawerHeader}>
             <h3 className={styles.drawerTitle}>
-              {openDrawer === "mobile" && "Detail Tampilan HP (320px) & Preferensi OS"}
-              {openDrawer === "pdf" && "Detail Audit Dokumen PDF"}
-              {openDrawer === "detectors" && "Deteksi Overlay Widget & CAPTCHA"}
-              {openDrawer === "multipage" && "Ringkasan Lintas Halaman & Pola Komponen"}
+              {openDrawer === "mobile" && "Tampilan HP (320px) & Preferensi OS"}
+              {openDrawer === "pdf" && "Audit Dokumen PDF"}
+              {openDrawer === "detectors" && "Overlay Widget & CAPTCHA"}
+              {openDrawer === "multipage" && "Ringkasan Lintas Halaman"}
             </h3>
             <button
               type="button"
@@ -278,8 +301,8 @@ export default function Wave2Diagnostics({
                       </strong>
                       <span className={styles.metricSub}>
                         {mobileAudit.reflowOk
-                          ? "Aman, tidak memaksa gulir samping."
-                          : "Konten melebar melewati layar 320px."}
+                          ? "Tidak memaksa gulir samping."
+                          : "Melebar melewati layar 320px."}
                       </span>
                     </div>
 
@@ -292,8 +315,8 @@ export default function Wave2Diagnostics({
                       </strong>
                       <span className={styles.metricSub}>
                         {mobileAudit.smallTargetsCount === 0
-                          ? "Semua tombol memenuhi ukuran minimal 24x24px."
-                          : "Tombol atau tautan di bawah batas 24x24px."}
+                          ? "Semua tombol minimal 24x24px."
+                          : "Ada target di bawah 24x24px."}
                       </span>
                     </div>
 
@@ -308,8 +331,8 @@ export default function Wave2Diagnostics({
                       </strong>
                       <span className={styles.metricSub}>
                         {mobileAudit.textSpacingOk
-                          ? "Teks tidak terpotong saat jarak baris diperbesar."
-                          : "Wadah memotong teks saat spasi huruf diperbesar."}
+                          ? "Tetap terbaca saat jarak baris diperbesar."
+                          : "Teks terpotong saat spasi diperbesar."}
                       </span>
                     </div>
 
@@ -326,8 +349,8 @@ export default function Wave2Diagnostics({
                       </strong>
                       <span className={styles.metricSub}>
                         {mobileAudit.osPreferences.reducedMotionUnboundedAnimations > 0
-                          ? "Animasi berulang tetap berjalan meski preferensi kurangi gerak aktif."
-                          : "Animasi merespons prefers-reduced-motion."}
+                          ? "Animasi tetap berjalan saat reduced-motion aktif."
+                          : "Mengikuti prefers-reduced-motion."}
                       </span>
                     </div>
                   </div>
@@ -341,19 +364,19 @@ export default function Wave2Diagnostics({
                   >
                     <strong>
                       {mobileAudit.pinchZoomBlocked
-                        ? "Zoom cubit (pinch-zoom) diblokir oleh meta viewport."
-                        : "Pembesaran layar (zoom) diizinkan."}
+                        ? "Zoom cubit diblokir meta viewport."
+                        : "Zoom layar diizinkan."}
                     </strong>
                     <span>
                       {mobileAudit.pinchZoomBlocked
-                        ? "Hapus user-scalable=no atau maximum-scale < 2 agar pengguna low-vision bisa memperbesar halaman hingga 200%+ (WCAG 1.4.4)."
-                        : "Pengguna dapat memperbesar teks dan tampilan pada peramban seluler."}
+                        ? "Hapus user-scalable=no atau maximum-scale < 2 agar halaman bisa diperbesar 200%+ (WCAG 1.4.4)."
+                        : "Pengguna dapat memperbesar tampilan di peramban seluler."}
                     </span>
                   </div>
                 </>
               ) : (
                 <p className={styles.emptyNote}>
-                  Data pemeriksaan seluler 320px belum tersedia pada laporan ini.
+                  Data pemeriksaan seluler 320px belum tersedia.
                 </p>
               )}
             </>
@@ -418,7 +441,7 @@ export default function Wave2Diagnostics({
                 </div>
               ) : (
                 <p className={styles.emptyNote}>
-                  Tidak ada tautan dokumen PDF yang ditemukan pada halaman ini.
+                  Tidak ada dokumen PDF tertaut di halaman ini.
                 </p>
               )}
             </>
@@ -439,9 +462,8 @@ export default function Wave2Diagnostics({
                           "Terdeteksi skrip overlay aksesibilitas pihak ketiga."}
                       </p>
                       <p>
-                        Catatan penting: widget overlay mengambang tidak memperbaiki cacat
-                        struktur DOM asli, label formulir, atau urutan fokus pembaca layar.
-                        Perbaiki langsung pada kode sumber halaman.
+                        Widget overlay tidak memperbaiki DOM asli, label formulir,
+                        atau urutan fokus. Perbaiki langsung di kode sumber.
                       </p>
                     </div>
                   )}
@@ -455,11 +477,11 @@ export default function Wave2Diagnostics({
                       </strong>
                       <p>
                         {detectors.captcha.summaryId ??
-                          `Ditemukan ${detectors.captcha.inaccessibleCount} verifikasi CAPTCHA yang berisiko mengunci pengguna pembaca layar.`}
+                          `Ditemukan ${detectors.captcha.inaccessibleCount} CAPTCHA yang berisiko mengunci pembaca layar.`}
                       </p>
                       <p>
-                        Sediakan alternatif non-visual (audio, pertanyaan logika sederhana,
-                        atau token verifikasi otomatis) sesuai WCAG 3.3.8.
+                        Sediakan alternatif non-visual (audio, logika sederhana,
+                        atau verifikasi otomatis) sesuai WCAG 3.3.8.
                       </p>
                     </div>
                   )}
@@ -468,17 +490,17 @@ export default function Wave2Diagnostics({
                     <div
                       className={`${styles.advisoryBox} ${styles.advisoryClean}`}
                     >
-                      <strong>Tidak ada overlay widget atau CAPTCHA penghambat.</strong>
+                      <strong>Bebas overlay widget dan CAPTCHA penghambat.</strong>
                       <span>
-                        Pemindaian tidak menemukan widget overlay mengambang maupun CAPTCHA
-                        gambar yang mengunci navigasi pembaca layar.
+                        Tidak ditemukan widget mengambang atau CAPTCHA gambar yang
+                        mengunci pembaca layar.
                       </span>
                     </div>
                   )}
                 </>
               ) : (
                 <p className={styles.emptyNote}>
-                  Data detektor overlay dan CAPTCHA belum tersedia pada laporan ini.
+                  Data overlay dan CAPTCHA belum tersedia.
                 </p>
               )}
             </>
@@ -546,8 +568,7 @@ export default function Wave2Diagnostics({
               ) : (
                 !multiPage?.pages?.length && (
                   <p className={styles.emptyNote}>
-                    Audit dijalankan pada satu halaman tunggal tanpa pola komponen lintas
-                    halaman.
+                    Audit dijalankan pada satu halaman tunggal.
                   </p>
                 )
               )}
