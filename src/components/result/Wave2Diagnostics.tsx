@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useState } from "react";
-import { FileText, Layers, ShieldAlert, Smartphone } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { ChevronDown, FileText, Layers, ShieldAlert, Smartphone } from "lucide-react";
 import type { PdfAuditItem, Snapshot } from "@/lib/audit-api";
 import styles from "./Wave2Diagnostics.module.css";
 
 type DrawerKey = "mobile" | "pdf" | "detectors" | "multipage";
+type ClusterFilter = "all" | "high";
 
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
@@ -35,10 +36,25 @@ export default function Wave2Diagnostics({
   snapshot: Snapshot;
 }) {
   const [openDrawer, setOpenDrawer] = useState<DrawerKey | null>(null);
+  const [clusterFilter, setClusterFilter] = useState<ClusterFilter>("all");
   const drawerId = useId();
   const pdfCaptionId = useId();
+  const clusterCaptionId = useId();
 
   const { mobileAudit, pdfAudit, detectors, multiPage, clusters } = snapshot;
+
+  const highImpactClusters = useMemo(
+    () => (clusters ?? []).filter((c) => c.blastRadiusPercent >= 50),
+    [clusters],
+  );
+  const visibleClusters = useMemo(() => {
+    if (!clusters) return [];
+    return clusterFilter === "high" ? highImpactClusters : clusters;
+  }, [clusters, clusterFilter, highImpactClusters]);
+  const showClusterFilter =
+    Boolean(clusters && clusters.length > 5) &&
+    highImpactClusters.length > 0 &&
+    highImpactClusters.length < (clusters?.length ?? 0);
 
   const hasAnyWave2 = Boolean(
     mobileAudit ||
@@ -135,21 +151,20 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("mobile")}
           >
             <span className={styles.pillTop}>
-              <span
-                className={styles.pillLabel}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <Smartphone size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span className={styles.pillLabel}>
+                <span className={styles.pillIconBox} aria-hidden="true">
+                  <Smartphone size={14} strokeWidth={1.9} />
+                </span>
                 <span>Tampilan HP (320px)</span>
               </span>
-              <span
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
                 className={`${styles.pillChevron} ${
                   openDrawer === "mobile" ? styles.pillChevronOpen : ""
                 }`}
                 aria-hidden="true"
-              >
-                ▾
-              </span>
+              />
             </span>
             <strong className={`${styles.pillValue} ${mobileSummary.tone}`}>
               {mobileSummary.text}
@@ -166,21 +181,20 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("pdf")}
           >
             <span className={styles.pillTop}>
-              <span
-                className={styles.pillLabel}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <FileText size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span className={styles.pillLabel}>
+                <span className={styles.pillIconBox} aria-hidden="true">
+                  <FileText size={14} strokeWidth={1.9} />
+                </span>
                 <span>Dokumen PDF</span>
               </span>
-              <span
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
                 className={`${styles.pillChevron} ${
                   openDrawer === "pdf" ? styles.pillChevronOpen : ""
                 }`}
                 aria-hidden="true"
-              >
-                ▾
-              </span>
+              />
             </span>
             <strong className={`${styles.pillValue} ${pdfSummary.tone}`}>
               {pdfSummary.text}
@@ -197,21 +211,20 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("detectors")}
           >
             <span className={styles.pillTop}>
-              <span
-                className={styles.pillLabel}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <ShieldAlert size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span className={styles.pillLabel}>
+                <span className={styles.pillIconBox} aria-hidden="true">
+                  <ShieldAlert size={14} strokeWidth={1.9} />
+                </span>
                 <span>Overlay &amp; CAPTCHA</span>
               </span>
-              <span
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
                 className={`${styles.pillChevron} ${
                   openDrawer === "detectors" ? styles.pillChevronOpen : ""
                 }`}
                 aria-hidden="true"
-              >
-                ▾
-              </span>
+              />
             </span>
             <strong className={`${styles.pillValue} ${detectorSummary.tone}`}>
               {detectorSummary.text}
@@ -228,21 +241,20 @@ export default function Wave2Diagnostics({
             onClick={() => toggleDrawer("multipage")}
           >
             <span className={styles.pillTop}>
-              <span
-                className={styles.pillLabel}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <Layers size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span className={styles.pillLabel}>
+                <span className={styles.pillIconBox} aria-hidden="true">
+                  <Layers size={14} strokeWidth={1.9} />
+                </span>
                 <span>Lintas Halaman</span>
               </span>
-              <span
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
                 className={`${styles.pillChevron} ${
                   openDrawer === "multipage" ? styles.pillChevronOpen : ""
                 }`}
                 aria-hidden="true"
-              >
-                ▾
-              </span>
+              />
             </span>
             <strong className={`${styles.pillValue} ${multiPageSummary.tone}`}>
               {multiPageSummary.text}
@@ -511,41 +523,90 @@ export default function Wave2Diagnostics({
               )}
 
               {clusters && clusters.length > 0 ? (
-                <div>
-                  <h4 className={styles.subSectionTitle}>
-                    Pola Komponen Berulang (Component Clustering)
-                  </h4>
-                  <ul className={styles.clusterList} style={{ marginTop: "8px" }}>
-                    {clusters.map((cluster) => (
-                      <li key={cluster.id} className={styles.clusterCard}>
-                        <div className={styles.clusterTop}>
-                          <span className={styles.clusterTitle}>
-                            {cluster.titleId}
-                          </span>
-                          <span className={`${styles.statusBadge} ${styles.badgeWarn}`}>
-                            Dampak {cluster.blastRadiusPercent}% halaman
-                          </span>
-                        </div>
-                        <div className={styles.clusterMeta}>
-                          <code className={styles.clusterSelector}>
-                            {cluster.selectorPattern}
-                          </code>
-                          <span>
-                            {cluster.occurrences} kemunculan di{" "}
-                            {cluster.affectedPages.length} halaman
-                          </span>
-                        </div>
-                        <div className={styles.blastBarTrack} aria-hidden="true">
-                          <div
-                            className={styles.blastBarFill}
-                            style={{
-                              width: `${Math.max(4, Math.min(100, cluster.blastRadiusPercent))}%`,
-                            }}
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                <div className={styles.clusterSection}>
+                  <div className={styles.clusterToolbar}>
+                    <h4 id={clusterCaptionId} className={styles.subSectionTitle}>
+                      Pola Komponen Berulang ({clusters.length} pola)
+                    </h4>
+                    {showClusterFilter && (
+                      <div
+                        className={styles.clusterFilterGroup}
+                        role="group"
+                        aria-label="Filter dampak pola komponen"
+                      >
+                        <button
+                          type="button"
+                          className={`${styles.filterChipBtn} ${
+                            clusterFilter === "all" ? styles.filterChipActive : ""
+                          }`}
+                          aria-pressed={clusterFilter === "all"}
+                          onClick={() => setClusterFilter("all")}
+                        >
+                          Semua ({clusters.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.filterChipBtn} ${
+                            clusterFilter === "high" ? styles.filterChipActive : ""
+                          }`}
+                          aria-pressed={clusterFilter === "high"}
+                          onClick={() => setClusterFilter("high")}
+                        >
+                          Dampak Tinggi ≥50% ({highImpactClusters.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-labelledby={clusterCaptionId}
+                    className={styles.clusterTableWrap}
+                  >
+                    <table className={styles.clusterTable}>
+                      <thead>
+                        <tr>
+                          <th scope="col">Komponen &amp; Selektor</th>
+                          <th scope="col">Kemunculan</th>
+                          <th scope="col">Dampak Halaman</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleClusters.map((cluster) => (
+                          <tr key={cluster.id}>
+                            <th scope="row" className={styles.clusterNameCell}>
+                              <span className={styles.clusterTitle}>
+                                {cluster.titleId}
+                              </span>
+                              <code className={styles.clusterSelector}>
+                                {cluster.selectorPattern}
+                              </code>
+                            </th>
+                            <td className={styles.clusterCountCell}>
+                              <strong>{cluster.occurrences}x</strong>
+                              <span>{cluster.affectedPages.length} hal</span>
+                            </td>
+                            <td className={styles.clusterImpactCell}>
+                              <div className={styles.clusterImpactInner}>
+                                <div className={styles.blastBarTrack} aria-hidden="true">
+                                  <div
+                                    className={styles.blastBarFill}
+                                    style={{
+                                      width: `${Math.max(4, Math.min(100, cluster.blastRadiusPercent))}%`,
+                                    }}
+                                  />
+                                </div>
+                                <strong className={styles.clusterPercent}>
+                                  {cluster.blastRadiusPercent}%
+                                </strong>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (
                 !multiPage?.pages?.length && (

@@ -1,6 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import { MoveHorizontal } from "lucide-react";
 import type { AuditIssue, PageReadiness, TabStop } from "@/lib/audit-api";
 import styles from "./VisualInspector.module.css";
 
@@ -34,8 +43,39 @@ export default function VisualInspector({
 }) {
   const [activeMode, setActiveMode] = useState<ModeKey>("pins");
   const [sliderPos, setSliderPos] = useState(50);
+  const [isDraggingCompare, setIsDraggingCompare] = useState(false);
   const [beforeBroken, setBeforeBroken] = useState(false);
   const [afterBroken, setAfterBroken] = useState(false);
+  const compareStageRef = useRef<HTMLDivElement | null>(null);
+
+  const updateSliderFromPointer = useCallback((clientX: number) => {
+    const stage = compareStageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const pct = Math.round(((clientX - rect.left) / rect.width) * 100);
+    setSliderPos(Math.max(0, Math.min(100, pct)));
+  }, []);
+
+  const handleComparePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    setIsDraggingCompare(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    updateSliderFromPointer(e.clientX);
+  };
+
+  const handleComparePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDraggingCompare) return;
+    updateSliderFromPointer(e.clientX);
+  };
+
+  const handleComparePointerEnd = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDraggingCompare) return;
+    setIsDraggingCompare(false);
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
 
   const tabRefs = useRef<Record<ModeKey, HTMLButtonElement | null>>({
     pins: null,
@@ -169,36 +209,43 @@ export default function VisualInspector({
         <div className={styles.panelBox}>
           {hasBefore ? (
             <div
-              className={styles.canvasWrap}
-              style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+              className={styles.canvasViewport}
+              tabIndex={0}
+              role="region"
+              aria-label="Gulir pratinjau halaman dengan pin temuan"
             >
-              <img
-                src={beforeUrl!}
-                alt="Tangkapan layar halaman sebelum perbaikan dengan penanda lokasi temuan"
-                className={styles.canvasImg}
-                onError={() => setBeforeBroken(true)}
-              />
-              {pinnedIssues.map((issue, idx) => {
-                const box = issue.boundingBox!;
-                const left = toPercentX(box.x);
-                const top = toPercentY(box.y);
-                const active = selectedIssue?.id === issue.id;
-                return (
-                  <button
-                    key={issue.id}
-                    type="button"
-                    className={`${styles.pin} ${styles[`pin_${issue.impact}`]} ${
-                      active ? styles.pinActive : ""
-                    }`}
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                    aria-label={`Pin ${idx + 1}: ${IMPACT_LABEL[issue.impact]}, ${issue.titleId}`}
-                    aria-pressed={active}
-                    onClick={() => onSelectIssue?.(issue.id)}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
+              <div
+                className={styles.canvasWrap}
+                style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+              >
+                <img
+                  src={beforeUrl!}
+                  alt="Tangkapan layar halaman sebelum perbaikan dengan penanda lokasi temuan"
+                  className={styles.canvasImg}
+                  onError={() => setBeforeBroken(true)}
+                />
+                {pinnedIssues.map((issue, idx) => {
+                  const box = issue.boundingBox!;
+                  const left = toPercentX(box.x);
+                  const top = toPercentY(box.y);
+                  const active = selectedIssue?.id === issue.id;
+                  return (
+                    <button
+                      key={issue.id}
+                      type="button"
+                      className={`${styles.pin} ${styles[`pin_${issue.impact}`]} ${
+                        active ? styles.pinActive : ""
+                      }`}
+                      style={{ left: `${left}%`, top: `${top}%` }}
+                      aria-label={`Pin ${idx + 1}: ${IMPACT_LABEL[issue.impact]}, ${issue.titleId}`}
+                      aria-pressed={active}
+                      onClick={() => onSelectIssue?.(issue.id)}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className={styles.emptyNotice}>
@@ -256,52 +303,59 @@ export default function VisualInspector({
 
           {hasBefore && tabStops.length > 0 ? (
             <div
-              className={styles.canvasWrap}
-              style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+              className={styles.canvasViewport}
+              tabIndex={0}
+              role="region"
+              aria-label="Gulir visualisasi urutan fokus keyboard"
             >
-              <img
-                src={beforeUrl!}
-                alt="Visualisasi urutan fokus keyboard pada halaman sebelum perbaikan"
-                className={styles.canvasImg}
-                onError={() => setBeforeBroken(true)}
-              />
-              <svg
-                className={styles.focusSvg}
-                viewBox={`0 0 ${stageWidth} ${stageHeight}`}
-                preserveAspectRatio="none"
-                aria-hidden="true"
+              <div
+                className={styles.canvasWrap}
+                style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
               >
-                <polyline
-                  fill="none"
-                  stroke="#1d4ed8"
-                  strokeWidth="3"
-                  strokeDasharray="8 6"
-                  points={tabStops
-                    .map(
-                      (s) =>
-                        `${s.rect.x + s.rect.width / 2},${s.rect.y + s.rect.height / 2}`,
-                    )
-                    .join(" ")}
+                <img
+                  src={beforeUrl!}
+                  alt="Visualisasi urutan fokus keyboard pada halaman sebelum perbaikan"
+                  className={styles.canvasImg}
+                  onError={() => setBeforeBroken(true)}
                 />
-              </svg>
-              {tabStops.map((stop) => {
-                const hasIssue = stop.obscured || !stop.hasVisibleFocus;
-                return (
-                  <span
-                    key={`${stop.index}-${stop.selector}`}
-                    className={`${styles.tabMarker} ${
-                      hasIssue ? styles.tabMarkerWarn : styles.tabMarkerOk
-                    }`}
-                    style={{
-                      left: `${toPercentX(stop.rect.x)}%`,
-                      top: `${toPercentY(stop.rect.y)}%`,
-                    }}
-                    title={`#${stop.index} ${stop.label || stop.tag}`}
-                  >
-                    {stop.index}
-                  </span>
-                );
-              })}
+                <svg
+                  className={styles.focusSvg}
+                  viewBox={`0 0 ${stageWidth} ${stageHeight}`}
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <polyline
+                    fill="none"
+                    stroke="#1d4ed8"
+                    strokeWidth="3"
+                    strokeDasharray="8 6"
+                    points={tabStops
+                      .map(
+                        (s) =>
+                          `${s.rect.x + s.rect.width / 2},${s.rect.y + s.rect.height / 2}`,
+                      )
+                      .join(" ")}
+                  />
+                </svg>
+                {tabStops.map((stop) => {
+                  const hasIssue = stop.obscured || !stop.hasVisibleFocus;
+                  return (
+                    <span
+                      key={`${stop.index}-${stop.selector}`}
+                      className={`${styles.tabMarker} ${
+                        hasIssue ? styles.tabMarkerWarn : styles.tabMarkerOk
+                      }`}
+                      style={{
+                        left: `${toPercentX(stop.rect.x)}%`,
+                        top: `${toPercentY(stop.rect.y)}%`,
+                      }}
+                      title={`#${stop.index} ${stop.label || stop.tag}`}
+                    >
+                      {stop.index}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className={styles.emptyNotice}>
@@ -371,42 +425,88 @@ export default function VisualInspector({
                   min={0}
                   max={100}
                   value={sliderPos}
+                  aria-valuetext={`Sebelum ${sliderPos} persen, Sesudah ${100 - sliderPos} persen`}
+                  style={{ "--slider-progress": `${sliderPos}%` } as CSSProperties}
                   onChange={(e) => setSliderPos(Number(e.target.value))}
                   className={styles.rangeInput}
                 />
+                <div className={styles.comparePresets} role="group" aria-label="Posisi cepat slider">
+                  <button
+                    type="button"
+                    className={`${styles.presetBtn} ${sliderPos === 0 ? styles.presetBtnActive : ""}`}
+                    onClick={() => setSliderPos(0)}
+                  >
+                    Sesudah
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.presetBtn} ${sliderPos === 50 ? styles.presetBtnActive : ""}`}
+                    onClick={() => setSliderPos(50)}
+                  >
+                    50/50
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.presetBtn} ${sliderPos === 100 ? styles.presetBtnActive : ""}`}
+                    onClick={() => setSliderPos(100)}
+                  >
+                    Sebelum
+                  </button>
+                </div>
               </div>
 
               <div
-                className={styles.compareStage}
-                style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+                className={styles.compareViewport}
+                tabIndex={0}
+                role="region"
+                aria-label="Perbandingan visual sebelum dan sesudah perbaikan"
               >
-                <img
-                  src={afterUrl!}
-                  alt="Tampilan halaman setelah perbaikan aksesibilitas"
-                  className={styles.compareImgBase}
-                  onError={() => setAfterBroken(true)}
-                />
                 <div
-                  className={styles.compareOverlay}
-                  style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+                  ref={compareStageRef}
+                  className={`${styles.compareStage} ${isDraggingCompare ? styles.compareStageDragging : ""}`}
+                  style={{ aspectRatio: `${stageWidth} / ${stageHeight}` }}
+                  onPointerDown={handleComparePointerDown}
+                  onPointerMove={handleComparePointerMove}
+                  onPointerUp={handleComparePointerEnd}
+                  onPointerCancel={handleComparePointerEnd}
                 >
                   <img
-                    src={beforeUrl!}
-                    alt="Tampilan halaman sebelum perbaikan aksesibilitas"
-                    className={styles.compareImgTop}
-                    onError={() => setBeforeBroken(true)}
+                    src={afterUrl!}
+                    alt="Tampilan halaman setelah perbaikan aksesibilitas"
+                    className={styles.compareImgBase}
+                    draggable={false}
+                    onError={() => setAfterBroken(true)}
                   />
+                  <div
+                    className={styles.compareOverlay}
+                    style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+                  >
+                    <img
+                      src={beforeUrl!}
+                      alt="Tampilan halaman sebelum perbaikan aksesibilitas"
+                      className={styles.compareImgTop}
+                      draggable={false}
+                      onError={() => setBeforeBroken(true)}
+                    />
+                  </div>
+                  <div className={styles.compareStickyChrome} aria-hidden="true">
+                    <span className={styles.compareTagBefore}>Sebelum</span>
+                    <span className={styles.compareTagAfter}>Sesudah</span>
+                  </div>
+                  <div
+                    className={styles.compareDivider}
+                    style={{ left: `${sliderPos}%` }}
+                    aria-hidden="true"
+                  >
+                    <span className={styles.compareHandle}>
+                      <MoveHorizontal size={16} strokeWidth={2.2} />
+                    </span>
+                  </div>
                 </div>
-                <div
-                  className={styles.compareDivider}
-                  style={{ left: `${sliderPos}%` }}
-                  aria-hidden="true"
-                >
-                  <span className={styles.compareHandle}>&lt;|&gt;</span>
-                </div>
-                <span className={styles.compareTagBefore}>Sebelum</span>
-                <span className={styles.compareTagAfter}>Sesudah</span>
               </div>
+              <p className={styles.compareHint}>
+                Geser langsung di atas gambar atau gunakan slider di atas sambil menggulir halaman di dalam bingkai.
+              </p>
             </div>
           ) : (
             <div className={styles.emptyNotice}>

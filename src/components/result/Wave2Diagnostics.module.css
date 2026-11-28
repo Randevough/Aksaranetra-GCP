@@ -88,10 +88,28 @@
 .pillLabel {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-muted);
+}
+
+.pillIconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-card, #ffffff);
+  color: var(--ink-neutral, #334155);
+}
+
+.pillBtnActive .pillIconBox {
+  border-color: rgba(37, 99, 235, 0.3);
+  color: var(--color-primary-dark);
 }
 
 .pillBtnActive .pillLabel {
@@ -99,9 +117,13 @@
 }
 
 .pillChevron {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  transition: transform var(--transition-cepat);
+  flex-shrink: 0;
+  color: var(--ink-neutral, #334155);
+  transition: transform var(--transition-cepat), color var(--transition-cepat);
+}
+
+.pillBtnActive .pillChevron {
+  color: var(--color-primary-dark);
 }
 
 .pillChevronOpen {
@@ -376,70 +398,242 @@
   color: var(--color-heading);
 }
 
-.clusterList {
+.clusterSection {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
 }
 
-.clusterCard {
+.clusterToolbar {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.clusterFilterGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
   border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
   border-radius: var(--radius-control, 10px);
   background: var(--surface-well, #f4f6fa);
 }
 
-.clusterTop {
+.filterChipBtn {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-neutral, #334155);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-cepat),
+    color var(--transition-cepat);
+}
+
+.filterChipBtn:hover {
+  color: var(--color-heading);
+}
+
+.filterChipActive {
+  background: var(--surface-card, #ffffff);
+  color: var(--color-primary-dark);
+  box-shadow: var(--shadow-chip, 0 1px 1px rgba(15, 23, 42, 0.04));
+}
+
+.filterChipBtn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.clusterTableWrap {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(360px, 55vh);
+  border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  border-radius: var(--radius-control, 10px);
+  background:
+    linear-gradient(var(--surface-card, #ffffff) 30%, transparent) top / 100% 2rem no-repeat local,
+    linear-gradient(transparent, var(--surface-card, #ffffff) 70%) bottom / 100% 2rem no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(15, 23, 42, 0.12), transparent) top / 100% 0.65rem no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(15, 23, 42, 0.12), transparent) bottom / 100% 0.65rem no-repeat scroll,
+    var(--surface-card, #ffffff);
+  container-type: inline-size;
+  scrollbar-gutter: stable;
+}
+
+.clusterTableWrap:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.clusterTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  text-align: left;
+  --label-count: "Kemunculan";
+  --label-impact: "Dampak Halaman";
+}
+
+.clusterTable thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
+  background: var(--surface-well, #f4f6fa);
+  color: var(--color-heading);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.clusterTable tbody th,
+.clusterTable tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  vertical-align: middle;
+}
+
+.clusterTable tbody tr:hover th,
+.clusterTable tbody tr:hover td {
+  background: var(--surface-chip-subtle, #f8fafc);
+}
+
+.clusterTable tbody tr:last-child th,
+.clusterTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.clusterNameCell {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  font-weight: 400;
 }
 
 .clusterTitle {
-  font-size: 13.5px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
   color: var(--color-heading);
-}
-
-.clusterMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ink-neutral, #334155);
 }
 
 .clusterSelector {
+  display: inline-block;
+  max-width: 100%;
   padding: 2px 7px;
   border: 1px solid var(--border-hairline-strong, rgba(15, 23, 42, 0.14));
   border-radius: var(--radius-chip, 7px);
-  background: var(--surface-chip, #ffffff);
-  font-size: 12px;
-  color: var(--color-heading);
+  background: var(--surface-well, #f4f6fa);
+  font-size: 11.5px;
+  color: var(--ink-neutral, #334155);
   overflow-wrap: anywhere;
 }
 
+.clusterCountCell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-neutral, #334155);
+}
+
+.clusterCountCell strong {
+  color: var(--color-heading);
+  margin-right: 6px;
+}
+
+.clusterImpactCell {
+  width: 150px;
+  white-space: nowrap;
+}
+
+.clusterImpactInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .blastBarTrack {
-  width: 100%;
-  height: 7px;
+  width: 60px;
+  height: 5px;
   border-radius: var(--radius-pill);
   background: #e2e6ee;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .blastBarFill {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--color-primary);
+}
+
+.clusterPercent {
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-heading);
+}
+
+@container (width < 560px) {
+  .clusterTable,
+  .clusterTable thead,
+  .clusterTable tbody,
+  .clusterTable tr,
+  .clusterTable th,
+  .clusterTable td {
+    display: block;
+    width: auto;
+  }
+
+  .clusterTable thead {
+    display: none;
+  }
+
+  .clusterTable tbody tr {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  }
+
+  .clusterTable tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .clusterTable tbody th,
+  .clusterTable tbody td {
+    padding: 4px 0;
+    border-bottom: none;
+  }
+
+  .clusterCountCell::before {
+    content: var(--label-count) ": ";
+    font-weight: 700;
+    color: var(--color-text-muted);
+  }
+
+  .clusterImpactCell {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .clusterImpactCell::before {
+    content: var(--label-impact);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+  }
 }
 
 .pageList {
@@ -507,7 +701,8 @@
 @media (prefers-reduced-motion: reduce) {
   .pillBtn,
   .pillChevron,
-  .closeDrawerBtn {
+  .closeDrawerBtn,
+  .filterChipBtn {
     transition: none;
   }
 }

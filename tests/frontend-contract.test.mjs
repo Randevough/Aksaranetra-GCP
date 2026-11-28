@@ -388,4 +388,11 @@ test("result polish, score breakdown, 5-phase telemetry, and anti-slop craft con
   // /periksa widened form panel
   const periksaCss = read("src/app/periksa/page.module.css");
   assert.match(periksaCss, /max-width:\s*6(?:40|50|60|70|80)px/);
+
+  // Bounded scroll compare viewport, pointer drag + MoveHorizontal handle, and dense scrollable cluster table + ChevronDown
+  assert.match(visualInspector, /compareViewport/);
+  assert.match(visualInspector, /MoveHorizontal/);
+  assert.match(visualInspector, /onPointerDown/);
+  assert.match(wave2Diagnostics, /ChevronDown/);
+  assert.match(wave2Diagnostics, /clusterTableWrap/);
 });
