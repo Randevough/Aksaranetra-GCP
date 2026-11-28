@@ -179,7 +179,7 @@ export async function runMobileProbes(
   } finally {
     if (typeof page.emulateMedia === "function") {
       await page
-        .emulateMedia({ reducedMotion: "no-preference", forcedColors: "none" })
+        .emulateMedia({ reducedMotion: "reduce", forcedColors: "none" })
         .catch(() => {});
     }
     if (typeof page.setViewportSize === "function") {

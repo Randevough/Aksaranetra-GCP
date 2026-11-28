@@ -9,6 +9,7 @@ export const SUPPORTED_RULES = Object.freeze([
   "html-has-lang",
   "document-title",
   "landmark-one-main",
+  "color-contrast",
 ]);
 
 export function extractTargets(

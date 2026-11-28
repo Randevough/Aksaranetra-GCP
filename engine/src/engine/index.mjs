@@ -24,6 +24,7 @@ import { resolveFormLabelCandidates } from "../rules/form-label.mjs";
 import { resolveHtmlLangCandidates } from "../rules/html-lang.mjs";
 import { resolveDocumentTitleCandidates } from "../rules/document-title.mjs";
 import { resolveLandmarkCandidates } from "../rules/landmarks.mjs";
+import { resolveColorContrastCandidates } from "../rules/color-contrast.mjs";
 import { ENGINE_VERSION } from "../shared/version.mjs";
 
 const resolvers = {
@@ -35,6 +36,7 @@ const resolvers = {
   "html-has-lang": resolveHtmlLangCandidates,
   "document-title": resolveDocumentTitleCandidates,
   "landmark-one-main": resolveLandmarkCandidates,
+  "color-contrast": resolveColorContrastCandidates,
 };
 
 const WCAG_REGRESSION_TAGS = Object.freeze([
@@ -98,7 +100,9 @@ export async function remediatePage({
 
   for (const ruleId of supportedRules) {
     const selectors = targets[ruleId]?.selectors ?? [];
-    resolved.push(...(await resolvers[ruleId](page, selectors, config)));
+    resolved.push(
+      ...(await resolvers[ruleId](page, selectors, config, targetedBefore)),
+    );
   }
 
   // Human verified labels win over anything the heuristics produced.

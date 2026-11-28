@@ -9,7 +9,10 @@ export async function applyCandidates(page, candidates, policy) {
   for (const candidate of candidates) {
     const classification = classifyConfidence(candidate.confidence, policy);
 
-    if (classification === "review") {
+    if (
+      classification === "review" ||
+      (classification !== "apply" && candidate.status === "review")
+    ) {
       review.push({ ...candidate, status: "review" });
       continue;
     }
@@ -120,13 +123,62 @@ export async function applyCandidates(page, candidates, policy) {
         prePatchSnapshot.attributes[attr.name] = attr.value;
       }
 
+      const parseRgbSimple = (raw) => {
+        if (typeof raw !== "string") return null;
+        const s = raw.trim();
+        if (s.startsWith("#")) {
+          const hex = s.slice(1);
+          if (/^[0-9a-f]{3}$/i.test(hex)) {
+            return {
+              r: Number.parseInt(hex[0] + hex[0], 16),
+              g: Number.parseInt(hex[1] + hex[1], 16),
+              b: Number.parseInt(hex[2] + hex[2], 16),
+            };
+          }
+          if (/^[0-9a-f]{6}$/i.test(hex)) {
+            return {
+              r: Number.parseInt(hex.slice(0, 2), 16),
+              g: Number.parseInt(hex.slice(2, 4), 16),
+              b: Number.parseInt(hex.slice(4, 6), 16),
+            };
+          }
+          return null;
+        }
+        const m = s.match(
+          /^rgba?\(\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*[,\s]\s*([\d.]+)/i,
+        );
+        if (!m) return null;
+        return {
+          r: Math.round(Number(m[1])),
+          g: Math.round(Number(m[2])),
+          b: Math.round(Number(m[3])),
+        };
+      };
+
       const preparedPatches = candidate.patches.map((patch) => {
+        if (patch.styleProperty) {
+          const prop = String(patch.styleProperty).trim();
+          const patchId = `${candidate.rule}:${candidate.selector}:style:${prop}`;
+          return {
+            patchId,
+            attribute: "style",
+            styleProperty: prop,
+            isText: false,
+            isStyle: true,
+            oldValue: element.hasAttribute("style")
+              ? element.getAttribute("style")
+              : null,
+            oldStyleValue: element.style.getPropertyValue(prop) || "",
+            newValue: patch.value,
+          };
+        }
         const patchId = `${candidate.rule}:${candidate.selector}:${patch.attribute}`;
         if (patch.attribute === "textContent") {
           return {
             patchId,
             attribute: "textContent",
             isText: true,
+            isStyle: false,
             oldValue: element.textContent || null,
             newValue: patch.value,
           };
@@ -135,6 +187,7 @@ export async function applyCandidates(page, candidates, policy) {
           patchId,
           attribute: patch.attribute,
           isText: false,
+          isStyle: false,
           oldValue: element.hasAttribute(patch.attribute)
             ? element.getAttribute(patch.attribute)
             : null,
@@ -142,17 +195,37 @@ export async function applyCandidates(page, candidates, policy) {
         };
       });
 
-      const conflict = preparedPatches.find(
-        (patch) =>
+      const conflict = preparedPatches.find((patch) => {
+        if (patch.isStyle) {
+          const currentVal = (patch.oldStyleValue || "").trim();
+          if (!currentVal) return false;
+          const targetVal = String(patch.newValue || "").trim();
+          if (currentVal.toLowerCase() === targetVal.toLowerCase()) {
+            return true;
+          }
+          const curRgb = parseRgbSimple(currentVal);
+          const tgtRgb = parseRgbSimple(targetVal);
+          return Boolean(
+            curRgb &&
+              tgtRgb &&
+              curRgb.r === tgtRgb.r &&
+              curRgb.g === tgtRgb.g &&
+              curRgb.b === tgtRgb.b,
+          );
+        }
+        return (
           patch.oldValue !== null &&
           patch.oldValue !== "" &&
-          patch.oldValue !== patch.newValue,
-      );
+          patch.oldValue !== patch.newValue
+        );
+      });
 
       if (conflict) {
         return {
           applied: false,
-          reason: `Existing ${conflict.attribute} was preserved`,
+          reason: conflict.isStyle
+            ? `Existing style property ${conflict.styleProperty} already matches`
+            : `Existing ${conflict.attribute} was preserved`,
           appliedPatches: [],
         };
       }
@@ -161,6 +234,27 @@ export async function applyCandidates(page, candidates, policy) {
       for (const patch of preparedPatches) {
         if (patch.isText) {
           element.textContent = patch.newValue;
+        } else if (patch.isStyle) {
+          element.style.setProperty(patch.styleProperty, patch.newValue);
+          const computedVal = window
+            .getComputedStyle(element)
+            .getPropertyValue(patch.styleProperty);
+          const targetRgb = parseRgbSimple(patch.newValue);
+          const computedRgb = parseRgbSimple(computedVal);
+          const matchesComputed =
+            targetRgb && computedRgb
+              ? targetRgb.r === computedRgb.r &&
+                targetRgb.g === computedRgb.g &&
+                targetRgb.b === computedRgb.b
+              : computedVal.trim().toLowerCase() ===
+                String(patch.newValue).trim().toLowerCase();
+          if (!matchesComputed) {
+            element.style.setProperty(
+              patch.styleProperty,
+              patch.newValue,
+              "important",
+            );
+          }
         } else {
           element.setAttribute(patch.attribute, patch.newValue);
         }
@@ -179,6 +273,7 @@ export async function applyCandidates(page, candidates, policy) {
         reason: "Patch applied",
         appliedPatches,
         prePatchSnapshot,
+        postStyleAttr: element.getAttribute("style"),
         htmlAfter: element.outerHTML,
       };
     }, candidate);
@@ -191,7 +286,19 @@ export async function applyCandidates(page, candidates, policy) {
         prePatchSnapshot: result.prePatchSnapshot,
         htmlAfter: result.htmlAfter,
       };
-      fixedRecord.snippet = createSanitizedSnippet(fixedRecord);
+      if (result.appliedPatches.some((p) => p.isStyle)) {
+        const snippetPatches = result.appliedPatches.map((p) =>
+          p.isStyle
+            ? { attribute: "style", value: result.postStyleAttr ?? "" }
+            : p,
+        );
+        fixedRecord.snippet = createSanitizedSnippet({
+          ...fixedRecord,
+          patches: snippetPatches,
+        });
+      } else {
+        fixedRecord.snippet = createSanitizedSnippet(fixedRecord);
+      }
       fixed.push(fixedRecord);
     } else {
       skipped.push({
