@@ -20,6 +20,43 @@ interface QuizQuestion {
   options: { id: string; label: string; correct: boolean; note: string }[];
 }
 
+type PhaseKey = "validate" | "open" | "scan" | "remediate" | "report";
+type PhaseStatus = "done" | "active" | "pending" | "error";
+
+interface PhaseDefinition {
+  key: PhaseKey;
+  label: string;
+  stepIds: ReadonlyArray<TelemetryStep["id"]>;
+}
+
+const PHASE_DEFINITIONS: ReadonlyArray<PhaseDefinition> = [
+  {
+    key: "validate",
+    label: "Validasi",
+    stepIds: ["validate", "dns_robots"],
+  },
+  {
+    key: "open",
+    label: "Buka Halaman",
+    stepIds: ["browser_ready", "hydration", "capture_before"],
+  },
+  {
+    key: "scan",
+    label: "Pindai",
+    stepIds: ["audit_wcag", "tab_walk"],
+  },
+  {
+    key: "remediate",
+    label: "Uji Perbaikan",
+    stepIds: ["remediate"],
+  },
+  {
+    key: "report",
+    label: "Laporan",
+    stepIds: ["serialize", "report"],
+  },
+];
+
 const MICRO_QUIZ: QuizQuestion[] = [
   {
     id: "contrast",
@@ -49,17 +86,17 @@ const MICRO_QUIZ: QuizQuestion[] = [
   {
     id: "alt",
     prompt:
-      "Atribut alt apa yang tepat untuk ikon dekoratif di dalam tombol bertuliskan \"Unduh PDF\"?",
+      'Atribut alt apa yang tepat untuk ikon dekoratif di dalam tombol bertuliskan "Unduh PDF"?',
     options: [
       {
         id: "a",
-        label: "alt=\"\" (string kosong) dan aria-hidden=\"true\"",
+        label: 'alt="" (string kosong) dan aria-hidden="true"',
         correct: true,
         note: "Benar. Ikon dekoratif disembunyikan agar pembaca layar tidak membacakan label ganda.",
       },
       {
         id: "b",
-        label: "alt=\"gambar-panah-bawah.png\"",
+        label: 'alt="gambar-panah-bawah.png"',
         correct: false,
         note: "Nama berkas hanya menambah kebisingan dan tidak menjelaskan fungsi tombol.",
       },
@@ -74,7 +111,7 @@ const MICRO_QUIZ: QuizQuestion[] = [
   {
     id: "link",
     prompt:
-      "Mengapa teks tautan \"Klik di sini\" pada daftar berita dianggap hambatan WCAG 2.4.4?",
+      'Mengapa teks tautan "Klik di sini" pada daftar berita dianggap hambatan WCAG 2.4.4?',
     options: [
       {
         id: "a",
@@ -90,7 +127,7 @@ const MICRO_QUIZ: QuizQuestion[] = [
       },
       {
         id: "c",
-        label: "Karena browser melarang kata \"klik\" pada tag <a>",
+        label: 'Karena browser melarang kata "klik" pada tag <a>',
         correct: false,
         note: "Browser tidak melarangnya, namun pengguna keyboard dan pembaca layar kehilangan konteks tujuan.",
       },
@@ -118,6 +155,13 @@ function stepStatusLabel(status: TelemetryStep["status"]) {
   return "Menunggu";
 }
 
+function phaseStatusLabel(status: PhaseStatus): string {
+  if (status === "done") return "Selesai";
+  if (status === "active") return "Sedang berjalan";
+  if (status === "error") return "Perlu perhatian";
+  return "Menunggu";
+}
+
 function formatElapsedSeconds(totalSeconds: number): string {
   const clamped = Math.max(0, Math.floor(totalSeconds));
   const minutes = Math.floor(clamped / 60);
@@ -134,15 +178,142 @@ function displayHost(rawUrl?: string): string {
   }
 }
 
-function StepIndicator({ status }: { status: TelemetryStep["status"] }) {
+function resolvePhaseStates(
+  steps: TelemetryStep[],
+  jobStatus?: AuditJob["status"],
+): Array<PhaseDefinition & { status: PhaseStatus }> {
+  const stepMap = new Map(steps.map((step) => [step.id, step]));
+  let failedPhaseMarked = false;
+
+  return PHASE_DEFINITIONS.map((phase) => {
+    const mapped = phase.stepIds
+      .map((id) => stepMap.get(id))
+      .filter((s): s is TelemetryStep => Boolean(s));
+
+    if (mapped.length === 0) {
+      return { ...phase, status: "pending" };
+    }
+
+    const hasRunning = mapped.some((s) => s.status === "running");
+    const hasWarning = mapped.some((s) => s.status === "warning");
+    const allFinished = mapped.every(
+      (s) => s.status === "done" || s.status === "warning",
+    );
+
+    let status: PhaseStatus = "pending";
+    if (hasRunning) {
+      if (jobStatus === "failed") {
+        status = "error";
+        failedPhaseMarked = true;
+      } else {
+        status = "active";
+      }
+    } else if (hasWarning) {
+      status = "error";
+      failedPhaseMarked = true;
+    } else if (allFinished) {
+      status = "done";
+    } else if (jobStatus === "failed" && !failedPhaseMarked) {
+      status = "error";
+      failedPhaseMarked = true;
+    }
+
+    return { ...phase, status };
+  });
+}
+
+function selectTickerItems(steps: TelemetryStep[]): {
+  items: TelemetryStep[];
+  currentStepNumber: number;
+  totalSteps: number;
+} {
+  const totalSteps = steps.length;
+  const runningIndex = steps.findIndex((s) => s.status === "running");
+  const finishedSteps = steps.filter(
+    (s) => s.status === "done" || s.status === "warning",
+  );
+
+  if (runningIndex !== -1) {
+    const activeStep = steps[runningIndex];
+    const recentBefore = steps
+      .slice(0, runningIndex)
+      .filter((s) => s.status !== "pending")
+      .slice(-2);
+    return {
+      items: [...recentBefore, activeStep],
+      currentStepNumber: runningIndex + 1,
+      totalSteps,
+    };
+  }
+
+  if (finishedSteps.length > 0) {
+    return {
+      items: finishedSteps.slice(-3),
+      currentStepNumber: Math.min(finishedSteps.length, totalSteps),
+      totalSteps,
+    };
+  }
+
+  return {
+    items: steps.slice(0, 1),
+    currentStepNumber: 0,
+    totalSteps,
+  };
+}
+
+function PhaseNode({ status }: { status: PhaseStatus }) {
   if (status === "done") {
     return (
-      <span className={`${styles.stepIcon} ${styles.stepIcon_done}`} aria-hidden="true">
+      <span className={`${styles.phaseNode} ${styles.phaseNode_done}`} aria-hidden="true">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path
             d="M2.5 6.2L4.9 8.6L9.5 3.6"
             stroke="currentColor"
-            strokeWidth="1.8"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+  if (status === "active") {
+    return (
+      <span className={`${styles.phaseNode} ${styles.phaseNode_active}`} aria-hidden="true">
+        <span className={styles.phaseSpinner} />
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className={`${styles.phaseNode} ${styles.phaseNode_error}`} aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M6 3.2V6.4M6 8.7H6.01"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className={`${styles.phaseNode} ${styles.phaseNode_pending}`} aria-hidden="true">
+      <span className={styles.phaseDotPending} />
+    </span>
+  );
+}
+
+function StepIndicator({ status }: { status: TelemetryStep["status"] }) {
+  if (status === "done") {
+    return (
+      <span className={`${styles.stepIcon} ${styles.stepIcon_done}`} aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 6.2L4.9 8.6L9.5 3.6"
+            stroke="currentColor"
+            strokeWidth="1.9"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -223,6 +394,33 @@ export default function LiveTelemetryPanel({
                 : "pending",
         }));
 
+  const phases = resolvePhaseStates(steps, job?.status);
+  const ticker = selectTickerItems(steps);
+
+  const stats = telemetry?.stats;
+  const allowedCount =
+    typeof stats?.requestsAllowed === "number" ? stats.requestsAllowed : 0;
+  const blockedCount =
+    typeof stats?.requestsBlocked === "number" ? stats.requestsBlocked : 0;
+  const showNetworkCounters = allowedCount > 0 || blockedCount > 0;
+  const domElementsCount =
+    typeof stats?.domElements === "number" && stats.domElements > 0
+      ? stats.domElements
+      : null;
+  const issuesFoundCount =
+    typeof stats?.issuesFound === "number" && stats.issuesFound > 0
+      ? stats.issuesFound
+      : null;
+  const tabStopsCount =
+    typeof stats?.tabStopsCount === "number" && stats.tabStopsCount > 0
+      ? stats.tabStopsCount
+      : null;
+  const hasInlineStats =
+    showNetworkCounters ||
+    domElementsCount !== null ||
+    issuesFoundCount !== null ||
+    tabStopsCount !== null;
+
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -239,142 +437,207 @@ export default function LiveTelemetryPanel({
   return (
     <div className={styles.wrapper}>
       <section className={styles.statusCard} aria-labelledby="status-title">
-        <div className={styles.statusTop}>
-          <div className={styles.stageColumn}>
-            <p className={styles.statusLabel}>
-              <span
-                className={`${styles.activeDot} ${
-                  isReconnecting ? styles.activeDotReconnecting : ""
-                }`}
-                aria-hidden="true"
-              />
-              <span>
-                {isReconnecting
-                  ? "Menyambung ulang"
-                  : job?.status === "queued"
-                    ? "Dalam antrean"
-                    : "Pemeriksaan langsung"}
-              </span>
-            </p>
-            <div className={styles.stageArea}>
-              <h1 id="status-title" ref={headingRef} tabIndex={-1}>
+        <header className={styles.compactHeader}>
+          <div className={styles.headerTopRow}>
+            <div className={styles.stageColumn}>
+              <div className={styles.eyebrowRow}>
+                <span className={styles.statusLabel}>
+                  <span
+                    className={`${styles.activeDot} ${
+                      isReconnecting ? styles.activeDotReconnecting : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {isReconnecting
+                      ? "Menyambung ulang"
+                      : job?.status === "queued"
+                        ? "Dalam antrean"
+                        : "Pemeriksaan langsung"}
+                  </span>
+                </span>
+                {job?.queuePosition ? (
+                  <span className={styles.queueChip}>
+                    Antrean #{job.queuePosition}
+                  </span>
+                ) : null}
+              </div>
+              <h1 id="status-title" ref={headingRef} tabIndex={-1} className={styles.stageTitle}>
                 {stage}
               </h1>
+              {job?.url && <p className={styles.targetUrl}>{job.url}</p>}
             </div>
-            {job?.url && <p className={styles.targetUrl}>{job.url}</p>}
-          </div>
 
-          <div className={styles.statusMetrics}>
-            {isActive && (
-              <div
-                className={styles.elapsedPill}
-                aria-label={`Waktu berjalan ${formattedElapsed}`}
-              >
-                <span className={styles.elapsedLabel}>Waktu</span>
-                <time
-                  className={styles.elapsedValue}
-                  dateTime={`PT${elapsedSeconds}S`}
+            <div className={styles.statusMetrics}>
+              {isActive && (
+                <div
+                  className={styles.elapsedPill}
+                  aria-label={`Waktu berjalan ${formattedElapsed}`}
                 >
-                  {formattedElapsed}
-                </time>
-              </div>
-            )}
-            <strong className={styles.percent}>{smoothProgress}%</strong>
+                  <span className={styles.elapsedLabel}>Waktu</span>
+                  <time
+                    className={styles.elapsedValue}
+                    dateTime={`PT${elapsedSeconds}S`}
+                  >
+                    {formattedElapsed}
+                  </time>
+                </div>
+              )}
+              <strong className={styles.percent}>{smoothProgress}%</strong>
+            </div>
           </div>
-        </div>
 
-        <div
-          className={styles.progressBarWrapper}
-          role="progressbar"
-          aria-valuenow={smoothProgress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Kemajuan pemeriksaan: ${smoothProgress}%`}
-        >
           <div
-            className={styles.progressBarFill}
-            style={{ width: `${Math.max(smoothProgress, 3)}%` }}
+            className={styles.progressBarWrapper}
+            role="progressbar"
+            aria-valuenow={smoothProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Kemajuan pemeriksaan: ${smoothProgress}%`}
           >
-            <span className={styles.progressBarShimmer} aria-hidden="true" />
+            <div
+              className={styles.progressBarFill}
+              style={{ width: `${Math.max(smoothProgress, 3)}%` }}
+            />
           </div>
-        </div>
 
-        <div className={styles.statusMeta}>
-          <span>
-            {isReconnecting
-              ? "Menghubungkan kembali ke layanan..."
-              : job?.queuePosition
-                ? `Urutan antrean #${job.queuePosition}`
-                : "Hasil terbuka otomatis setelah selesai."}
-          </span>
-          <div className={styles.metaActions}>
-            {showNotifyOffer && onEnableNotify && (
-              <button
-                type="button"
-                className={styles.notifyButton}
-                onClick={onEnableNotify}
-              >
-                Beri tahu saat selesai
-              </button>
-            )}
-            {notifyOptIn && (
-              <span className={styles.notifyActive}>Notifikasi aktif</span>
-            )}
-            {job?.canCancel && (
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={onCancel}
-              >
-                Batalkan pemeriksaan
-              </button>
-            )}
+          <div className={styles.headerBottomRow}>
+            <div className={styles.metaLeft}>
+              <span className={styles.autoHint}>
+                {isReconnecting
+                  ? "Menghubungkan kembali ke layanan..."
+                  : "Hasil terbuka otomatis setelah selesai."}
+              </span>
+              {hasInlineStats && (
+                <div className={styles.inlineStats} aria-label="Statistik pemindaian">
+                  {domElementsCount !== null && (
+                    <span className={styles.statChip}>
+                      <span className={styles.statChipLabel}>DOM</span>
+                      <strong className={styles.statChipValue}>
+                        {domElementsCount.toLocaleString("id-ID")}
+                      </strong>
+                    </span>
+                  )}
+                  {showNetworkCounters && (
+                    <>
+                      <span className={`${styles.statChip} ${styles.statChipAllowed}`}>
+                        <span className={styles.statChipLabel}>Diizinkan</span>
+                        <strong className={styles.statChipValue}>{allowedCount}</strong>
+                      </span>
+                      <span
+                        className={`${styles.statChip} ${
+                          blockedCount > 0 ? styles.statChipBlocked : ""
+                        }`}
+                      >
+                        <span className={styles.statChipLabel}>Diblokir</span>
+                        <strong className={styles.statChipValue}>{blockedCount}</strong>
+                      </span>
+                    </>
+                  )}
+                  {issuesFoundCount !== null && (
+                    <span className={styles.statChip}>
+                      <span className={styles.statChipLabel}>Temuan</span>
+                      <strong className={styles.statChipValue}>{issuesFoundCount}</strong>
+                    </span>
+                  )}
+                  {tabStopsCount !== null && (
+                    <span className={styles.statChip}>
+                      <span className={styles.statChipLabel}>Titik Tab</span>
+                      <strong className={styles.statChipValue}>{tabStopsCount}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.metaActions}>
+              {showNotifyOffer && onEnableNotify && (
+                <button
+                  type="button"
+                  className={styles.notifyButton}
+                  onClick={onEnableNotify}
+                >
+                  Beri tahu saat selesai
+                </button>
+              )}
+              {notifyOptIn && (
+                <span className={styles.notifyActive}>Notifikasi aktif</span>
+              )}
+              {job?.canCancel && (
+                <button
+                  className={`btn btn-secondary ${styles.cancelButton}`}
+                  type="button"
+                  onClick={onCancel}
+                >
+                  Batalkan pemeriksaan
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        </header>
 
-        {telemetry?.stats && (
-          <dl className={styles.statsRow} aria-label="Statistik pemindaian langsung">
-            {typeof telemetry.stats.domElements === "number" && (
-              <div>
-                <dt>Elemen DOM</dt>
-                <dd>{telemetry.stats.domElements.toLocaleString("id-ID")}</dd>
-              </div>
-            )}
-            {typeof telemetry.stats.requestsAllowed === "number" && (
-              <div>
-                <dt>Diizinkan</dt>
-                <dd>{telemetry.stats.requestsAllowed}</dd>
-              </div>
-            )}
-            {typeof telemetry.stats.requestsBlocked === "number" && (
-              <div>
-                <dt>Diblokir</dt>
-                <dd>{telemetry.stats.requestsBlocked}</dd>
-              </div>
-            )}
-            {typeof telemetry.stats.issuesFound === "number" && (
-              <div>
-                <dt>Temuan awal</dt>
-                <dd>{telemetry.stats.issuesFound}</dd>
-              </div>
-            )}
-            {typeof telemetry.stats.tabStopsCount === "number" && (
-              <div>
-                <dt>Titik Tab</dt>
-                <dd>{telemetry.stats.tabStopsCount}</dd>
-              </div>
-            )}
-          </dl>
-        )}
+        <nav className={styles.stepperWrap} aria-label="Tahapan pemeriksaan">
+          <ol className={styles.stepperList}>
+            {phases.map((phase, idx) => {
+              const prevDone = idx > 0 && phases[idx - 1].status === "done";
+              const currentDone = phase.status === "done";
+              return (
+                <li
+                  key={phase.key}
+                  className={`${styles.stepperItem} ${styles[`phase_${phase.status}`]}`}
+                  aria-current={phase.status === "active" ? "step" : undefined}
+                >
+                  <div className={styles.stepperTrackRow}>
+                    <span
+                      className={`${styles.trackSegment} ${
+                        idx === 0
+                          ? styles.trackHidden
+                          : prevDone
+                            ? styles.trackDone
+                            : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <PhaseNode status={phase.status} />
+                    <span
+                      className={`${styles.trackSegment} ${
+                        idx === phases.length - 1
+                          ? styles.trackHidden
+                          : currentDone
+                            ? styles.trackDone
+                            : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div className={styles.phaseMeta}>
+                    <span className={styles.phaseLabel}>{phase.label}</span>
+                    <span className={styles.srOnly}>
+                      {` (${phaseStatusLabel(phase.status)})`}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
 
-        <div className={styles.xrayGrid}>
-          <div className={styles.pipelineBox}>
-            <h2 className={styles.subHeading}>Alur pemeriksaan</h2>
-            <ol className={styles.stepList}>
-              {steps.map((step) => (
+        <div className={styles.stageGrid}>
+          <div className={styles.tickerPane}>
+            <div className={styles.paneHeader}>
+              <h2 className={styles.subHeading}>Aktivitas langsung</h2>
+              <span className={styles.stepProgressLabel}>
+                {ticker.currentStepNumber > 0
+                  ? `Langkah ${ticker.currentStepNumber} dari ${ticker.totalSteps}`
+                  : `0 dari ${ticker.totalSteps} langkah`}
+              </span>
+            </div>
+
+            <ol className={styles.tickerList} aria-live="off">
+              {ticker.items.map((step) => (
                 <li
                   key={step.id}
-                  className={`${styles.stepItem} ${styles[`step_${step.status}`]}`}
+                  className={`${styles.tickerItem} ${styles[`ticker_${step.status}`]}`}
                 >
                   <StepIndicator status={step.status} />
                   <div className={styles.stepText}>
@@ -386,7 +649,7 @@ export default function LiveTelemetryPanel({
                   <div className={styles.stepTrailing}>
                     {typeof step.durationMs === "number" ? (
                       <span className={styles.stepDuration}>
-                        {step.durationMs} ms
+                        {`${Math.round(step.durationMs)} ms`}
                       </span>
                     ) : (
                       <span className={styles.stepStateBadge}>
@@ -399,8 +662,11 @@ export default function LiveTelemetryPanel({
             </ol>
           </div>
 
-          <div className={styles.previewBox}>
-            <h2 className={styles.subHeading}>Pratinjau langsung halaman</h2>
+          <div className={styles.previewPane}>
+            <div className={styles.paneHeader}>
+              <h2 className={styles.subHeading}>Pratinjau langsung halaman</h2>
+              <span className={styles.previewHostTag}>{displayHost(job?.url)}</span>
+            </div>
             {telemetry?.earlyPreviewReady && job?.previewUrl ? (
               <div className={styles.previewFrame}>
                 <img
