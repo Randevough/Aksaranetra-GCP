@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import type {
   ImpactLevel,
   PourPrinciple,
@@ -17,22 +19,22 @@ const POUR_LABELS: Record<PourPrinciple, string> = {
 const SEVERITY_META: Array<{
   key: ImpactLevel;
   label: string;
+  weight: number;
   className: string;
 }> = [
-  { key: "critical", label: "Kritis", className: "sevCritical" },
-  { key: "serious", label: "Serius", className: "sevSerious" },
-  { key: "moderate", label: "Sedang", className: "sevModerate" },
-  { key: "minor", label: "Rendah", className: "sevMinor" },
+  { key: "critical", label: "Kritis", weight: -10, className: "sevCritical" },
+  { key: "serious", label: "Serius", weight: -6, className: "sevSerious" },
+  { key: "moderate", label: "Sedang", weight: -3, className: "sevModerate" },
+  { key: "minor", label: "Rendah", weight: -1, className: "sevMinor" },
 ];
 
-const REG_SHORT_LABEL: Record<string, string> = {
-  "UU-8-2016": "UU 8/2016",
-  "PP-42-2020": "PP 42/2020",
-  "PERMENPANRB-11-2024": "PermenPANRB 11/2024",
-  "SPBE-2018": "Perpres 95/2018",
-  "UU-KIP-2008": "UU 14/2008 KIP",
-  "SNI-ISO-40500": "SNI ISO 40500",
-};
+const GRADE_SCALE = [
+  { grade: "A", rule: "≥90" },
+  { grade: "B", rule: "≥80" },
+  { grade: "C", rule: "≥65" },
+  { grade: "D", rule: "≥50" },
+  { grade: "F", rule: "<50" },
+] as const;
 
 function safeCount(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -55,9 +57,40 @@ export default function ScoreOverview({
 }) {
   const score = snapshot.score;
   const severity = snapshot.severity;
-  const regulations = snapshot.regulations ?? [];
+
+  const [formulaOpen, setFormulaOpen] = useState(false);
+  const formulaPanelId = useId();
+  const formulaTitleId = useId();
+  const formulaAnchorRef = useRef<HTMLDivElement | null>(null);
+  const formulaBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!formulaOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setFormulaOpen(false);
+        formulaBtnRef.current?.focus();
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!formulaAnchorRef.current?.contains(event.target as Node)) {
+        setFormulaOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [formulaOpen]);
 
   const beforeTotal = safeCount(snapshot.summary.beforeTotal);
+  const afterTotal = safeCount(snapshot.summary.afterTotal);
   const fixedTotal = safeCount(snapshot.counts.fixed);
   const reviewTotal = safeCount(snapshot.counts.review);
   const regressionClean = Boolean(snapshot.warnings?.wcagRegressionClean);
@@ -116,10 +149,116 @@ export default function ScoreOverview({
               </div>
             </div>
 
-            <div className={styles.deltaPill} aria-label={`Skor awal ${beforeScore} menjadi ${afterScore}`}>
-              <span>{beforeScore}</span>
-              <span aria-hidden="true">-&gt;</span>
-              <strong>{afterScore}</strong>
+            <div ref={formulaAnchorRef} className={styles.scoreMetaRow}>
+              <div
+                className={styles.deltaPill}
+                aria-label={`Skor awal ${beforeScore} menjadi ${afterScore}`}
+              >
+                <span>{beforeScore}</span>
+                <span aria-hidden="true">-&gt;</span>
+                <strong>{afterScore}</strong>
+              </div>
+
+              <button
+                ref={formulaBtnRef}
+                type="button"
+                className={styles.formulaBtn}
+                aria-expanded={formulaOpen}
+                aria-controls={formulaPanelId}
+                onClick={() => setFormulaOpen((open) => !open)}
+              >
+                <Info size={14} strokeWidth={1.9} aria-hidden="true" />
+                <span>Cara hitung skor</span>
+              </button>
+
+              {formulaOpen && (
+                <div
+                  id={formulaPanelId}
+                  role="region"
+                  aria-labelledby={formulaTitleId}
+                  className={styles.formulaPopover}
+                >
+                  <div className={styles.formulaHeader}>
+                    <h3 id={formulaTitleId} className={styles.formulaTitle}>
+                      Rumus Skor Aksesibilitas
+                    </h3>
+                    <button
+                      type="button"
+                      className={styles.formulaCloseBtn}
+                      onClick={() => {
+                        setFormulaOpen(false);
+                        formulaBtnRef.current?.focus();
+                      }}
+                    >
+                      Tutup
+                    </button>
+                  </div>
+
+                  <ul className={styles.formulaRules}>
+                    <li>
+                      Skor dasar <strong>100</strong>, dinormalisasi dengan{" "}
+                      <code>100 × e^(-penalti / 50)</code>
+                    </li>
+                    <li>
+                      Bobot dampak:{" "}
+                      <strong>Kritis (-10)</strong>,{" "}
+                      <strong>Serius (-6)</strong>,{" "}
+                      <strong>Sedang (-3)</strong>,{" "}
+                      <strong>Rendah (-1)</strong>
+                    </li>
+                    <li>
+                      Faktor temuan berulang: <strong>+35%</strong> penalti tiap
+                      pengulangan tambahan pada aturan yang sama (maks. 10x)
+                    </li>
+                  </ul>
+
+                  {severity && (
+                    <div className={styles.formulaSnapshot}>
+                      <span className={styles.formulaSubheading}>
+                        Rincian Snapshot Ini
+                      </span>
+                      <ul className={styles.formulaBreakdownList}>
+                        {SEVERITY_META.map((item) => {
+                          const beforeCnt = beforeSeverity?.[item.key] ?? 0;
+                          const afterCnt = afterSeverity?.[item.key] ?? 0;
+                          return (
+                            <li key={item.key} className={styles.formulaBreakdownRow}>
+                              <span>
+                                {item.label} ({item.weight})
+                              </span>
+                              <strong>
+                                {beforeCnt} -&gt; {afterCnt}
+                              </strong>
+                            </li>
+                          );
+                        })}
+                        <li
+                          className={`${styles.formulaBreakdownRow} ${styles.formulaBreakdownTotal}`}
+                        >
+                          <span>Total temuan</span>
+                          <strong>
+                            {beforeSeverity?.total ?? beforeTotal} -&gt;{" "}
+                            {afterSeverity?.total ?? afterTotal}
+                          </strong>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className={styles.formulaGrades}>
+                    <span className={styles.formulaSubheading}>
+                      Skala Peringkat
+                    </span>
+                    <div className={styles.gradeScaleRow}>
+                      {GRADE_SCALE.map((item) => (
+                        <span key={item.grade} className={styles.gradeScaleChip}>
+                          <strong>{item.grade}</strong> {item.rule}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -242,20 +381,6 @@ export default function ScoreOverview({
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {regulations.length > 0 && (
-          <div className={styles.regRow} aria-label="Ringkasan kepatuhan regulasi">
-            <span className={styles.regRowLabel}>Regulasi:</span>
-            <ul className={styles.regPills}>
-              {regulations.map((reg) => (
-                <li key={reg.code} className={styles.regPill} title={`${reg.title} (${reg.article})`}>
-                  <span>{REG_SHORT_LABEL[reg.code] ?? reg.code}</span>
-                  <strong>{reg.matchedIssues}</strong>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </div>

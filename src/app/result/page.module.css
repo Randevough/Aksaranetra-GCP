@@ -236,6 +236,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.versionTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, 0.08));
+  border-radius: var(--radius-chip, 7px);
+  background: var(--surface-well, #f4f6fa);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .compactHeader h1 {
   font-size: clamp(22px, 3vw, 30px);
   line-height: 1.2;

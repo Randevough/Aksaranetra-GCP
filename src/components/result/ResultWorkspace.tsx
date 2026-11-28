@@ -118,6 +118,16 @@ function count(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function formatEngineVersion(version?: string | null): string {
+  if (!version) return "";
+  const clean = version.trim().replace(/-[a-z0-9.-]+$/i, "");
+  const parts = clean.split(".");
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return `v${parts[0]}.${parts[1]}`;
+  }
+  return clean ? (clean.startsWith("v") ? clean : `v${clean}`) : "";
+}
+
 function triggerClientDownload(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -337,8 +347,13 @@ export default function ResultWorkspace({
           <div className={styles.headerMetaRow}>
             <span className={styles.statusPill}>Selesai</span>
             <span className={styles.timestamp}>
-              {waktu(snapshot.capturedAt)} · v{snapshot.engineVersion}
+              {waktu(snapshot.capturedAt)}
             </span>
+            {formatEngineVersion(snapshot.engineVersion) && (
+              <span className={styles.versionTag}>
+                {formatEngineVersion(snapshot.engineVersion)}
+              </span>
+            )}
           </div>
 
           <h1 ref={resolvedHeadingRef} tabIndex={-1}>
@@ -618,7 +633,6 @@ export default function ResultWorkspace({
             {(activeTab === "issues" || visitedTabs.issues) && (
               <IssueExplorer
                 issues={snapshot.issues}
-                regulations={snapshot.regulations}
                 severityFilter={severityFilter}
                 onSeverityFilterChange={setSeverityFilter}
                 selectedIssueId={selectedIssueId}

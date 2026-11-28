@@ -7,13 +7,6 @@ import styles from "./Wave2Diagnostics.module.css";
 
 type DrawerKey = "mobile" | "pdf" | "detectors" | "multipage";
 
-const ENGINE_LABELS: Record<string, string> = {
-  "axe-core": "axe-core",
-  "ibm-ace": "IBM ACE",
-  "tab-walk": "Uji Tab",
-  "aksaranetra-heuristic": "Heuristik AksaraNetra",
-};
-
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -45,8 +38,7 @@ export default function Wave2Diagnostics({
   const drawerId = useId();
   const pdfCaptionId = useId();
 
-  const { mobileAudit, pdfAudit, detectors, multiPage, clusters, enginesUsed } =
-    snapshot;
+  const { mobileAudit, pdfAudit, detectors, multiPage, clusters } = snapshot;
 
   const hasAnyWave2 = Boolean(
     mobileAudit ||
@@ -113,7 +105,7 @@ export default function Wave2Diagnostics({
     const pagesCount = multiPage?.crawledCount ?? 1;
     const clusterCount = clusters?.length ?? 0;
     return {
-      text: `${pagesCount} halaman · ${clusterCount} pola berulang`,
+      text: `${pagesCount} halaman, ${clusterCount} pola berulang`,
       tone: clusterCount > 0 ? styles.toneWarn : styles.toneGood,
     };
   })();
@@ -130,16 +122,6 @@ export default function Wave2Diagnostics({
       <div className={styles.stripCard}>
         <div className={styles.stripHeader}>
           <h2 className={styles.stripTitle}>Pemeriksaan Lanjutan</h2>
-          {enginesUsed && enginesUsed.length > 0 && (
-            <div className={styles.enginesRow}>
-              <span>Mesin uji:</span>
-              {enginesUsed.map((eng) => (
-                <span key={eng} className={styles.engineChip}>
-                  {ENGINE_LABELS[eng] ?? eng}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className={styles.pillRow}>

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Select, { type SelectOption } from "@/components/ui/Select";
 import type {
   AuditIssue,
   ImpactLevel,
   PourPrinciple,
-  RegulationReference,
 } from "@/lib/audit-api";
 import styles from "./IssueExplorer.module.css";
 
@@ -33,22 +33,44 @@ const POUR_LABEL: Record<PourPrinciple, string> = {
   robust: "Kompatibel Alat Bantu",
 };
 
+const SEVERITY_OPTIONS: ReadonlyArray<SelectOption<ImpactLevel | "all">> = [
+  { value: "all", label: "Semua tingkat" },
+  { value: "critical", label: "Kritis" },
+  { value: "serious", label: "Serius" },
+  { value: "moderate", label: "Sedang" },
+  { value: "minor", label: "Rendah" },
+];
+
+const STATUS_OPTIONS: ReadonlyArray<SelectOption<AuditIssue["status"] | "all">> = [
+  { value: "all", label: "Semua status" },
+  { value: "fixed", label: "Diperbaiki" },
+  { value: "review", label: "Perlu Tinjauan" },
+  { value: "open", label: "Terbuka" },
+  { value: "skipped", label: "Dilewati" },
+  { value: "rolled-back", label: "Dibatalkan" },
+];
+
+const POUR_OPTIONS: ReadonlyArray<SelectOption<PourPrinciple | "all">> = [
+  { value: "all", label: "Semua aspek" },
+  { value: "perceivable", label: "Mudah Dilihat" },
+  { value: "operable", label: "Mudah Dinavigasi" },
+  { value: "understandable", label: "Mudah Dipahami" },
+  { value: "robust", label: "Kompatibel Alat Bantu" },
+];
+
 export default function IssueExplorer({
   issues = [],
-  regulations = [],
   severityFilter,
   onSeverityFilterChange,
   selectedIssueId,
 }: {
   issues?: AuditIssue[];
-  regulations?: RegulationReference[];
   severityFilter: ImpactLevel | "all";
   onSeverityFilterChange: (value: ImpactLevel | "all") => void;
   selectedIssueId?: string | null;
 }) {
   const [statusFilter, setStatusFilter] = useState<AuditIssue["status"] | "all">("all");
   const [pourFilter, setPourFilter] = useState<PourPrinciple | "all">("all");
-  const [regFilter, setRegFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(() =>
@@ -64,8 +86,6 @@ export default function IssueExplorer({
         return false;
       if (statusFilter !== "all" && issue.status !== statusFilter) return false;
       if (pourFilter !== "all" && issue.pour !== pourFilter) return false;
-      if (regFilter !== "all" && !issue.regulations.includes(regFilter))
-        return false;
       if (q) {
         const haystack = [
           issue.titleId,
@@ -81,7 +101,7 @@ export default function IssueExplorer({
       }
       return true;
     });
-  }, [issues, pourFilter, query, regFilter, severityFilter, statusFilter]);
+  }, [issues, pourFilter, query, severityFilter, statusFilter]);
 
   useEffect(() => {
     if (!selectedIssueId) return;
@@ -100,14 +120,12 @@ export default function IssueExplorer({
     severityFilter !== "all" ||
     statusFilter !== "all" ||
     pourFilter !== "all" ||
-    regFilter !== "all" ||
     query.trim().length > 0;
 
   const resetFilters = () => {
     onSeverityFilterChange("all");
     setStatusFilter("all");
     setPourFilter("all");
-    setRegFilter("all");
     setQuery("");
   };
 
@@ -170,75 +188,33 @@ export default function IssueExplorer({
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="filter-severity">Keparahan</label>
-            <select
+            <Select<ImpactLevel | "all">
               id="filter-severity"
-              className="input"
+              label="Keparahan"
               value={severityFilter}
-              onChange={(e) =>
-                onSeverityFilterChange(e.target.value as ImpactLevel | "all")
-              }
-            >
-              <option value="all">Semua tingkat</option>
-              <option value="critical">Kritis</option>
-              <option value="serious">Serius</option>
-              <option value="moderate">Sedang</option>
-              <option value="minor">Rendah</option>
-            </select>
+              options={SEVERITY_OPTIONS}
+              onChange={onSeverityFilterChange}
+            />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="filter-status">Status</label>
-            <select
+            <Select<AuditIssue["status"] | "all">
               id="filter-status"
-              className="input"
+              label="Status"
               value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as AuditIssue["status"] | "all")
-              }
-            >
-              <option value="all">Semua status</option>
-              <option value="fixed">Diperbaiki</option>
-              <option value="review">Perlu Tinjauan</option>
-              <option value="open">Terbuka</option>
-              <option value="skipped">Dilewati</option>
-              <option value="rolled-back">Dibatalkan</option>
-            </select>
+              options={STATUS_OPTIONS}
+              onChange={setStatusFilter}
+            />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="filter-pour">Aspek</label>
-            <select
+            <Select<PourPrinciple | "all">
               id="filter-pour"
-              className="input"
+              label="Aspek"
               value={pourFilter}
-              onChange={(e) =>
-                setPourFilter(e.target.value as PourPrinciple | "all")
-              }
-            >
-              <option value="all">Semua aspek</option>
-              <option value="perceivable">Mudah Dilihat</option>
-              <option value="operable">Mudah Dinavigasi</option>
-              <option value="understandable">Mudah Dipahami</option>
-              <option value="robust">Kompatibel Alat Bantu</option>
-            </select>
-          </div>
-
-          <div className={styles.filterField}>
-            <label htmlFor="filter-reg">Regulasi</label>
-            <select
-              id="filter-reg"
-              className="input"
-              value={regFilter}
-              onChange={(e) => setRegFilter(e.target.value)}
-            >
-              <option value="all">Semua regulasi</option>
-              {regulations.map((reg) => (
-                <option key={reg.code} value={reg.code}>
-                  {reg.code}
-                </option>
-              ))}
-            </select>
+              options={POUR_OPTIONS}
+              onChange={setPourFilter}
+            />
           </div>
         </div>
 
@@ -333,11 +309,6 @@ export default function IssueExplorer({
                             WCAG {sc}
                           </span>
                         ))}
-                        {issue.regulations.map((reg) => (
-                          <span key={reg} className={styles.regChip}>
-                            {reg}
-                          </span>
-                        ))}
                         {issue.engines?.map((eng) => (
                           <span key={eng} className={styles.engineChip}>
                             {eng === "ibm-ace" ? "IBM ACE" : eng}
@@ -351,29 +322,42 @@ export default function IssueExplorer({
                       </p>
 
                       {(issue.htmlBefore || issue.htmlAfter) && (
-                        <div className={styles.diffGrid}>
+                        <div
+                          className={`${styles.diffFrame} ${
+                            !issue.htmlBefore ? styles.diffFrameSingle : ""
+                          }`}
+                        >
                           {issue.htmlBefore && (
-                            <div className={styles.codeBlock}>
-                              <span className={styles.codeLabelBefore}>
+                            <div className={styles.diffPane}>
+                              <div className={styles.diffPaneHeaderBefore}>
                                 Sebelum
-                              </span>
-                              <pre>
+                              </div>
+                              <pre className={styles.diffCode}>
                                 <code>{issue.htmlBefore}</code>
                               </pre>
                             </div>
                           )}
-                          <div className={styles.codeBlock}>
-                            <span className={styles.codeLabelAfter}>
+                          <div className={styles.diffPane}>
+                            <div
+                              className={
+                                issue.htmlAfter
+                                  ? styles.diffPaneHeaderAfter
+                                  : styles.diffPaneHeaderReview
+                              }
+                            >
                               {issue.htmlAfter
-                                ? "Sesudah"
+                                ? "Perbaikan"
                                 : "Perlu Tinjauan"}
-                            </span>
-                            <pre>
-                              <code>
-                                {issue.htmlAfter ??
-                                  "Tidak diubah otomatis agar tidak keliru."}
-                              </code>
-                            </pre>
+                            </div>
+                            {issue.htmlAfter ? (
+                              <pre className={styles.diffCode}>
+                                <code>{issue.htmlAfter}</code>
+                              </pre>
+                            ) : (
+                              <p className={styles.diffReviewNote}>
+                                Tidak diubah otomatis agar tidak keliru.
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}

@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import Select, { type SelectOption } from "@/components/ui/Select";
 import styles from "./WebReaderPanel.module.css";
 
 const emptySubscribe = () => () => {};
@@ -741,6 +742,23 @@ export default function WebReaderPanel({
     [filteredVoices, speechLang, selectedVoiceUris],
   );
 
+  const voiceOptions = useMemo<ReadonlyArray<SelectOption<string>>>(
+    () => [
+      {
+        value: "",
+        label:
+          filteredVoices.length > 0
+            ? `Otomatis (${activeVoice?.name ?? SPEECH_LANG_TAGS[speechLang]})`
+            : `Gunakan tag bahasa ${SPEECH_LANG_TAGS[speechLang]}`,
+      },
+      ...filteredVoices.map((voice) => ({
+        value: voice.voiceURI,
+        label: `${voice.name} (${voice.lang})`,
+      })),
+    ],
+    [activeVoice?.name, filteredVoices, speechLang],
+  );
+
   const speakFrom = useCallback(
     (
       startIndex: number,
@@ -1179,24 +1197,15 @@ export default function WebReaderPanel({
               </label>
               {ttsSupported ? (
                 <>
-                  <select
+                  <Select
                     id={voiceSelectId}
-                    className={styles.voiceSelect}
+                    ariaLabel={`Pilihan Suara (${speechLang === "id" ? "Indonesia" : "English"})`}
+                    className={styles.voiceSelectWrap}
                     value={selectedVoiceUris[speechLang]}
+                    options={voiceOptions}
                     disabled={filteredVoices.length === 0}
-                    onChange={(e) => handleVoiceSelectChange(e.target.value)}
-                  >
-                    <option value="">
-                      {filteredVoices.length > 0
-                        ? `Otomatis (${activeVoice?.name ?? SPEECH_LANG_TAGS[speechLang]})`
-                        : `Gunakan tag bahasa ${SPEECH_LANG_TAGS[speechLang]}`}
-                    </option>
-                    {filteredVoices.map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleVoiceSelectChange}
+                  />
                   {filteredVoices.length === 0 && (
                     <p className={styles.settingNote}>
                       {speechLang === "id"

@@ -26,21 +26,21 @@ const FASTPASS_ITEMS: FastPassItem[] = [
   {
     id: "tab-order",
     title: "Urutan Tab logis",
-    wcag: "WCAG 2.4.3 · 2.4.7",
+    wcag: "WCAG 2.4.3 / 2.4.7",
     question:
       "Tekan Tab dari atas ke bawah. Pastikan fokus mengikuti alur baca dan indikator fokus terlihat.",
   },
   {
     id: "form-errors",
     title: "Pesan error formulir jelas",
-    wcag: "WCAG 3.3.1 · 3.3.3",
+    wcag: "WCAG 3.3.1 / 3.3.3",
     question:
       "Kirim formulir kosong atau salah. Pastikan pesan galat menyebut nama kolom dan saran perbaikan, bukan warna saja.",
   },
   {
     id: "media-captions",
     title: "Subtitle atau transkrip media",
-    wcag: "WCAG 1.2.1 · 1.2.2",
+    wcag: "WCAG 1.2.1 / 1.2.2",
     question:
       "Pastikan video atau audio penting punya takarir sinkron atau transkrip (tandai Lolos jika tidak ada media).",
   },
@@ -142,9 +142,9 @@ export default function GuidedFastPass({ jobId }: { jobId: string }) {
             <span>
               {checked} dari {FASTPASS_TOTAL_ITEMS} diperiksa
             </span>
-            <span className={styles.countPass}>· {passed} lolos</span>
+            <span className={styles.countPass}>{passed} lolos</span>
             {failed > 0 && (
-              <span className={styles.countFail}>· {failed} bermasalah</span>
+              <span className={styles.countFail}>{failed} bermasalah</span>
             )}
           </div>
           <div

@@ -247,7 +247,7 @@ export default function StatementModal({
     }
   };
 
-  const badgeScoreText = `${afterScore}/100 · ${grade}`;
+  const badgeScoreText = `${afterScore}/100 (${grade})`;
   const badgeColor =
     afterScore >= 80 ? "#0f766e" : afterScore >= 60 ? "#854d0e" : "#9f1239";
 

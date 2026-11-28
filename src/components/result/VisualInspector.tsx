@@ -363,7 +363,7 @@ export default function VisualInspector({
             <div className={styles.compareWrap}>
               <div className={styles.compareControls}>
                 <label htmlFor="compare-slider" className={styles.compareLabel}>
-                  Sebelum ({sliderPos}%) · Sesudah ({100 - sliderPos}%)
+                  Sebelum ({sliderPos}%) / Sesudah ({100 - sliderPos}%)
                 </label>
                 <input
                   id="compare-slider"

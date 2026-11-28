@@ -20,7 +20,7 @@
       "formatVersion": "2.0.0",
       "id": "demo_pemprov_sulsel",
       "origin": "demo",
-      "engineVersion": "2.0.0-wave2",
+      "engineVersion": "2.0.0",
       "enginesUsed": ["axe-core", "ibm-ace"],
       "capturedAt": "2026-11-20T08:14:24.000Z",
       "disclaimer": "Pemeriksaan otomatis mencakup ~30–57% kriteria WCAG 2.1 Level AA. Lengkapi dengan pengujian pengguna dan pembaca layar sebelum menyatakan kepatuhan penuh.",
