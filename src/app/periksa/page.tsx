@@ -115,8 +115,7 @@ export default function PeriksaPage() {
                 spellCheck={false}
               />
               <p id="url-hint" className="hint">
-                Gunakan halaman yang bisa dibuka siapa saja, tanpa perlu masuk
-                akun. Protokol https:// otomatis ditambahkan jika belum ditulis.
+                Gunakan halaman publik tanpa login; protokol https:// ditambahkan otomatis.
               </p>
               {error && (
                 <p id="url-error" className={styles.errorText} role="alert">
@@ -157,8 +156,7 @@ export default function PeriksaPage() {
                 </label>
               </div>
               <p id="mode-helper" className="hint">
-                Pilih 1 halaman untuk pemeriksaan cepat, atau Multi-Halaman
-                untuk menelusuri hingga 3 halaman pada domain yang sama.
+                1 halaman untuk cek cepat, atau Multi-Halaman untuk menelusuri 3 halaman.
               </p>
             </fieldset>
 
@@ -170,38 +168,40 @@ export default function PeriksaPage() {
             </button>
           </form>
 
-          <div className={styles.examples}>
-            <span className={styles.examplesLabel}>Coba contoh</span>
-            <div className={styles.exampleButtons}>
-              {EXAMPLE_SITES.map((site) => (
-                <button
-                  key={site.url}
-                  type="button"
-                  className={styles.exampleButton}
-                  onClick={() => {
-                    setUrl(site.url);
-                    setError("");
-                    inputRef.current?.focus();
-                  }}
-                >
-                  {site.label}
-                </button>
-              ))}
+          <div className={styles.cardFooter}>
+            <div className={styles.examples}>
+              <span className={styles.examplesLabel}>Coba contoh</span>
+              <div className={styles.exampleButtons}>
+                {EXAMPLE_SITES.map((site) => (
+                  <button
+                    key={site.url}
+                    type="button"
+                    className={styles.exampleButton}
+                    onClick={() => {
+                      setUrl(site.url);
+                      setError("");
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    {site.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className={styles.demoRow}>
-            <span className={styles.examplesLabel}>Lihat Demo Interaktif</span>
-            <div className={styles.exampleButtons}>
-              {DEMO_AUDITS.map((preset) => (
-                <Link
-                  key={preset.slug}
-                  href={`/result?demo=${encodeURIComponent(preset.slug)}`}
-                  className={styles.demoLink}
-                >
-                  {preset.domain}
-                </Link>
-              ))}
+            <div className={styles.demoRow}>
+              <span className={styles.examplesLabel}>Lihat Demo Interaktif</span>
+              <div className={styles.exampleButtons}>
+                {DEMO_AUDITS.map((preset) => (
+                  <Link
+                    key={preset.slug}
+                    href={`/result?demo=${encodeURIComponent(preset.slug)}`}
+                    className={styles.demoLink}
+                  >
+                    {preset.domain}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </section>
