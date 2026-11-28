@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { ArrowRight, Check, Info } from "lucide-react";
 import type {
   ImpactLevel,
   PourPrinciple,
@@ -92,22 +92,6 @@ export default function ScoreOverview({
   const beforeTotal = safeCount(snapshot.summary.beforeTotal);
   const afterTotal = safeCount(snapshot.summary.afterTotal);
   const fixedTotal = safeCount(snapshot.counts.fixed);
-  const reviewTotal = safeCount(snapshot.counts.review);
-  const rawReductionPct = safeCount(snapshot.summary.reductionPercent);
-  const fixedRateDisplay =
-    beforeTotal > 0
-      ? `${Math.max(
-          0,
-          Math.min(
-            100,
-            Math.round(
-              rawReductionPct > 0
-                ? rawReductionPct
-                : (fixedTotal / beforeTotal) * 100,
-            ),
-          ),
-        )}%`
-      : "—";
   const regressionClean = Boolean(snapshot.warnings?.wcagRegressionClean);
 
   const afterScore = score ? Math.max(0, Math.min(100, Math.round(score.afterScore))) : 0;
@@ -118,7 +102,21 @@ export default function ScoreOverview({
 
   const afterSeverity = severity?.after;
   const beforeSeverity = severity?.before;
-  const totalBeforeSeverity = beforeSeverity?.total || 0;
+  const totalFound = beforeSeverity?.total ?? beforeTotal;
+  const remainingIssues = afterSeverity?.total ?? afterTotal;
+  const resolvedIssues = Math.max(0, totalFound - remainingIssues);
+  const resolvedPercent =
+    totalFound > 0 ? Math.round((resolvedIssues / totalFound) * 100) : 100;
+
+  const pourEntries = score
+    ? (Object.keys(POUR_LABELS) as PourPrinciple[]).map((key) => ({
+        key,
+        label: POUR_LABELS[key],
+        val: Math.max(0, Math.min(100, Math.round(score.pour[key] ?? 0))),
+      }))
+    : [];
+  const allPourPerfect =
+    pourEntries.length > 0 && pourEntries.every((entry) => entry.val === 100);
 
   return (
     <section className={styles.bento} aria-labelledby="score-overview-title">
@@ -170,7 +168,7 @@ export default function ScoreOverview({
                 aria-label={`Skor awal ${beforeScore} menjadi ${afterScore}`}
               >
                 <span>{beforeScore}</span>
-                <span aria-hidden="true">-&gt;</span>
+                <ArrowRight size={13} strokeWidth={2.2} aria-hidden="true" />
                 <strong>{afterScore}</strong>
               </div>
 
@@ -308,62 +306,80 @@ export default function ScoreOverview({
       </div>
 
       <div className={styles.rightCard}>
-        <div className={styles.statStrip}>
-          <div className={styles.statItems}>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Ditemukan</span>
-              <strong className={styles.statValue}>{beforeTotal}</strong>
+        <div className={styles.heroSummary}>
+          <div className={styles.heroTopRow}>
+            <div className={styles.heroMetricBlock}>
+              <div className={styles.heroHeadline}>
+                <strong className={styles.heroPercent}>{resolvedPercent}%</strong>
+                <span className={styles.heroLabel}>Temuan teratasi</span>
+              </div>
+              <p className={styles.heroSubtext}>
+                {totalFound === 0
+                  ? "Tidak ada temuan otomatis pada halaman ini."
+                  : remainingIssues === 0
+                    ? `Semua ${totalFound} temuan berhasil diatasi.`
+                    : `Tersisa ${remainingIssues} dari ${totalFound} temuan.`}
+              </p>
             </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Diperbaiki</span>
-              <strong className={`${styles.statValue} ${styles.statGood}`}>{fixedTotal}</strong>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Berhasil Diperbaiki</span>
-              <strong className={`${styles.statValue} ${styles.statGood}`}>
-                {fixedRateDisplay}
-              </strong>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}>Perlu Tinjauan</span>
-              <strong className={styles.statValue}>{reviewTotal}</strong>
+
+            <div className={styles.heroMetaStats}>
+              <div className={styles.heroMetaItem}>
+                <span className={styles.statLabel}>Total temuan</span>
+                <strong className={styles.statValue}>{totalFound}</strong>
+              </div>
+              <div className={styles.heroMetaItem}>
+                <span className={styles.statLabel}>Teratasi</span>
+                <strong className={styles.statValue}>{resolvedIssues}</strong>
+              </div>
+              <div className={styles.heroMetaItem}>
+                <span className={styles.statLabel}>Tersisa</span>
+                <strong className={styles.statValue}>{remainingIssues}</strong>
+              </div>
+              {!regressionClean && (
+                <span className={styles.regressionWarn}>Perlu cek ulang</span>
+              )}
             </div>
           </div>
 
-          <span
-            className={
-              regressionClean ? styles.regressionClean : styles.regressionWarn
+          <div
+            className={styles.resolutionBar}
+            role="img"
+            aria-label={
+              totalFound === 0
+                ? "100% bersih tanpa temuan otomatis"
+                : `${resolvedPercent}% teratasi (${resolvedIssues} dari ${totalFound} temuan), tersisa ${remainingIssues} temuan`
             }
           >
-            {regressionClean ? "Tanpa masalah baru" : "Perlu cek ulang"}
-          </span>
+            {totalFound === 0 || resolvedIssues > 0 ? (
+              <span
+                className={styles.resolutionResolved}
+                style={{
+                  width: `${
+                    totalFound === 0 ? 100 : (resolvedIssues / totalFound) * 100
+                  }%`,
+                }}
+              />
+            ) : null}
+            {totalFound > 0 &&
+              SEVERITY_META.map((item) => {
+                const cnt = afterSeverity?.[item.key] ?? 0;
+                if (cnt <= 0) return null;
+                return (
+                  <span
+                    key={item.key}
+                    className={`${styles.severitySegment} ${styles[item.className]}`}
+                    style={{ width: `${(cnt / totalFound) * 100}%` }}
+                  />
+                );
+              })}
+          </div>
         </div>
 
         {severity && (
           <div className={styles.severityBlock}>
             <div className={styles.blockHeader}>
               <h3 className={styles.blockTitle}>Tingkat Keparahan</h3>
-              <span className={styles.blockMeta}>
-                Pilih untuk filter
-              </span>
-            </div>
-
-            <div
-              className={styles.severityBar}
-              role="img"
-              aria-label={`Sebaran awal: ${beforeSeverity?.critical ?? 0} kritis, ${beforeSeverity?.serious ?? 0} serius, ${beforeSeverity?.moderate ?? 0} sedang, ${beforeSeverity?.minor ?? 0} rendah`}
-            >
-              {SEVERITY_META.map((item) => {
-                const cnt = beforeSeverity?.[item.key] ?? 0;
-                if (cnt <= 0 || totalBeforeSeverity <= 0) return null;
-                return (
-                  <span
-                    key={item.key}
-                    className={`${styles.severitySegment} ${styles[item.className]}`}
-                    style={{ width: `${(cnt / totalBeforeSeverity) * 100}%` }}
-                  />
-                );
-              })}
+              <span className={styles.blockMeta}>Pilih untuk filter</span>
             </div>
 
             <div className={styles.severityChips}>
@@ -371,26 +387,36 @@ export default function ScoreOverview({
                 const beforeVal = beforeSeverity?.[item.key] ?? 0;
                 const afterVal = afterSeverity?.[item.key] ?? 0;
                 const isActive = activeSeverity === item.key;
+                const isResolved = afterVal === 0;
                 return (
                   <button
                     key={item.key}
                     type="button"
                     className={`${styles.severityChip} ${
-                      isActive ? styles.severityChipActive : ""
-                    }`}
+                      isResolved && !isActive ? styles.severityChipResolved : ""
+                    } ${isActive ? styles.severityChipActive : ""}`}
                     aria-pressed={isActive}
                     onClick={() => onSelectSeverity?.(item.key)}
                   >
-                    <span
-                      className={`${styles.chipDot} ${styles[item.className]}`}
-                      aria-hidden="true"
-                    />
+                    {beforeVal > 0 && isResolved ? (
+                      <Check
+                        size={13}
+                        strokeWidth={2.4}
+                        className={styles.chipResolvedIcon}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <span
+                        className={`${styles.chipDot} ${styles[item.className]}`}
+                        aria-hidden="true"
+                      />
+                    )}
                     <span className={styles.chipLabel}>{item.label}</span>
                     <span className={styles.chipCount}>
-                      {beforeVal}
-                      <span aria-hidden="true"> / </span>
+                      <span>{beforeVal}</span>
+                      <ArrowRight size={11} strokeWidth={2.1} aria-hidden="true" />
                       <span className="sr-only"> menjadi </span>
-                      {afterVal}
+                      <strong>{afterVal}</strong>
                     </span>
                   </button>
                 );
@@ -401,26 +427,35 @@ export default function ScoreOverview({
 
         {score && (
           <div className={styles.pourBlock} aria-label="Skor aspek aksesibilitas">
-            <h3 className={styles.blockTitle}>Aspek Aksesibilitas</h3>
-            <div className={styles.pourGrid}>
-              {(Object.keys(POUR_LABELS) as PourPrinciple[]).map((key) => {
-                const val = Math.max(0, Math.min(100, Math.round(score.pour[key] ?? 0)));
-                return (
-                  <div key={key} className={styles.pourItem}>
-                    <div className={styles.pourTop}>
-                      <span>{POUR_LABELS[key]}</span>
-                      <strong>{val}%</strong>
+            {allPourPerfect ? (
+              <div className={styles.pourPerfectBar}>
+                <span className={styles.pourPerfectLabel}>
+                  <Check size={14} strokeWidth={2.4} aria-hidden="true" />
+                  <span>Semua aspek aksesibilitas 100%</span>
+                </span>
+                <span className={styles.pourPerfectTrack} aria-hidden="true" />
+              </div>
+            ) : (
+              <>
+                <h3 className={styles.blockTitleMuted}>Aspek Aksesibilitas</h3>
+                <div className={styles.pourGrid}>
+                  {pourEntries.map((item) => (
+                    <div key={item.key} className={styles.pourItem}>
+                      <div className={styles.pourTop}>
+                        <span>{item.label}</span>
+                        <strong>{item.val}%</strong>
+                      </div>
+                      <div className={styles.pourTrack} aria-hidden="true">
+                        <div
+                          className={styles.pourFill}
+                          style={{ width: `${item.val}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className={styles.pourTrack} aria-hidden="true">
-                      <div
-                        className={styles.pourFill}
-                        style={{ width: `${val}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
