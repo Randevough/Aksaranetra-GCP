@@ -289,3 +289,102 @@ test("Neutral-First Precision design tokens exist in globals.css", () => {
     assert.ok(globalsCss.includes(token), `Missing precision token ${token} in src/app/globals.css`);
   }
 });
+
+test("custom Select primitive replaces native selects and preserves ARIA listbox contract", () => {
+  const selectComponent = read("src/components/ui/Select.tsx");
+  const selectCss = read("src/components/ui/Select.module.css");
+
+  assert.match(selectComponent, /export interface SelectOption/);
+  assert.match(selectComponent, /export interface SelectProps/);
+  assert.match(selectComponent, /export default function Select/);
+  assert.match(selectComponent, /role="combobox"/);
+  assert.match(selectComponent, /aria-haspopup="listbox"/);
+  assert.match(selectComponent, /role="listbox"/);
+  assert.match(selectComponent, /role="option"/);
+  assert.match(selectComponent, /aria-selected=/);
+  assert.match(selectComponent, /pointerdown/);
+  assert.doesNotMatch(selectComponent, /<select\b/);
+  assert.doesNotMatch(selectCss, /border-left|border-inline-start/i);
+
+  assert.match(issueExplorer, /from\s+["']@\/components\/ui\/Select["']/);
+  assert.doesNotMatch(issueExplorer, /<select\b/);
+  assert.match(webReaderPanel, /from\s+["']@\/components\/ui\/Select["']/);
+  assert.doesNotMatch(webReaderPanel, /<select\b/);
+});
+
+test("result polish, score breakdown, 5-phase telemetry, and anti-slop craft contracts hold", () => {
+  // Score breakdown disclosure in ScoreOverview
+  assert.match(scoreOverview, /Cara hitung skor/);
+  assert.match(scoreOverview, /aria-expanded=\{formulaOpen\}/);
+  assert.match(scoreOverview, /aria-controls=\{formulaPanelId\}/);
+  assert.match(scoreOverview, /100 × e\^\(-penalti \/ 50\)/);
+  assert.match(scoreOverview, /Kritis \(-10\)/);
+  assert.match(scoreOverview, /Serius \(-6\)/);
+  assert.match(scoreOverview, /Sedang \(-3\)/);
+  assert.match(scoreOverview, /Rendah \(-1\)/);
+  assert.match(scoreOverview, /\+35%/);
+
+  // Clean engine version formatting and zero "wave2" in demo JSON fixtures
+  assert.match(resultWorkspace, /function formatEngineVersion/);
+  for (const slug of ["pemprov-sulsel-demo", "portal-akademik-demo"]) {
+    const raw = read(`public/data/demo/${slug}.json`);
+    assert.doesNotMatch(raw, /wave2/i, `Found internal "wave2" tag in demo fixture ${slug}`);
+  }
+
+  // Global WCAG 2.2 focus on dashboard (no regulation block/filter in ScoreOverview/IssueExplorer, no enginesUsed chips in Wave2Diagnostics)
+  assert.doesNotMatch(scoreOverview, /snapshot\.regulations/);
+  assert.doesNotMatch(issueExplorer, /filter-regulation|regulationFilter/);
+  assert.doesNotMatch(wave2Diagnostics, /enginesUsed/);
+
+  // Unified split-pane diff frame in IssueExplorer
+  assert.match(issueExplorer, /diffFrame/);
+  const issueExplorerCss = read("src/components/result/IssueExplorer.module.css");
+  assert.match(issueExplorerCss, /\.diffFrame\s*\{/);
+
+  // LiveTelemetryPanel 5-phase stepper, <=3-item ticker, conditional network counters
+  assert.match(telemetryPanel, /PHASE_DEFINITIONS/);
+  assert.match(telemetryPanel, /selectTickerItems/);
+  assert.match(telemetryPanel, /allowedCount > 0 \|\| blockedCount > 0/);
+
+  // No colored border-left / border-inline-start in refactored CSS modules
+  for (const cssPath of [
+    "src/components/result/ScoreOverview.module.css",
+    "src/components/result/IssueExplorer.module.css",
+    "src/components/result/Wave2Diagnostics.module.css",
+    "src/components/result/VisualInspector.module.css",
+    "src/components/result/WebReaderPanel.module.css",
+    "src/components/result/LiveTelemetryPanel.module.css",
+    "src/app/result/page.module.css",
+    "src/app/periksa/page.module.css",
+    "src/components/ui/Select.module.css",
+  ]) {
+    const css = read(cssPath);
+    assert.doesNotMatch(
+      css,
+      /border-left|border-inline-start/i,
+      `Found prohibited left-accent border in ${cssPath}`,
+    );
+  }
+
+  // No middle-dot metadata separators in refactored /result components
+  for (const tsxPath of [
+    "src/components/result/ResultWorkspace.tsx",
+    "src/components/result/ScoreOverview.tsx",
+    "src/components/result/IssueExplorer.tsx",
+    "src/components/result/Wave2Diagnostics.tsx",
+    "src/components/result/VisualInspector.tsx",
+    "src/components/result/WebReaderPanel.tsx",
+    "src/components/result/LiveTelemetryPanel.tsx",
+  ]) {
+    const tsx = read(tsxPath);
+    assert.doesNotMatch(
+      tsx,
+      /\u00b7|&middot;/,
+      `Found middle-dot metadata separator in ${tsxPath}`,
+    );
+  }
+
+  // /periksa widened form panel
+  const periksaCss = read("src/app/periksa/page.module.css");
+  assert.match(periksaCss, /max-width:\s*6(?:40|50|60|70|80)px/);
+});
