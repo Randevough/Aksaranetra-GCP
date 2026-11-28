@@ -423,14 +423,25 @@ function penaltyForViolations(violations = []) {
     if (count === 0) continue;
     const impact = normalizeImpact(violation?.impact);
     const base = IMPACT_WEIGHTS[impact];
-    totalPenalty += base * (1 + Math.min(count - 1, 10) * 0.35);
+    totalPenalty += base * (1 + 0.15 * Math.log2(count));
   }
   return totalPenalty;
 }
 
-function penaltyToScore(penalty) {
+function computeScoreDivisor(passedRuleCount = 0) {
+  const passed = Math.max(0, Number(passedRuleCount) || 0);
+  return Math.max(85, 65 + passed * 2.5);
+}
+
+function penaltyToScoreWithDivisor(penalty, divisor) {
   if (penalty <= 0) return 100;
-  return Math.max(0, Math.min(100, Math.round(100 * Math.exp(-penalty / 50))));
+  return Math.max(0, Math.min(99, Math.round(100 * Math.exp(-penalty / divisor))));
+}
+
+function penaltyToScore(penalty, passedRuleCount = 0) {
+  if (penalty <= 0) return 100;
+  const divisor = computeScoreDivisor(passedRuleCount);
+  return penaltyToScoreWithDivisor(penalty, divisor);
 }
 
 function gradeForScore(score) {
@@ -444,7 +455,7 @@ function gradeForScore(score) {
 function computePourScores(axeAfter, fallbackAfterTotal = 0) {
   if (!Array.isArray(axeAfter?.violations)) {
     const fallbackPenalty = Math.max(0, Number(fallbackAfterTotal) || 0) * 3;
-    const baseScore = penaltyToScore(fallbackPenalty);
+    const baseScore = penaltyToScore(fallbackPenalty, 0);
     return {
       perceivable: baseScore,
       operable: baseScore,
@@ -465,12 +476,25 @@ function computePourScores(axeAfter, fallbackAfterTotal = 0) {
     buckets[meta.pour].push(violation);
   }
 
-  return {
-    perceivable: penaltyToScore(penaltyForViolations(buckets.perceivable)),
-    operable: penaltyToScore(penaltyForViolations(buckets.operable)),
-    understandable: penaltyToScore(penaltyForViolations(buckets.understandable)),
-    robust: penaltyToScore(penaltyForViolations(buckets.robust)),
+  const passedCounts = {
+    perceivable: 0,
+    operable: 0,
+    understandable: 0,
+    robust: 0,
   };
+
+  for (const pass of Array.isArray(axeAfter?.passes) ? axeAfter.passes : []) {
+    const meta = ruleMetadata(pass);
+    passedCounts[meta.pour] += 1;
+  }
+
+  const pourScores = {};
+  for (const principle of POUR_PRINCIPLES) {
+    const bucketPenalty = penaltyForViolations(buckets[principle]);
+    const bucketDivisor = Math.max(45, 45 + passedCounts[principle] * 4);
+    pourScores[principle] = penaltyToScoreWithDivisor(bucketPenalty, bucketDivisor);
+  }
+  return pourScores;
 }
 
 export function computeAuditScore({ report, wcagBefore, wcagAfter } = {}) {
@@ -485,8 +509,11 @@ export function computeAuditScore({ report, wcagBefore, wcagAfter } = {}) {
     ? penaltyForViolations(afterAxe.violations)
     : Math.max(0, Number(report?.metrics?.afterTotal) || 0) * 3;
 
-  const beforeScore = penaltyToScore(beforePenalty);
-  const afterScore = penaltyToScore(afterPenalty);
+  const beforePassedCount = Array.isArray(beforeAxe?.passes) ? beforeAxe.passes.length : 0;
+  const afterPassedCount = Array.isArray(afterAxe?.passes) ? afterAxe.passes.length : 0;
+
+  const beforeScore = penaltyToScore(beforePenalty, beforePassedCount);
+  const afterScore = penaltyToScore(afterPenalty, afterPassedCount);
   const overall = afterScore;
 
   return {
@@ -590,8 +617,14 @@ export function normalizeIssues({
       }
 
       const snippet = matchedRec?.snippet || (matchedRec ? createSanitizedSnippet(matchedRec) : null);
-      const htmlBefore = snippet?.before || sanitizeHtmlSnippet(node?.html) || null;
-      const htmlAfter = fixedRec ? snippet?.after || null : null;
+      const htmlBefore =
+        matchedRec?.snippet?.before ||
+        sanitizeHtmlSnippet(node?.html) ||
+        snippet?.before ||
+        null;
+      const htmlAfter = fixedRec
+        ? snippet?.after || sanitizeHtmlSnippet(fixedRec?.htmlAfter) || null
+        : null;
 
       const issue = {
         id: `${ruleId}-${seq}`,

@@ -197,7 +197,10 @@ export default function ScoreOverview({
                   <ul className={styles.formulaRules}>
                     <li>
                       Skor dasar <strong>100</strong>, dinormalisasi dengan{" "}
-                      <code>100 × e^(-penalti / 50)</code>
+                      <code>100 × e^(-penalti / skala)</code> (
+                      <code>skala = maks(85, 65 + 2,5 × aturan lolos)</code> —
+                      memperhitungkan aturan WCAG yang sudah lolos agar selaras
+                      dengan Lighthouse)
                     </li>
                     <li>
                       Bobot dampak:{" "}
@@ -207,8 +210,10 @@ export default function ScoreOverview({
                       <strong>Rendah (-1)</strong>
                     </li>
                     <li>
-                      Faktor temuan berulang: <strong>+35%</strong> penalti tiap
-                      pengulangan tambahan pada aturan yang sama (maks. 10x)
+                      Faktor temuan berulang logaritmik:{" "}
+                      <code>× (1 + 0,15 × log₂(jumlah))</code> pada aturan yang
+                      sama (tidak menghukum template berulang secara berlebihan,
+                      namun tetap naik saat perbaikan bertahap)
                     </li>
                   </ul>
 

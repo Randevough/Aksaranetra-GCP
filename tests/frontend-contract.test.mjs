@@ -317,12 +317,13 @@ test("result polish, score breakdown, 5-phase telemetry, and anti-slop craft con
   assert.match(scoreOverview, /Cara hitung skor/);
   assert.match(scoreOverview, /aria-expanded=\{formulaOpen\}/);
   assert.match(scoreOverview, /aria-controls=\{formulaPanelId\}/);
-  assert.match(scoreOverview, /100 × e\^\(-penalti \/ 50\)/);
+  assert.match(scoreOverview, /100 × e\^\(-penalti \/ skala\)/);
+  assert.match(scoreOverview, /skala = maks\(85, 65 \+ 2,5 × aturan lolos\)/);
   assert.match(scoreOverview, /Kritis \(-10\)/);
   assert.match(scoreOverview, /Serius \(-6\)/);
   assert.match(scoreOverview, /Sedang \(-3\)/);
   assert.match(scoreOverview, /Rendah \(-1\)/);
-  assert.match(scoreOverview, /\+35%/);
+  assert.match(scoreOverview, /1 \+ 0,15 × log₂\(jumlah\)/);
 
   // Clean engine version formatting and zero "wave2" in demo JSON fixtures
   assert.match(resultWorkspace, /function formatEngineVersion/);

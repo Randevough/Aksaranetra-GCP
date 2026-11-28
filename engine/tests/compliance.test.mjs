@@ -135,3 +135,131 @@ test("caps normalized issues at 150 and sanitizes dangerous HTML", () => {
   assert.equal(compliance.issues[0].htmlBefore.includes("onerror"), false);
   assert.equal(sanitizeHtmlSnippet("<script>alert(1)</script>"), null);
 });
+
+function makePasses(count, { idPrefix = "rule-pass", tags = ["wcag2aa", "wcag143"] } = {}) {
+  return Array.from({ length: count }, (_, idx) => ({
+    id: `${idPrefix}-${idx}`,
+    tags,
+    nodes: [{ target: [`.pass-${idx}`] }],
+  }));
+}
+
+test("calibrated scoring avoids crushing repeated template violations when passes are healthy", () => {
+  const nodes20 = Array.from({ length: 20 }, (_, idx) => ({
+    target: [`.card-${idx} .title`],
+    html: `<span class="title">Card ${idx}</span>`,
+  }));
+  const wcag20 = {
+    violations: [
+      {
+        id: "color-contrast",
+        impact: "serious",
+        tags: ["wcag2aa", "wcag143"],
+        nodes: nodes20,
+      },
+    ],
+    passes: makePasses(25),
+  };
+
+  const report20 = buildComplianceReport({ report: {}, wcagBefore: wcag20, wcagAfter: wcag20 });
+  assert.ok(
+    report20.score.overall >= 75,
+    `Expected score >= 75 for 1 repeated serious rule + 25 passes, got ${report20.score.overall}`,
+  );
+  assert.ok(report20.score.pour.perceivable < 100);
+  assert.equal(report20.score.pour.operable, 100);
+
+  // Fixing partial nodes (20 -> 5) strictly increases score
+  const wcag5 = {
+    ...wcag20,
+    violations: [
+      {
+        ...wcag20.violations[0],
+        nodes: nodes20.slice(0, 5),
+      },
+    ],
+  };
+  const report5 = buildComplianceReport({ report: {}, wcagBefore: wcag20, wcagAfter: wcag5 });
+  assert.ok(
+    report5.score.afterScore > report20.score.beforeScore,
+    `Expected partial fix (20 -> 5) to raise score (${report20.score.beforeScore} -> ${report5.score.afterScore})`,
+  );
+});
+
+test("genuinely broken page with widespread critical and serious violations still scores F", () => {
+  const makeNodes = (prefix, count) =>
+    Array.from({ length: count }, (_, idx) => ({
+      target: [`.${prefix}-${idx}`],
+      html: `<div class="${prefix}-${idx}">broken</div>`,
+    }));
+
+  const brokenAxe = {
+    violations: [
+      { id: "button-name", impact: "critical", tags: ["wcag412"], nodes: makeNodes("btn", 4) },
+      { id: "image-alt", impact: "critical", tags: ["wcag111"], nodes: makeNodes("img", 5) },
+      { id: "label", impact: "critical", tags: ["wcag332"], nodes: makeNodes("lbl", 3) },
+      { id: "frame-title", impact: "critical", tags: ["wcag412"], nodes: makeNodes("frm", 2) },
+      { id: "nested-interactive", impact: "critical", tags: ["wcag412"], nodes: makeNodes("nst", 2) },
+      { id: "color-contrast", impact: "serious", tags: ["wcag143"], nodes: makeNodes("clr", 8) },
+      { id: "link-name", impact: "serious", tags: ["wcag244"], nodes: makeNodes("lnk", 4) },
+      { id: "html-has-lang", impact: "serious", tags: ["wcag311"], nodes: makeNodes("lng", 1) },
+      { id: "document-title", impact: "serious", tags: ["wcag242"], nodes: makeNodes("ttl", 1) },
+    ],
+    passes: makePasses(3),
+  };
+
+  const brokenReport = buildComplianceReport({
+    report: {},
+    wcagBefore: brokenAxe,
+    wcagAfter: brokenAxe,
+  });
+
+  assert.ok(
+    brokenReport.score.overall < 50,
+    `Expected broken page score < 50, got ${brokenReport.score.overall}`,
+  );
+  assert.equal(brokenReport.score.grade, "F");
+});
+
+test("compliance.issues includes clean htmlAfter and status fixed for fixed color-contrast records", () => {
+  const wcagBefore = {
+    violations: [
+      {
+        id: "color-contrast",
+        impact: "serious",
+        tags: ["wcag2aa", "wcag143"],
+        nodes: [
+          {
+            target: [".hero-subtitle"],
+            html: '<p class="hero-subtitle" onclick="bad()">Subjudul</p>',
+          },
+        ],
+      },
+    ],
+    passes: makePasses(10),
+  };
+  const wcagAfter = {
+    violations: [],
+    passes: makePasses(11),
+  };
+  const report = {
+    fixed: [
+      {
+        rule: "color-contrast",
+        selector: ".hero-subtitle",
+        confidence: 0.92,
+        source: "color-contrast-darken",
+        patches: [{ attribute: "style", value: "color: #1e293b !important;" }],
+        htmlAfter: '<p class="hero-subtitle" style="color: #1e293b !important;" onload="evil()">Subjudul</p>',
+      },
+    ],
+  };
+
+  const compliance = buildComplianceReport({ report, wcagBefore, wcagAfter });
+  assert.equal(compliance.issues.length, 1);
+  assert.equal(compliance.issues[0].ruleId, "color-contrast");
+  assert.equal(compliance.issues[0].status, "fixed");
+  assert.equal(compliance.issues[0].htmlBefore.includes("onclick"), false);
+  assert.ok(compliance.issues[0].htmlAfter?.includes("#1e293b"));
+  assert.equal(compliance.issues[0].htmlAfter.includes("onload"), false);
+});
