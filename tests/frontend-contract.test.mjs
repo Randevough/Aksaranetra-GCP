@@ -277,3 +277,15 @@ test("Wave 2 performance, SEO, code splitting, and diagnostic UI contracts hold"
   assert.match(statementModal, /AksaraNetra \(Skor Otomatis\)/);
   assert.match(statementModal, /Pernyataan Aksesibilitas/);
 });
+
+test("Neutral-First Precision design tokens exist in globals.css", () => {
+  for (const token of [
+    "--surface-card",
+    "--border-hairline",
+    "--radius-chip",
+    "--dot-critical",
+    "--ink-success",
+  ]) {
+    assert.ok(globalsCss.includes(token), `Missing precision token ${token} in src/app/globals.css`);
+  }
+});
