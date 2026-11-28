@@ -106,10 +106,7 @@ php-backend/
 │   ├── Feature/                       # ApiTest, AuditorTest, BridgeTest, CorsTest, StoreTest, WorkerTest
 │   ├── Fixtures/reports/              # Byte-for-byte report HTML test fixtures from Node
 │   └── Unit/                          # ConfigTest, ReportRendererTest, SecurityTest
-├── ANALYSIS.md                        # Architectural analysis of the migration
-├── NOTES.md                           # Documented quirks, edge cases, and behavior preservation rules
-├── PLAN.md                            # Comprehensive 7-phase implementation plan
-└── PROGRESS.md                        # Phase completion logs and execution tracking
+└── composer.json                      # PHP dependencies and test scripts
 ```
 
 ---
@@ -237,7 +234,7 @@ The test suite contains 178 tests with 933 assertions covering real user scenari
   composer test:coverage
   ```
 
-Detailed use cases and security guarantees are documented in [`tests/USE_CASES.md`](./tests/USE_CASES.md) and [`tests/TEST_REPORT.md`](./tests/TEST_REPORT.md).
+The full test definitions live under [`tests/Feature/`](./tests/Feature) and [`tests/Unit/`](./tests/Unit).
 
 ### 2. Run Automated Parity Check Script
 The automated parity script starts isolated Node and PHP instances with identical seeds and tests 42 distinct HTTP scenarios side-by-side, comparing status codes, CORS headers, CSP headers, cache directives, location headers, retry-after headers, and JSON body structures:
@@ -288,7 +285,7 @@ Switching the Next.js frontend from the Node backend to the PHP backend requires
 
 ## 8. Preserved Behaviors & Quirks
 
-All quirks and behavioral idiosyncrasies from the Node backend have been preserved verbatim in the PHP implementation to guarantee drop-in compatibility. See [`php-backend/NOTES.md`](./NOTES.md) for full details:
+All quirks and behavioral idiosyncrasies from the Node backend have been preserved verbatim in the PHP implementation to guarantee drop-in compatibility:
 
 1. **`reportPdf` Link Resolution**: Artifact download route strictly matches `/report.pdf`. If PDF generation is skipped in low-memory environments, the API link still points to `/report.pdf` (returning 404).
 2. **Strict Query Token on Artifacts**: Artifact routes (`/artifacts/{artifact}?token=...`) strictly check the query parameter against `share_token_hash`. Bearer authorization headers are ignored.

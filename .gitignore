@@ -69,5 +69,6 @@ test-results/
 /backend/backend/
 /backend/node_modules 
 
-# enhancement progress tracking
-/.enhancement-progress/
+# auto-generated local agent files
+AGENTS.md
+CLAUDE.md

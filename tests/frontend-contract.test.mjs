@@ -204,7 +204,7 @@ test("dogfooding accessibility and legal compliance guardrails hold", () => {
     ...collectFiles(path.join(rootDir, "php-backend/app"), [".php"]),
     ...collectFiles(path.join(rootDir, "public/data/demo"), [".json", ".csv", ".html"]),
     path.join(rootDir, "README.md"),
-    path.join(rootDir, "ROADMAP.md"),
+    path.join(rootDir, "docs/README.md"),
   ];
   for (const file of scanRoots) {
     const text = fs.readFileSync(file, "utf8");

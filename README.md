@@ -1,250 +1,113 @@
-# AksaraNetra
-
-Platform audit aksesibilitas web terstandarisasi untuk regulasi Indonesia (UU No. 8/2016, PP No. 42/2020, PermenPANRB No. 11/2024, Perpres No. 95/2018 SPBE, UU KIP No. 14/2008 & PerKI No. 1/2021, SNI ISO/IEC 40500) dan kepatuhan global **WCAG 2.1 Level AA**.
-
-Proyek ini menggunakan arsitektur monorepo terpadu:
-- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Lucide React, Framer Motion.
-- **Backend (Terbaru)**: PHP 8.2+ / Laravel 11 (API-only) dengan database SQLite (WAL mode) & background queue worker.
-- **Engine Audit**: Node.js 22+ & Playwright Chromium headless untuk inspeksi DOM nyata, rendering visual, dan komputasi kontras warna.
-
----
-
-## 🏛️ Arsitektur Sistem
-
-```text
- +--------------------------------------------------------------------------+
- |                       Next.js Frontend (Port 3000)                       |
- +--------------------------------------------------------------------------+
-             |                                              ^
-             | POST /audits (Mulai Audit)                   | Polling status &
-             | GET  /audits/cache (Cek Cache)               | Ambil hasil
-             v                                              |
- +--------------------------------------------------------------------------+
- |                     PHP Backend / Laravel (Port 8787)                    |
- | - RESTful API (CORS, Rate Limiting, Validasi Request)                    |
- | - SQLite DB (/data/jobs.sqlite dengan Write-Ahead Logging)               |
- | - Token HMAC-SHA256 & Proteksi Akses Artefak                             |
- +--------------------------------------------------------------------------+
-             |                                              ^
-             | Antrean Tugas (Queue Job)                    | Update progress &
-             v                                              | Simpan artefak
- +--------------------------------------------------------------------------+
- |                   Audit Worker (php artisan audit:work)                  |
- | - Memproses antrean satu per satu secara sekuensial (Concurrency: 1)     |
- | - Manajemen timeout, recovery saat crash, dan pembersihan artefak        |
- +--------------------------------------------------------------------------+
-             |
-             | Memanggil via CLI Bridge (bridge/audit-cli.mjs)
-             v
- +--------------------------------------------------------------------------+
- |                      Engine Audit (engine/src)                           |
- | - Playwright + Headless Chromium                                         |
- | - Penilaian WCAG 2.1 AA, Reader View, Screenshot, & Report Renderer      |
- +--------------------------------------------------------------------------+
-```
+<div align="center">
+  <img src="./public/AN%20-%20Nav%20Icon.png" alt="Logo AksaraNetra" width="84" height="84" />
+  <h1>AksaraNetra</h1>
+  <p>
+    <strong>Periksa hambatan aksesibilitas halaman web publik, lalu baca isinya dalam tampilan yang lebih jelas.</strong>
+  </p>
+  <p>
+    <a href="#mengapa-aksaranetra-dibuat">Mengapa Dibuat</a> ·
+    <a href="#cara-kerja-5-tahap">Cara Kerja</a> ·
+    <a href="#tampilan-di-dalam-aplikasi">Tampilan Aplikasi</a> ·
+    <a href="#apa-yang-dikerjakan-dan-batasannya">Batasan</a> ·
+    <a href="./docs/README.md">Dokumentasi Teknis</a>
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/Standar-WCAG_2.1_Level_AA-1e40af?style=flat-square" alt="Standar WCAG 2.1 Level AA" />
+    <img src="https://img.shields.io/badge/Frontend-Next.js_16-0f172a?style=flat-square" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/Backend-Laravel_11-991b1b?style=flat-square" alt="Laravel 11" />
+    <img src="https://img.shields.io/badge/Engine-Playwright-166534?style=flat-square" alt="Playwright" />
+    <img src="https://img.shields.io/badge/Lisensi-MIT-475569?style=flat-square" alt="Lisensi MIT" />
+  </p>
+</div>
 
 ---
 
-## 📋 Prasyarat Sistem (Prerequisites)
+## Mengapa AksaraNetra Dibuat
 
-Sebelum menjalankan proyek, pastikan perangkat Anda sudah terinstall:
+Banyak situs web layanan publik di Indonesia menyimpan informasi penting, tetapi sulit dipakai oleh penyandang disabilitas dan pembaca layar.
 
-1. **Node.js**: Versi `20.x` atau `22.x+` (rekomendasi `v22+` / `v24+`) & **npm**.
-2. **PHP**: Versi `8.2+` atau `8.3+` dengan ekstensi aktif:
-   - `pdo_sqlite`
-   - `sqlite3`
-   - `mbstring`
-   - `openssl`
-   - `curl`
-3. **Composer**: Versi `2.x+`
-4. *(Opsional)* **Docker & Docker Compose**: Jika ingin menjalankan backend menggunakan container.
+Masalahnya sering terlihat sepele saat dilihat dengan mata biasa:
+
+- Tombol hanya berbentuk gambar ikon tanpa nama teks, sehingga pembaca layar membacakannya sebagai tombol kosong tanpa fungsi.
+- Tulisan berwarna abu-abu tipis di atas latar terang membuat pengguna dengan gangguan penglihatan kesulitan membaca.
+- Menu atau kotak gulir hanya bisa digerakkan dengan mouse, sehingga pengguna yang hanya memakai keyboard terjebak di tengah halaman.
+
+AksaraNetra hadir untuk memeriksa hambatan seperti itu secara terbuka, mencoba perbaikan yang aman pada salinan halaman, lalu menyajikan versi baca satu kolom yang lebih mudah ditelusuri.
 
 ---
 
-## 🚀 Panduan Setup Awal (Installation)
+## Cara Kerja (5 Tahap)
 
-Lakukan langkah instalasi berikut secara berurutan:
+Saat Anda memasukkan alamat situs web di halaman `/periksa`, AksaraNetra menjalankan lima tahap berikut secara berurutan:
 
-### 1. Setup Engine & Browser Chromium
-Audit membutuhkan Chromium headless dari Playwright:
-```bash
-cd engine
-npm install
-npx playwright install chromium
-cd ..
-```
-
-### 2. Setup Backend PHP
-Buka folder `php-backend`, pasang pustaka PHP, siapkan environment, dan jalankan migrasi database SQLite:
-```bash
-cd php-backend
-composer install
-cp .env.example .env
-php artisan migrate
-cd ..
-```
-*(Di Windows PowerShell, jika `cp` tidak tersedia gunakan `copy .env.example .env`)*.
-
-### 3. Setup Frontend Next.js
-Pasang dependensi frontend di root project dan siapkan file konfigurasi `.env.local`:
-```bash
-npm install
-```
-Pastikan file `.env.local` di root proyek memiliki konfigurasi berikut:
-```env
-NEXT_PUBLIC_AUDIT_API_URL=http://localhost:8787
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8787
-```
+| Tahap | Proses yang Terjadi | Penjelasan Singkat |
+| :---: | :--- | :--- |
+| **1** | **Memeriksa izin dan keamanan alamat** | Sistem memastikan halaman terbuka untuk umum dan pemilik situs tidak melarang pemeriksaan otomatis. Halaman pribadi atau yang memakai login ditolak di awal. |
+| **2** | **Membuka halaman dan mencatat hambatan** | AksaraNetra membuka salinan halaman seperti pengunjung biasa, lalu mencari elemen yang menyulitkan (tombol tanpa nama, kontras warna rendah, gambar tanpa teks alternatif, hingga alur fokus keyboard). |
+| **3** | **Menjalankan perbaikan yang aman saja** | Perbaikan hanya dipasang bila petunjuk pada halaman sudah jelas. Jika masih meragukan, sistem tidak menebak dan membiarkannya untuk ditinjau manusia. |
+| **4** | **Menilai ulang sebelum dan sesudah** | Halaman yang sudah ditambal diukur kembali dengan metode yang sama. Jika sebuah perubahan justru memicu masalah baru, perubahan itu dibatalkan. |
+| **5** | **Menyajikan Mode Baca dan laporan** | Isi utama halaman dirapikan menjadi satu kolom dengan urutan judul yang jelas, lengkap dengan tautan balik ke situs aslinya dan berkas laporan siap unduh. |
 
 ---
 
-## 💻 Cara Menjalankan Aplikasi
+## Tampilan di Dalam Aplikasi
 
-AksaraNetra membutuhkan **3 layanan aktif**: Frontend, Backend HTTP API, dan Backend Audit Worker.
+Setiap hasil pemeriksaan dapat dilihat langsung di halaman hasil (`/result`), atau dicoba langsung lewat mode demo bawaan tanpa harus menjalankan server audit.
 
-### Cara 1: Menjalankan di Terminal Lokal (Rekomendasi Dev)
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="./public/preview-ringkasan.png" alt="Ringkasan skor aksesibilitas dan pembagian keparahan pada situs Pemprov Sulsel" />
+      <p align="center"><sub><strong>1. Ringkasan Skor dan Keparahan</strong><br />Menampilkan skor sebelum dan sesudah perbaikan, prinsip POUR, serta pemetaan ke regulasi Indonesia.</sub></p>
+    </td>
+    <td width="33%" valign="top">
+      <img src="./public/preview-perbandingan.png" alt="Grafik perbandingan jumlah hambatan sebelum dan sesudah perbaikan" />
+      <p align="center"><sub><strong>2. Perbandingan Sebelum & Sesudah</strong><br />Memperlihatkan berapa hambatan yang berhasil diperbaiki, dibatalkan, atau masih butuh tinjauan manusia.</sub></p>
+    </td>
+    <td width="33%" valign="top">
+      <img src="./public/preview-pemeriksaan.png" alt="Rincian pemeriksaan ulang per elemen beserta saran perbaikan" />
+      <p align="center"><sub><strong>3. Pemeriksaan Rinci per Elemen</strong><br />Menandai letak masalah di tangkapan layar, alur fokus keyboard, serta potongan kode perbaikan yang bisa disalin.</sub></p>
+    </td>
+  </tr>
+</table>
 
-Buka **3 tab/jendela terminal**:
-
-#### Terminal 1 — Backend HTTP API Server
-```bash
-cd php-backend
-php artisan serve --port=8787
-```
-> API aktif di: `http://127.0.0.1:8787`
-
-#### Terminal 2 — Backend Audit Worker
-```bash
-cd php-backend
-php artisan audit:work
-```
-> **Penting**: Worker ini bertugas mengeksekusi antrean audit dan Playwright browser saat user meminta audit di frontend.
-
-#### Terminal 3 — Frontend Next.js
-```bash
-npm run dev
-```
-> Web UI aktif di: `http://localhost:3000`  
-> Akses halaman audit di: `http://localhost:3000/periksa`
+Selain tiga tampilan di atas, pengguna juga bisa beralih ke **Mode Baca** satu kolom untuk membaca isi halaman tanpa gangguan elemen yang tumpang tindih, atau mengunduh hasil audit dalam format HTML, PDF, CSV, dan JSON.
 
 ---
 
-### Cara 2: Menjalankan Backend via Docker
+## Apa yang Dikerjakan dan Batasannya
 
-Jika Anda memiliki Docker Desktop, backend API dan worker dapat dijalankan bersamaan dengan satu perintah:
+AksaraNetra menyatakan batasannya secara terbuka agar hasil pemeriksaan tidak ditafsirkan melebihi apa yang benar-benar diuji.
 
-```bash
-cd php-backend
-docker compose up --build -d
-```
-Lalu jalankan frontend di terminal lain:
-```bash
-npm run dev
-```
-
-Untuk menghentikan container Docker:
-```bash
-cd php-backend
-docker compose down
-```
+| Yang Dikerjakan | Yang Tidak Dilakukan |
+| :--- | :--- |
+| Memberi nama pada tombol dan tautan bila petunjuk konteksnya cukup jelas. | Tidak mengubah, merusak, atau mewakili website aslinya. Semua proses berjalan di salinan halaman. |
+| Membuka jalur navigasi keyboard pada bagian halaman yang bisa digulir. | Tidak memeriksa halaman yang membutuhkan login, akun, pembayaran, atau data pribadi. |
+| Menyusun ulang isi halaman ke Mode Baca satu kolom dengan kontras warna yang lebih jelas. | Tidak mengarang keterangan gambar (teks alternatif) bila sumber halamannya tidak menyediakan petunjuk. |
+| Memverifikasi setiap perbaikan dan membatalkan perubahan jika muncul masalah baru. | Tidak menggantikan pengujian manusia. Pemeriksaan otomatis hanya mencakup sekitar 30 sampai 40 persen kriteria WCAG; uji langsung dengan pembaca layar seperti NVDA tetap dibutuhkan. |
 
 ---
 
-## 🔍 Memastikan Backend Berjalan Normal
+## Standar dan Regulasi Acuan
 
-Uji koneksi backend dengan memanggil endpoint health check:
+<details>
+<summary>Klik untuk melihat standar internasional dan regulasi Indonesia yang dipetakan di laporan</summary>
 
-```bash
-# Menggunakan curl di terminal
-curl http://localhost:8787/health
-```
-Atau buka `http://localhost:8787/health` di browser. Respons yang diharapkan:
-```json
-{
-  "status": "ok"
-}
-```
+1. **WCAG 2.1 Level A dan AA** serta adopsi nasionalnya **SNI ISO/IEC 40500** (prinsip *Perceivable, Operable, Understandable, Robust*).
+2. **UU No. 8 Tahun 2016** tentang Penyandang Disabilitas (Pasal 19, Pasal 24, dan Pasal 105).
+3. **PP No. 42 Tahun 2020** tentang Aksesibilitas terhadap Permukiman, Pelayanan Publik, dan Pelindungan dari Bencana bagi Penyandang Disabilitas (Pasal 17 dan 18).
+4. **PermenPANRB No. 11 Tahun 2024** tentang Penyelenggaraan Pelayanan Publik Ramah Kelompok Rentan.
+5. **Perpres No. 95 Tahun 2018** tentang Sistem Pemerintahan Berbasis Elektronik (SPBE).
+6. **UU No. 14 Tahun 2008** tentang Keterbukaan Informasi Publik (KIP) dan **PerKI No. 1 Tahun 2021** tentang Standar Layanan Informasi Publik.
 
----
-
-## ⚙️ Variabel Lingkungan (Environment Variables)
-
-### Frontend (`.env.local` di root)
-| Variabel | Default | Keterangan |
-|---|---|---|
-| `NEXT_PUBLIC_AUDIT_API_URL` | `http://localhost:8787` | URL endpoint backend PHP yang dipanggil browser |
-| `NEXT_PUBLIC_BACKEND_URL` | `http://localhost:8787` | URL backend fallback untuk kompatibilitas tautan |
-
-### Backend (`php-backend/.env`)
-| Variabel | Default | Keterangan |
-|---|---|---|
-| `PORT` | `8787` | Port server HTTP backend |
-| `FRONTEND_ORIGINS` | `http://localhost:3000` | Domain asal yang diizinkan CORS |
-| `BACKEND_SECRET` | *(string rahasia)* | Kunci HMAC SHA-256 untuk token audit |
-| `BACKEND_DATA_DIR` | `./data` | Lokasi database SQLite & artefak hasil audit |
-| `AUDIT_RATE_LIMIT` | `10` | Batas maksimum audit per IP per jam |
-| `AUDIT_TIMEOUT_MS` | `180000` | Batas waktu eksekusi Playwright (3 menit) |
-| `CHROMIUM_LOW_RESOURCE_MODE` | `0` | Nilai `1` untuk hemat RAM (mematikan GPU overhead) |
+</details>
 
 ---
 
-## 🧪 Pengujian & Quality Checks
+## Untuk Pengembang
 
-Untuk memverifikasi keutuhan kode dan fungsionalitas sistem:
+Ingin memasang AksaraNetra di komputer lokal, menjalankan test suite, atau melihat arsitektur teknis Next.js, Laravel, dan Playwright?
 
-```bash
-# 1. Jalankan unit & feature test Backend PHP (49 tests, 100% passing)
-cd php-backend
-php vendor/bin/phpunit
-cd ..
+Baca panduan lengkapnya di [Dokumentasi Teknis (`docs/README.md`)](./docs/README.md).
 
-# 2. Uji alur end-to-end frontend ke backend PHP
-node php-backend/scripts/test-frontend-flow.mjs
-
-# 3. Uji paritas 42 skenario backend Node vs PHP
-node php-backend/scripts/parity-check.mjs
-
-# 4. Uji kontrak frontend
-npm run test:frontend
-```
-
----
-
-## 📁 Struktur Direktori Utama
-
-```text
-├── src/                  # Kode sumber Frontend Next.js 16 (App Router, UI komponen)
-├── php-backend/          # Backend Laravel 11 API-only
-│   ├── app/              # Controller, Middleware CORS, Services, Artisan Commands
-│   ├── bridge/           # Node CLI bridge penghubung PHP ke Engine Playwright
-│   ├── docker/           # Konfigurasi Nginx, PHP-FPM, Dockerfile, Supervisord
-│   ├── routes/api.php    # Rute endpoint RESTful API
-│   └── tests/            # Test suite PHPUnit
-├── engine/               # Playwright Chromium headless & logic audit aksesibilitas
-├── public/               # Asset statis frontend & sample data audit
-├── tests/                # Contract tests frontend
-├── .env.local            # Konfigurasi environment frontend
-└── README.md             # Dokumentasi utama proyek
-```
-
----
-
-## 💡 Masalah Umum (Troubleshooting)
-
-1. **Chromium Executable Not Found**  
-   *Penyebab:* Browser Chromium Playwright belum terpasang.  
-   *Solusi:* Jalankan `cd engine && npx playwright install chromium`.
-
-2. **Audit Berstatus "Sedang Mengantre" Terus Menerus**  
-   *Penyebab:* Worker belum dinyalakan.  
-   *Solusi:* Pastikan `php artisan audit:work` berjalan di terminal terpisah.
-
-3. **CORS Blocked saat Frontend Request ke Backend**  
-   *Penyebab:* URL frontend berbeda dengan `FRONTEND_ORIGINS`.  
-   *Solusi:* Periksa file `php-backend/.env` dan pastikan `FRONTEND_ORIGINS=http://localhost:3000` (atau tambahkan domain Anda dipisahkan koma).
-
----
-
-## 📄 Lisensi
-
-Proyek ini dilindungi lisensi MIT. Silakan lihat berkas [LICENSE](./LICENSE) untuk informasi lebih lanjut.
+Proyek ini dirilis dengan [Lisensi MIT](./LICENSE).
